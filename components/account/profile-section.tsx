@@ -7,8 +7,18 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Upload, Check, X, Loader2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Upload, Check, X, Loader2, User, Mail, Plus, Shield, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 
 export function ProfileSection() {
   const { user } = useUser()
@@ -16,6 +26,12 @@ export function ProfileSection() {
   const [isLoading, setIsLoading] = useState(false)
   const [firstName, setFirstName] = useState(user?.firstName || '')
   const [lastName, setLastName] = useState(user?.lastName || '')
+
+  // Email management state
+  const [newEmail, setNewEmail] = useState('')
+  const [isAddingEmail, setIsAddingEmail] = useState(false)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [loadingAction, setLoadingAction] = useState<string | null>(null)
 
   const handleSave = async () => {
     if (!user) return
@@ -59,6 +75,72 @@ export function ProfileSection() {
     }
   }
 
+  // Email management functions
+  const handleAddEmail = async () => {
+    if (!user || !newEmail.trim()) return
+
+    setIsAddingEmail(true)
+    try {
+      await user.createEmailAddress({ email: newEmail.trim() })
+      toast.success('Email address added successfully! Please check your inbox to verify it.')
+      setNewEmail('')
+      setIsDialogOpen(false)
+    } catch (error: any) {
+      console.error('Add email error:', error)
+      toast.error(error.errors?.[0]?.message || 'Failed to add email address. Please try again.')
+    } finally {
+      setIsAddingEmail(false)
+    }
+  }
+
+  const handleVerifyEmail = async (emailId: string) => {
+    const emailAddress = user?.emailAddresses.find(email => email.id === emailId)
+    if (!emailAddress) return
+
+    setLoadingAction(`verify-${emailId}`)
+    try {
+      await emailAddress.prepareVerification({ strategy: 'email_code' })
+      toast.success('Verification email sent! Please check your inbox.')
+    } catch (error: any) {
+      console.error('Verify email error:', error)
+      toast.error(error.errors?.[0]?.message || 'Failed to send verification email.')
+    } finally {
+      setLoadingAction(null)
+    }
+  }
+
+  const handleSetPrimary = async (emailId: string) => {
+    const emailAddress = user?.emailAddresses.find(email => email.id === emailId)
+    if (!emailAddress || !user) return
+
+    setLoadingAction(`primary-${emailId}`)
+    try {
+      await user.update({ primaryEmailAddressId: emailId })
+      toast.success('Primary email address updated successfully!')
+    } catch (error: any) {
+      console.error('Set primary email error:', error)
+      toast.error(error.errors?.[0]?.message || 'Failed to set primary email address.')
+    } finally {
+      setLoadingAction(null)
+    }
+  }
+
+  const handleDeleteEmail = async (emailId: string) => {
+    const emailAddress = user?.emailAddresses.find(email => email.id === emailId)
+    if (!emailAddress || emailAddress.id === user?.primaryEmailAddress?.id) return
+
+    setLoadingAction(`delete-${emailId}`)
+    try {
+      await emailAddress.destroy()
+      toast.success('Email address removed successfully!')
+    } catch (error: any) {
+      console.error('Delete email error:', error)
+      toast.error(error.errors?.[0]?.message || 'Failed to remove email address.')
+    } finally {
+      setLoadingAction(null)
+    }
+  }
+
   const displayName = user?.firstName && user?.lastName
     ? `${user.firstName} ${user.lastName}`
     : user?.firstName || user?.username || 'User'
@@ -80,44 +162,48 @@ export function ProfileSection() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Profile</CardTitle>
-        <CardDescription>
-          Manage your profile information and profile picture
+    <Card className="p-3">
+      <CardHeader className="space-y-1 p-0 pb-3">
+        <div className="flex items-center gap-2">
+          <User className="h-4 w-4" />
+          <CardTitle className="text-xl font-semibold">Profile & Email</CardTitle>
+        </div>
+        <CardDescription className="text-sm">
+          Manage your profile information, picture, and email addresses
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-3 p-0">
         {/* Profile Picture Section */}
-        <div className="flex items-center space-x-6">
-          <div className="relative">
-            <Avatar className="h-20 w-20">
+        <div className="flex items-start space-x-3">
+          <div className="relative flex-shrink-0">
+            <Avatar className="h-14 w-14">
               <AvatarImage src={user.imageUrl} alt={displayName} />
-              <AvatarFallback className="text-lg font-medium">
+              <AvatarFallback className="text-sm font-medium">
                 {initials}
               </AvatarFallback>
             </Avatar>
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-full">
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <Loader2 className="h-3 w-3 animate-spin" />
               </div>
             )}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1 flex-grow">
             <h3 className="text-sm font-medium">Profile Picture</h3>
-            <p className="text-sm text-muted-foreground">
-              Recommended size: 1:1, up to 10MB
+            <p className="text-xs text-muted-foreground leading-tight">
+              Recommended: Square format, up to 10MB
             </p>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 pt-1">
               <Button
                 variant="outline"
                 size="sm"
                 disabled={isLoading}
                 asChild
+                className="min-h-[32px] h-8 text-xs"
               >
                 <label htmlFor="profile-image" className="cursor-pointer">
-                  <Upload className="h-4 w-4 mr-2" />
+                  <Upload className="h-3 w-3 mr-1" />
                   Upload
                   <input
                     id="profile-image"
@@ -134,6 +220,7 @@ export function ProfileSection() {
                   size="sm"
                   disabled={isLoading}
                   onClick={() => user.setProfileImage({ file: null })}
+                  className="min-h-[32px] h-8 text-xs"
                 >
                   Remove
                 </Button>
@@ -143,7 +230,7 @@ export function ProfileSection() {
         </div>
 
         {/* Name Section */}
-        <div className="space-y-4">
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium">Personal Information</h3>
             {!isEditing && (
@@ -151,41 +238,50 @@ export function ProfileSection() {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsEditing(true)}
+                className="min-h-[32px] h-8 text-xs"
               >
                 Edit
               </Button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="firstName" className="text-xs text-muted-foreground font-medium">
+                First Name
+              </Label>
               {isEditing ? (
                 <Input
                   id="firstName"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   disabled={isLoading}
+                  className="h-9 text-sm"
+                  placeholder="Enter first name"
                 />
               ) : (
-                <div className="h-9 px-3 py-1 border border-input rounded-md bg-muted flex items-center">
-                  {user.firstName || 'Not set'}
+                <div className="h-9 px-3 py-2 border border-input rounded-md bg-muted/50 flex items-center text-sm">
+                  {user.firstName || <span className="text-muted-foreground">Not set</span>}
                 </div>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
+            <div className="space-y-1">
+              <Label htmlFor="lastName" className="text-xs text-muted-foreground font-medium">
+                Last Name
+              </Label>
               {isEditing ? (
                 <Input
                   id="lastName"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   disabled={isLoading}
+                  className="h-9 text-sm"
+                  placeholder="Enter last name"
                 />
               ) : (
-                <div className="h-9 px-3 py-1 border border-input rounded-md bg-muted flex items-center">
-                  {user.lastName || 'Not set'}
+                <div className="h-9 px-3 py-2 border border-input rounded-md bg-muted/50 flex items-center text-sm">
+                  {user.lastName || <span className="text-muted-foreground">Not set</span>}
                 </div>
               )}
             </div>
@@ -197,15 +293,16 @@ export function ProfileSection() {
                 onClick={handleSave}
                 disabled={isLoading}
                 size="sm"
+                className="min-h-[36px] h-9 text-sm"
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="h-3 w-3 mr-2 animate-spin" />
                     Saving...
                   </>
                 ) : (
                   <>
-                    <Check className="h-4 w-4 mr-2" />
+                    <Check className="h-3 w-3 mr-2" />
                     Save Changes
                   </>
                 )}
@@ -215,22 +312,177 @@ export function ProfileSection() {
                 onClick={handleCancel}
                 disabled={isLoading}
                 size="sm"
+                className="min-h-[36px] h-9 text-sm"
               >
-                <X className="h-4 w-4 mr-2" />
+                <X className="h-3 w-3 mr-2" />
                 Cancel
               </Button>
             </div>
           )}
         </div>
 
-        {/* Email Section (Read-only for now, will add management in next component) */}
-        <div className="space-y-2">
-          <Label>Email Address</Label>
-          <div className="h-9 px-3 py-1 border border-input rounded-md bg-muted flex items-center justify-between">
-            <span>{user.primaryEmailAddress?.emailAddress}</span>
-            <span className="text-xs text-muted-foreground">
-              {user.primaryEmailAddress?.verification?.status === 'verified' ? '✓ Verified' : '⚠ Unverified'}
-            </span>
+        <Separator />
+
+        {/* Email Management Section */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              <h3 className="text-xl font-semibold">Email Addresses</h3>
+            </div>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="min-h-[44px]">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Email
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Email Address</DialogTitle>
+                  <DialogDescription>
+                    Add a new email address to your account. You'll need to verify it before you can use it.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="new-email">Email Address</Label>
+                    <Input
+                      id="new-email"
+                      type="email"
+                      placeholder="Enter email address"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      disabled={isAddingEmail}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      onClick={handleAddEmail}
+                      disabled={isAddingEmail || !newEmail.trim()}
+                      className="flex-1"
+                    >
+                      {isAddingEmail ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Adding...
+                        </>
+                      ) : (
+                        'Add Email'
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsDialogOpen(false)
+                        setNewEmail('')
+                      }}
+                      disabled={isAddingEmail}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            Manage your email addresses and verification status
+          </p>
+
+          <div className="space-y-3">
+            {user.emailAddresses.map((emailAddress) => (
+              <div
+                key={emailAddress.id}
+                className="flex items-center justify-between p-3 border rounded-md bg-muted/30"
+              >
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center space-x-1.5 flex-wrap">
+                    <span className="font-medium text-sm">{emailAddress.emailAddress}</span>
+                    {emailAddress.id === user.primaryEmailAddress?.id && (
+                      <Badge variant="default" className="text-xs px-1.5 py-0">
+                        <Shield className="h-2 w-2 mr-0.5" />
+                        Primary
+                      </Badge>
+                    )}
+                    <Badge
+                      variant={
+                        emailAddress.verification?.status === 'verified'
+                          ? 'default'
+                          : 'outline'
+                      }
+                      className="text-xs px-1.5 py-0"
+                    >
+                      {emailAddress.verification?.status === 'verified' ? '✓ Verified' : 'Pending Verification'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-tight">
+                    {emailAddress.verification?.status === 'verified'
+                      ? 'Verified and ready for notifications'
+                      : 'Click verify to confirm ownership'}
+                  </p>
+                </div>
+
+                <div className="flex items-center space-x-1.5 flex-shrink-0">
+                  {emailAddress.verification?.status !== 'verified' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleVerifyEmail(emailAddress.id)}
+                      disabled={loadingAction === `verify-${emailAddress.id}`}
+                      className="min-h-[44px]"
+                    >
+                      {loadingAction === `verify-${emailAddress.id}` ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        'Verify'
+                      )}
+                    </Button>
+                  )}
+
+                  {emailAddress.id !== user.primaryEmailAddress?.id &&
+                    emailAddress.verification?.status === 'verified' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSetPrimary(emailAddress.id)}
+                      disabled={loadingAction === `primary-${emailAddress.id}`}
+                      className="min-h-[44px]"
+                    >
+                      {loadingAction === `primary-${emailAddress.id}` ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        'Set Primary'
+                      )}
+                    </Button>
+                  )}
+
+                  {emailAddress.id !== user.primaryEmailAddress?.id && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteEmail(emailAddress.id)}
+                      disabled={loadingAction === `delete-${emailAddress.id}`}
+                      className="min-h-[44px]"
+                    >
+                      {loadingAction === `delete-${emailAddress.id}` ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3 w-3" />
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {user.emailAddresses.length === 0 && (
+              <div className="text-center py-6 text-muted-foreground">
+                <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No email addresses added yet.</p>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>

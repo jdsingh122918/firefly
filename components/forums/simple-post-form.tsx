@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Loader2, MessageSquare, AlertCircle } from "lucide-react"
+import { Loader2, MessageSquare, AlertCircle, Paperclip, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -33,13 +33,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { DocumentBrowser } from "@/components/notes/document-browser"
+import { ForumTagSelector } from "@/components/forums/forum-tag-selector"
 import { toast } from "sonner"
 
 const postFormSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title is too long"),
   content: z.string().min(1, "Content is required").max(10000, "Content is too long"),
   type: z.enum(["DISCUSSION", "QUESTION", "ANNOUNCEMENT", "RESOURCE"], "Please select a post type"),
-  tags: z.string().optional()
+  tags: z.array(z.string()).optional()
 })
 
 type PostFormData = z.infer<typeof postFormSchema>
@@ -75,6 +77,9 @@ export function SimplePostForm({
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([])
+  const [selectedDocuments, setSelectedDocuments] = useState<any[]>([])
+  const [browserOpen, setBrowserOpen] = useState(false)
 
   const form = useForm<PostFormData>({
     resolver: zodResolver(postFormSchema),
@@ -82,11 +87,24 @@ export function SimplePostForm({
       title: "",
       content: "",
       type: "DISCUSSION",
-      tags: ""
+      tags: []
     }
   })
 
   const { isSubmitting } = form.formState
+
+  // Handle document selection
+  const handleDocumentSelect = (documents: any[]) => {
+    setSelectedDocuments(documents)
+    setSelectedDocumentIds(documents.map(doc => doc.id))
+    setBrowserOpen(false)
+  }
+
+  // Remove selected document
+  const removeDocument = (documentId: string) => {
+    setSelectedDocuments(prev => prev.filter(doc => doc.id !== documentId))
+    setSelectedDocumentIds(prev => prev.filter(id => id !== documentId))
+  }
 
   const onSubmit = async (data: PostFormData) => {
     setError(null)
@@ -94,10 +112,8 @@ export function SimplePostForm({
     try {
       const token = await getToken()
 
-      // Process tags
-      const tagsArray = data.tags
-        ? data.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
-        : []
+      // Process tags (already an array)
+      const tagsArray = data.tags || []
 
       const response = await fetch('/api/posts', {
         method: 'POST',
@@ -110,7 +126,8 @@ export function SimplePostForm({
           content: data.content,
           type: data.type,
           forumId: forumId,
-          tags: tagsArray
+          tags: tagsArray,
+          documentIds: selectedDocumentIds
         })
       })
 
@@ -123,6 +140,8 @@ export function SimplePostForm({
 
       toast.success('Post created successfully!')
       form.reset()
+      setSelectedDocuments([])
+      setSelectedDocumentIds([])
       setOpen(false)
 
       // Navigate to the new post or refresh the forum
@@ -242,18 +261,64 @@ export function SimplePostForm({
                 <FormItem>
                   <FormLabel>Tags (Optional)</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="tag1, tag2, tag3"
-                      {...field}
+                    <ForumTagSelector
+                      value={field.value || []}
+                      onChange={field.onChange}
+                      placeholder="Add tags to categorize your post..."
+                      disabled={isSubmitting}
                     />
                   </FormControl>
-                  <p className="text-xs text-muted-foreground">
-                    Separate multiple tags with commas
-                  </p>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {/* Document Attachments */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Attachments (Optional)</label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBrowserOpen(true)}
+                  className="h-8"
+                >
+                  <Paperclip className="mr-1 h-3 w-3" />
+                  Add Documents
+                </Button>
+              </div>
+
+              {selectedDocuments.length > 0 && (
+                <div className="space-y-2">
+                  {selectedDocuments.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-2 bg-muted rounded-md text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Paperclip className="h-3 w-3" />
+                        <span className="font-medium">{doc.title}</span>
+                        {doc.size && (
+                          <span className="text-muted-foreground">
+                            ({Math.round(doc.size / 1024)}KB)
+                          </span>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeDocument(doc.id)}
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div className="flex justify-end space-x-4">
               <Button
@@ -271,6 +336,16 @@ export function SimplePostForm({
             </div>
           </form>
         </Form>
+
+        {/* Document Browser */}
+        <DocumentBrowser
+          open={browserOpen}
+          onOpenChange={setBrowserOpen}
+          onSelect={handleDocumentSelect}
+          selectedDocuments={selectedDocumentIds}
+          multiSelect={true}
+          title="Select Documents to Attach"
+        />
       </DialogContent>
     </Dialog>
   )

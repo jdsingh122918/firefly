@@ -25,6 +25,8 @@ export interface StorageConfig {
 export class FileStorageService {
   private config: StorageConfig;
 
+  private isInitialized = false;
+
   constructor(config?: Partial<StorageConfig>) {
     this.config = {
       uploadDir: process.env.UPLOAD_DIR || "./uploads",
@@ -55,14 +57,14 @@ export class FileStorageService {
       publicUrl: process.env.PUBLIC_URL || "http://localhost:3000",
       ...config,
     };
-
-    // Ensure upload directory exists
-    this.initializeUploadDirectory();
   }
 
   private async initializeUploadDirectory(): Promise<void> {
     try {
+      console.log("📁 Initializing upload directory:", this.config.uploadDir);
+
       if (!existsSync(this.config.uploadDir)) {
+        console.log("📁 Creating main upload directory...");
         await mkdir(this.config.uploadDir, { recursive: true });
         console.log("✅ Created upload directory:", this.config.uploadDir);
       }
@@ -72,11 +74,21 @@ export class FileStorageService {
       for (const subdir of subdirs) {
         const subdirPath = path.join(this.config.uploadDir, subdir);
         if (!existsSync(subdirPath)) {
+          console.log(`📁 Creating subdirectory: ${subdirPath}`);
           await mkdir(subdirPath, { recursive: true });
+          console.log(`✅ Created subdirectory: ${subdirPath}`);
+        } else {
+          console.log(`✅ Subdirectory exists: ${subdirPath}`);
         }
       }
+
+      console.log("✅ Upload directory initialization complete");
     } catch (error) {
-      console.error("❌ Failed to initialize upload directory:", error);
+      console.error("❌ Failed to initialize upload directory:", {
+        uploadDir: this.config.uploadDir,
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       throw error;
     }
   }
@@ -143,9 +155,24 @@ export class FileStorageService {
     },
   ): Promise<FileUploadResult> {
     try {
+      // Ensure upload directory is initialized
+      if (!this.isInitialized) {
+        await this.initializeUploadDirectory();
+        this.isInitialized = true;
+      }
+
+      console.log("📁 Starting file upload:", {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        category: options?.category,
+        userId: options?.userId,
+      });
+
       // Validate file
       const validation = this.validateFile(file);
       if (!validation.isValid) {
+        console.error("❌ File validation failed:", validation.error);
         return {
           success: false,
           error: validation.error,
@@ -159,12 +186,33 @@ export class FileStorageService {
       const filePath = path.join(this.config.uploadDir, category, fileName);
       const fileId = path.basename(fileName, path.extname(fileName));
 
+      console.log("📁 File paths generated:", {
+        category,
+        fileName,
+        filePath,
+        fileId,
+        uploadDir: this.config.uploadDir,
+      });
+
       // Convert File to Buffer
+      console.log("📁 Converting file to buffer...");
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
+      console.log("✅ File converted to buffer, size:", buffer.length);
+
+      // Ensure directory exists before writing file
+      const fileDir = path.dirname(filePath);
+      console.log("📁 Ensuring directory exists:", fileDir);
+      if (!existsSync(fileDir)) {
+        console.log("📁 Directory doesn't exist, creating:", fileDir);
+        await mkdir(fileDir, { recursive: true });
+        console.log("✅ Directory created:", fileDir);
+      }
 
       // Write file to disk
+      console.log("📁 Writing file to disk:", filePath);
       await writeFile(filePath, buffer);
+      console.log("✅ File written to disk successfully");
 
       console.log("✅ File uploaded:", {
         fileId,
@@ -173,6 +221,7 @@ export class FileStorageService {
         size: file.size,
         mimeType: file.type,
         category,
+        filePath,
       });
 
       return {
@@ -185,7 +234,12 @@ export class FileStorageService {
         url: `${this.config.publicUrl}/api/files/${category}/${fileName}`,
       };
     } catch (error) {
-      console.error("❌ File upload error:", error);
+      console.error("❌ File upload error:", {
+        fileName: file.name,
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        uploadDir: this.config.uploadDir,
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown upload error",

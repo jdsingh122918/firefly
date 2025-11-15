@@ -117,14 +117,36 @@ export async function GET(request: NextRequest) {
       filters
     });
 
-    // Format response
+    // Format response to match DocumentBrowser expectations
     const formattedDocuments = result.items.map(document => ({
       id: document.id,
       title: document.title,
+      filename: document.fileName,
       description: document.description,
-      fileName: document.fileName,
+      contentType: document.mimeType,
+      size: document.fileSize,
+      url: document.filePath,
+      thumbnailUrl: document.thumbnailPath,
+      createdAt: document.createdAt.toISOString(),
+      updatedAt: document.updatedAt.toISOString(),
+      creator: document.uploadedByUser ? {
+        id: document.uploadedByUser.id,
+        firstName: document.uploadedByUser.firstName,
+        lastName: document.uploadedByUser.lastName,
+        email: document.uploadedByUser.email,
+        imageUrl: undefined, // Not available in Document model
+      } : {
+        id: '',
+        firstName: undefined,
+        lastName: undefined,
+        email: 'Unknown',
+        imageUrl: undefined,
+      },
+      tags: document.tags || [],
+      category: document.family?.name || undefined,
+      isPublic: true, // For now, treat all documents as accessible for library browsing
+      // Keep original fields for backward compatibility
       originalFileName: document.originalFileName,
-      fileSize: document.fileSize,
       mimeType: document.mimeType,
       type: document.type,
       status: document.status,
@@ -138,17 +160,7 @@ export async function GET(request: NextRequest) {
         id: document.family.id,
         name: document.family.name,
       } : null,
-      tags: document.tags,
       metadata: document.metadata,
-      createdAt: document.createdAt,
-      updatedAt: document.updatedAt,
-      uploader: document.uploadedByUser ? {
-        id: document.uploadedByUser.id,
-        name: document.uploadedByUser.firstName
-          ? `${document.uploadedByUser.firstName} ${document.uploadedByUser.lastName || ""}`.trim()
-          : document.uploadedByUser.email,
-        email: document.uploadedByUser.email,
-      } : null,
     }));
 
     return NextResponse.json({

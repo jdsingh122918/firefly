@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FamilyCombobox } from "@/components/ui/family-combobox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,11 +61,6 @@ const userFormSchema = z.object({
 
 type UserFormData = z.infer<typeof userFormSchema>;
 
-interface Family {
-  id: string;
-  name: string;
-}
-
 interface UserFormProps {
   mode: "create" | "edit";
   initialData?: {
@@ -83,8 +79,6 @@ export function UserForm({ mode, initialData, onSuccess }: UserFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [families, setFamilies] = useState<Family[]>([]);
-  const [loadingFamilies, setLoadingFamilies] = useState(true);
 
   const form = useForm<UserFormData>({
     resolver: zodResolver(userFormSchema),
@@ -98,24 +92,6 @@ export function UserForm({ mode, initialData, onSuccess }: UserFormProps) {
     },
   });
 
-  // Fetch available families
-  useEffect(() => {
-    const fetchFamilies = async () => {
-      try {
-        const response = await fetch("/api/families");
-        if (response.ok) {
-          const data = await response.json();
-          setFamilies(data.families || []);
-        }
-      } catch (err) {
-        console.error("Error fetching families:", err);
-      } finally {
-        setLoadingFamilies(false);
-      }
-    };
-
-    fetchFamilies();
-  }, []);
 
   const onSubmit = async (data: UserFormData) => {
     try {
@@ -228,13 +204,13 @@ export function UserForm({ mode, initialData, onSuccess }: UserFormProps) {
   const selectedRole = form.watch("role");
 
   return (
-    <Card className="max-w-2xl">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
+    <Card className="max-w-xl">
+      <CardHeader className="space-y-2">
+        <CardTitle className="flex items-center gap-2">
           {mode === "create" ? (
-            <User className="h-5 w-5" />
+            <User className="h-4 w-4" />
           ) : (
-            <UserCheck className="h-5 w-5" />
+            <UserCheck className="h-4 w-4" />
           )}
           <span>{mode === "create" ? "Create New User" : "Edit User"}</span>
         </CardTitle>
@@ -244,9 +220,9 @@ export function UserForm({ mode, initialData, onSuccess }: UserFormProps) {
             : "Update user information and settings."}
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-3">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
             {/* Email */}
             <FormField
               control={form.control}
@@ -276,7 +252,7 @@ export function UserForm({ mode, initialData, onSuccess }: UserFormProps) {
             />
 
             {/* Name Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <FormField
                 control={form.control}
                 name="firstName"
@@ -343,38 +319,13 @@ export function UserForm({ mode, initialData, onSuccess }: UserFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Family Assignment</FormLabel>
-                  <Select
-                    onValueChange={(value) => {
-                      // Convert "none" to undefined for form submission
-                      field.onChange(value === "none" ? undefined : value);
-                    }}
-                    defaultValue={field.value || "none"}
-                    value={field.value || "none"}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a family (optional)" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">No family assigned</SelectItem>
-                      {loadingFamilies ? (
-                        <SelectItem value="loading" disabled>
-                          Loading families...
-                        </SelectItem>
-                      ) : families.length === 0 ? (
-                        <SelectItem value="empty" disabled>
-                          No families available
-                        </SelectItem>
-                      ) : (
-                        families.map((family) => (
-                          <SelectItem key={family.id} value={family.id}>
-                            {family.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <FamilyCombobox
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Search families..."
+                    />
+                  </FormControl>
                   <FormDescription>
                     Assign the user to a family group. This can be changed
                     later.
@@ -404,13 +355,13 @@ export function UserForm({ mode, initialData, onSuccess }: UserFormProps) {
 
             {/* Error Message */}
             {error && (
-              <div className="rounded-md bg-red-50 p-4 border border-red-200">
+              <div className="rounded-md bg-red-50 p-3 border border-red-200">
                 <div className="text-sm text-red-800">{error}</div>
               </div>
             )}
 
             {/* Action Buttons */}
-            <div className="flex justify-end space-x-4">
+            <div className="flex justify-end gap-3">
               <Button
                 type="button"
                 variant="outline"
@@ -429,11 +380,11 @@ export function UserForm({ mode, initialData, onSuccess }: UserFormProps) {
 
             {/* Additional info for create mode */}
             {mode === "create" && (
-              <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
+              <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
                 <div className="text-sm text-blue-800">
                   <Users className="inline h-4 w-4 mr-2" />
                   <strong>What happens next:</strong>
-                  <ol className="list-decimal list-inside mt-2 space-y-1 ml-6">
+                  <ol className="list-decimal list-inside mt-1 space-y-0.5 ml-6">
                     <li>User account will be created in the system</li>
                     <li>
                       User will receive a welcome email when they first sign in

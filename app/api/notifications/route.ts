@@ -35,10 +35,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user from database
+    // Get user from database with graceful handling for unsynced users
     const user = await userRepository.getUserByClerkId(userId);
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      // User not yet synced to database - return empty notifications instead of 404
+      console.log("🔔 User not synced yet, returning empty notifications:", userId);
+      return NextResponse.json({
+        success: true,
+        data: {
+          items: [],
+          total: 0,
+          unreadCount: 0,
+          page: 1,
+          limit: 20,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+      });
     }
 
     console.log("🔔 GET /api/notifications - User:", {

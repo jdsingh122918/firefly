@@ -11,13 +11,13 @@ import {
   Pin,
   Lock,
   Tag,
-  ArrowRight
+  ArrowRight,
+  Paperclip
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { VoteButtons } from "./vote-buttons"
 
 interface Post {
   id: string
@@ -34,6 +34,12 @@ interface Post {
   downvoteCount: number
   userVote?: "UPVOTE" | "DOWNVOTE" | null
   tags?: string[]
+  documents?: Array<{
+    id: string
+    title: string
+    fileSize?: number
+    mimeType?: string
+  }>
   createdAt: string
   lastReplyAt?: string
   author: {
@@ -134,22 +140,12 @@ export function PostCard({
       )}
       onClick={handleClick}
     >
-      <CardContent className="p-4">
-        <div className="flex gap-3">
-          {/* Vote buttons - hidden on mobile, shown on tablet+ */}
-          <div className="hidden md:block flex-shrink-0">
-            <VoteButtons
-              itemId={post.id}
-              itemType="post"
-              initialScore={post.score}
-              initialUserVote={post.userVote}
-            />
-          </div>
-
+      <CardContent className="p-3">
+        <div className="flex gap-2">
           {/* Content */}
           <div className="flex-1 min-w-0">
             {/* Header with badges */}
-            <div className="flex flex-wrap items-center gap-2 mb-2">
+            <div className="flex flex-wrap items-center gap-1 mb-1">
               {post.isPinned && (
                 <Badge variant="secondary" className="flex items-center gap-1">
                   <Pin className="h-3 w-3" />
@@ -200,7 +196,7 @@ export function PostCard({
             )}
 
             {/* Author and stats */}
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Avatar className="h-6 w-6">
                   <AvatarImage src={post.author.imageUrl} />
@@ -228,15 +224,12 @@ export function PostCard({
                 <span>{post.viewCount} views</span>
               </div>
 
-              {/* Mobile vote score */}
-              <div className="flex md:hidden items-center gap-1 font-medium">
-                <span className={cn(
-                  post.score > 0 && "text-green-600",
-                  post.score < 0 && "text-red-600"
-                )}>
-                  {post.score} points
-                </span>
-              </div>
+              {post.documents && post.documents.length > 0 && (
+                <div className="flex items-center gap-1">
+                  <Paperclip className="h-3 w-3" />
+                  <span>{post.documents.length} file{post.documents.length !== 1 ? 's' : ''}</span>
+                </div>
+              )}
             </div>
 
             {/* Last reply info */}

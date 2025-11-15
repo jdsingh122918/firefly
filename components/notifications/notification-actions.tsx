@@ -21,6 +21,7 @@ import { Notification, NotificationType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/hooks/use-notifications";
+import { useUser, useAuth } from "@clerk/nextjs";
 
 export interface NotificationAction {
   id: string;
@@ -52,6 +53,13 @@ export function NotificationActions({
 }: NotificationActionsProps) {
   const { markAsRead } = useNotifications();
   const router = useRouter();
+  const { sessionClaims } = useAuth();
+
+  // Get user role from session metadata
+  const getUserRole = () => {
+    const metadata = sessionClaims?.metadata as { role?: string } | undefined;
+    return metadata?.role?.toLowerCase() || 'member';
+  };
 
   const handleAction = async (action: NotificationAction) => {
     try {
@@ -88,11 +96,13 @@ export function NotificationActions({
         case "reply":
           const messageData = notification.data as any;
           if (messageData?.conversationId) {
-            router.push(`/messages/${messageData.conversationId}`);
+            const role = getUserRole();
+            router.push(`/${role}/chat/${messageData.conversationId}`);
             success = true;
           } else if (messageData?.senderId) {
-            // Navigate to direct message with sender
-            router.push(`/messages?userId=${messageData.senderId}`);
+            // Navigate to chat page (role-based routing)
+            const role = getUserRole();
+            router.push(`/${role}/chat`);
             success = true;
           }
           break;
@@ -138,7 +148,8 @@ export function NotificationActions({
         case "conversation":
           const conversationData = notification.data as any;
           if (conversationData?.conversationId) {
-            router.push(`/messages/${conversationData.conversationId}`);
+            const role = getUserRole();
+            router.push(`/${role}/chat/${conversationData.conversationId}`);
             success = true;
           }
           break;
@@ -221,7 +232,7 @@ export function NotificationActions({
 
         actions.push({
           id: "conversation",
-          label: "View Chat",
+          label: "View",
           icon: MessageCircle,
           variant: "outline",
         });

@@ -3,8 +3,12 @@ import type {
   User as PrismaUser,
   Family as PrismaFamily,
   Message,
+  MessageUserStatus,
   Notification,
   NotificationPreferences,
+  // Conversation types (Session 022)
+  Conversation as PrismaConversation,
+  ConversationParticipant as PrismaConversationParticipant,
   // Forum types (Session 010)
   Forum as PrismaForum,
   Post as PrismaPost,
@@ -20,6 +24,9 @@ import type {
   ResourceRating as PrismaResourceRating,
   ResourceShare as PrismaResourceShare,
   ResourceDocument as PrismaResourceDocument,
+  // Assignment types (Session 018)
+  NoteAssignment as PrismaNoteAssignment,
+  NoteTag as PrismaNoteTag,
 } from "@prisma/client";
 
 // Enums from Prisma (VALUE IMPORTS - used at runtime)
@@ -35,6 +42,10 @@ import {
   NoteType,
   ResourceContentType,
   ResourceStatus,
+  // Assignment enums (Session 018)
+  NoteAssignmentStatus,
+  AssignmentPriority,
+  DocumentSource,
 } from "@prisma/client";
 
 // Re-export type-only imports
@@ -42,8 +53,12 @@ export type {
   PrismaUser,
   PrismaFamily,
   Message,
+  MessageUserStatus,
   Notification,
   NotificationPreferences,
+  // Conversation types (Session 022)
+  PrismaConversation,
+  PrismaConversationParticipant,
   // Forum types (Session 010)
   PrismaForum,
   PrismaPost,
@@ -59,6 +74,9 @@ export type {
   PrismaResourceRating,
   PrismaResourceShare,
   PrismaResourceDocument,
+  // Assignment types (Session 018)
+  PrismaNoteAssignment,
+  PrismaNoteTag,
 };
 
 // Re-export enums as values (so they can be used at runtime)
@@ -74,6 +92,10 @@ export {
   NoteType,
   ResourceContentType,
   ResourceStatus,
+  // Assignment enums (Session 018)
+  NoteAssignmentStatus,
+  AssignmentPriority,
+  DocumentSource,
 };
 
 // Family-specific roles
@@ -159,6 +181,75 @@ export interface CreateUserInput {
   familyRole?: FamilyRole;
   createdById?: string;
   phoneNumber?: string;
+}
+
+// Conversation types (Session 022)
+export interface CreateConversationInput {
+  title?: string;
+  type: MessageType;
+  familyId?: string;
+  createdBy: string;
+  participantIds: string[];
+}
+
+export interface ConversationSearchOptions {
+  type?: MessageType;
+  familyId?: string;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+// Enhanced conversation types with relations
+export interface Conversation extends PrismaConversation {
+  family?: {
+    id: string;
+    name: string;
+    description?: string;
+  };
+  participants: ConversationParticipant[];
+  messages?: Message[];
+}
+
+export interface ConversationParticipant extends PrismaConversationParticipant {
+  user: {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    role: UserRole;
+    familyRole?: FamilyRole;
+  };
+  conversation?: {
+    id: string;
+    title?: string;
+    type: MessageType;
+  };
+}
+
+// Message types (Session 022)
+export interface CreateMessageInput {
+  content: string;
+  conversationId: string;
+  senderId: string;
+  replyToId?: string;
+  attachments?: string[];
+  metadata?: any;
+}
+
+export interface UpdateMessageInput {
+  content?: string;
+  attachments?: string[];
+  metadata?: any;
+}
+
+export interface MessageSearchOptions {
+  query?: string;
+  conversationId?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
 }
 
 // Document types
@@ -651,6 +742,7 @@ export interface CreatePostInput {
   content: string;
   type?: PostType;
   attachments?: string[];
+  documentIds?: string[];
   tags?: string[];
   metadata?: Record<string, unknown>;
 }
@@ -1057,4 +1149,150 @@ export interface ApiErrorResponse {
   success: false;
   error: string;
   details?: unknown;
+}
+
+// ====================================
+// ASSIGNMENT SYSTEM TYPES (Session 018)
+// ====================================
+
+// Note Assignment interface
+export interface NoteAssignment {
+  id: string;
+  noteId: string;
+  assignedTo: string;
+  assignedBy: string;
+  status: NoteAssignmentStatus;
+  priority: AssignmentPriority;
+  dueDate?: Date;
+  completedAt?: Date;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Relations (optional)
+  note?: {
+    id: string;
+    title: string;
+    type: NoteType;
+    creator?: User;
+  };
+  assignee?: User;
+  assigner?: User;
+}
+
+// Note Tag junction interface
+export interface NoteTag {
+  id: string;
+  noteId: string;
+  tagId: string;
+  createdBy: string;
+  createdAt: Date;
+
+  // Relations (optional)
+  note?: Note;
+  tag?: {
+    id: string;
+    name: string;
+    color?: string;
+    categoryId?: string;
+    usageCount: number;
+  };
+  createdByUser?: User;
+}
+
+// Enhanced Document Attachment interface
+export interface DocumentAttachment {
+  id: string;
+  noteId: string;
+  documentId: string;
+  order: number;
+  source: DocumentSource;
+  createdBy: string;
+  createdAt: Date;
+
+  // Relations (optional)
+  document?: {
+    id: string;
+    title: string;
+    fileName: string;
+    originalFileName?: string;
+    fileSize?: number;
+    mimeType?: string;
+    type: string;
+  };
+  attachedBy?: User;
+}
+
+// Assignment input types
+export interface CreateNoteAssignmentInput {
+  noteId: string;
+  assignedTo: string;
+  assignedBy: string;
+  priority?: AssignmentPriority;
+  dueDate?: Date;
+  notes?: string;
+}
+
+export interface UpdateNoteAssignmentInput {
+  status?: NoteAssignmentStatus;
+  priority?: AssignmentPriority;
+  dueDate?: Date;
+  notes?: string;
+  completedAt?: Date;
+}
+
+// Assignment filter types
+export interface NoteAssignmentFilters {
+  noteId?: string;
+  assignedTo?: string;
+  assignedBy?: string;
+  status?: NoteAssignmentStatus;
+  priority?: AssignmentPriority;
+  dueBefore?: Date;
+  dueAfter?: Date;
+}
+
+// Enhanced Note interface with assignments and structured tags
+export interface NoteWithAssignments extends Note {
+  assignments?: NoteAssignment[];
+  structuredTags?: NoteTag[];
+}
+
+// Assignment summary for dashboard views
+export interface AssignmentSummary {
+  id: string;
+  noteId: string;
+  noteTitle: string;
+  assigneeName: string;
+  status: NoteAssignmentStatus;
+  priority: AssignmentPriority;
+  dueDate?: Date;
+  completedAt?: Date;
+  createdAt: Date;
+}
+
+// Document attachment input types
+export interface AttachDocumentInput {
+  noteId: string;
+  documentId: string;
+  source: DocumentSource;
+  order?: number;
+}
+
+// Tag management types
+export interface CreateNoteTagInput {
+  noteId: string;
+  tagId: string;
+}
+
+export interface TagWithUsage {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  categoryId?: string;
+  familyId?: string;
+  isSystemTag: boolean;
+  usageCount: number;
+  createdAt: Date;
 }

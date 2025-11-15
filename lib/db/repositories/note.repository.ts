@@ -896,4 +896,599 @@ export class NoteRepository {
       console.error("❌ Failed to increment view count:", error);
     }
   }
+
+  // ====================================
+  // ENHANCED METHODS (Session 018)
+  // ====================================
+
+  /**
+   * Attach document to note (dual workflow: upload new or select existing)
+   */
+  async attachDocument(
+    noteId: string,
+    documentId: string,
+    userId: string,
+    source: "UPLOAD" | "LIBRARY" = "UPLOAD",
+    order: number = 0
+  ): Promise<void> {
+    try {
+      console.log("📎 Attaching document to note:", { noteId, documentId, source, userId });
+
+      // 1. Validate note access
+      const note = await this.getNoteById(noteId, userId);
+      if (!note) {
+        throw new Error("Note not found or access denied");
+      }
+
+      // 2. Validate document exists
+      const document = await prisma.document.findUnique({
+        where: { id: documentId },
+        select: { id: true, familyId: true, uploadedBy: true, title: true, fileName: true },
+      });
+
+      if (!document) {
+        throw new Error("Document not found");
+      }
+
+      // 3. Family-scoped document access control
+      if (document.familyId !== note.familyId && note.familyId) {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { role: true },
+        });
+
+        // Only ADMIN can attach documents across families
+        if (user?.role !== "ADMIN") {
+          throw new Error("Cannot attach documents from different families");
+        }
+      }
+
+      // 4. Check if already attached
+      const existing = await prisma.noteDocument.findUnique({
+        where: {
+          noteId_documentId: { noteId, documentId },
+        },
+      });
+
+      if (existing) {
+        throw new Error("Document already attached to this note");
+      }
+
+      // 5. Create attachment
+      await prisma.noteDocument.create({
+        data: {
+          noteId,
+          documentId,
+          source,
+          order,
+          createdBy: userId,
+          createdAt: new Date(),
+        },
+      });
+
+      console.log("✅ Document attached successfully:", {
+        noteTitle: note.title,
+        documentTitle: document.title,
+        source,
+      });
+    } catch (error) {
+      console.error("❌ Error attaching document:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Detach document from note
+   */
+  async detachDocument(noteId: string, documentId: string, userId: string): Promise<void> {
+    try {
+      // 1. Validate note access
+      const note = await this.getNoteById(noteId, userId);
+      if (!note) {
+        throw new Error("Note not found or access denied");
+      }
+
+      // 2. Check attachment exists
+      const attachment = await prisma.noteDocument.findUnique({
+        where: {
+          noteId_documentId: { noteId, documentId },
+        },
+        select: { createdBy: true },
+      });
+
+      if (!attachment) {
+        throw new Error("Attachment not found");
+      }
+
+      // 3. Access control: Only creator of note or attachment can detach
+      if (note.createdBy !== userId && attachment.createdBy !== userId) {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { role: true },
+        });
+
+        // ADMIN can always detach
+        if (user?.role !== "ADMIN") {
+          throw new Error("Access denied");
+        }
+      }
+
+      // 4. Remove attachment
+      await prisma.noteDocument.delete({
+        where: {
+          noteId_documentId: { noteId, documentId },
+        },
+      });
+
+      console.log("✅ Document detached from note:", { noteId, documentId });
+    } catch (error) {
+      console.error("❌ Error detaching document:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add structured tag to note
+   */
+  async addStructuredTag(noteId: string, tagId: string, userId: string): Promise<void> {
+    try {
+      // 1. Validate note access
+      const note = await this.getNoteById(noteId, userId);
+      if (!note) {
+        throw new Error("Note not found or access denied");
+      }
+
+      // 2. Validate tag exists and is active
+      const tag = await prisma.tag.findUnique({
+        where: { id: tagId },
+        select: { id: true, name: true, isActive: true, familyId: true },
+      });
+
+      if (!tag || !tag.isActive) {
+        throw new Error("Tag not found or inactive");
+      }
+
+      // 3. Family-scoped tag validation
+      if (tag.familyId && tag.familyId !== note.familyId) {
+        throw new Error("Cannot use family-scoped tag from different family");
+      }
+
+      // 4. Check if already tagged (silently ignore if already exists)
+      const existing = await prisma.noteTag.findUnique({
+        where: {
+          noteId_tagId: { noteId, tagId },
+        },
+      });
+
+      if (existing) {
+        console.log("ℹ️ Tag already attached to note, ignoring:", { noteId, tagId });
+        return;
+      }
+
+      // 5. Create tag association
+      await prisma.noteTag.create({
+        data: {
+          noteId,
+          tagId,
+          createdBy: userId,
+        },
+      });
+
+      // 6. Increment tag usage count
+      await prisma.tag.update({
+        where: { id: tagId },
+        data: {
+          usageCount: { increment: 1 },
+        },
+      });
+
+      console.log("✅ Structured tag added to note:", {
+        noteTitle: note.title,
+        tagName: tag.name,
+      });
+    } catch (error) {
+      console.error("❌ Error adding structured tag:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove structured tag from note
+   */
+  async removeStructuredTag(noteId: string, tagId: string, userId: string): Promise<void> {
+    try {
+      // 1. Validate note access
+      const note = await this.getNoteById(noteId, userId);
+      if (!note) {
+        throw new Error("Note not found or access denied");
+      }
+
+      // 2. Access control: Only note creator can remove tags
+      if (note.createdBy !== userId) {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { role: true },
+        });
+
+        // ADMIN can always remove tags
+        if (user?.role !== "ADMIN") {
+          throw new Error("Access denied");
+        }
+      }
+
+      // 3. Check if tag is attached (silently ignore if not exists)
+      const existing = await prisma.noteTag.findUnique({
+        where: {
+          noteId_tagId: { noteId, tagId },
+        },
+      });
+
+      if (!existing) {
+        console.log("ℹ️ Tag not attached to note, ignoring:", { noteId, tagId });
+        return;
+      }
+
+      // 4. Remove tag association
+      await prisma.noteTag.delete({
+        where: {
+          noteId_tagId: { noteId, tagId },
+        },
+      });
+
+      // 5. Decrement tag usage count
+      await prisma.tag.update({
+        where: { id: tagId },
+        data: {
+          usageCount: { decrement: 1 },
+        },
+      });
+
+      console.log("✅ Structured tag removed from note:", { noteId, tagId });
+    } catch (error) {
+      console.error("❌ Error removing structured tag:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get note assignments (for assignment integration)
+   */
+  async getNoteAssignments(noteId: string, userId: string): Promise<any[]> {
+    try {
+      // 1. Validate note access
+      const note = await this.getNoteById(noteId, userId);
+      if (!note) {
+        throw new Error("Note not found or access denied");
+      }
+
+      // 2. Get assignments for this note
+      const assignments = await prisma.noteAssignment.findMany({
+        where: { noteId },
+        include: {
+          assignee: {
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
+          assigner: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+        },
+        orderBy: [
+          { status: "asc" }, // Active first
+          { priority: "desc" }, // High priority first
+          { createdAt: "desc" },
+        ],
+      });
+
+      console.log("📋 Found assignments for note:", {
+        noteId,
+        assignmentCount: assignments.length,
+      });
+
+      return assignments;
+    } catch (error) {
+      console.error("❌ Error fetching note assignments:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update getNoteById to include assignments and structured tags
+   */
+  async getNoteByIdWithEnhancements(
+    id: string,
+    userId: string,
+    options: {
+      includeDeleted?: boolean;
+      includeShares?: boolean;
+      includeDocuments?: boolean;
+      includeAssignments?: boolean;
+      includeStructuredTags?: boolean;
+    } = {}
+  ): Promise<any> {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, familyId: true, role: true },
+      });
+
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      // Build include clause
+      const include: any = {
+        creator: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        family: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+          },
+        },
+      };
+
+      // Optional includes
+      if (options.includeShares) {
+        include.shares = {
+          include: {
+            user: {
+              select: { id: true, firstName: true, lastName: true, email: true },
+            },
+            sharedByUser: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+        };
+      }
+
+      if (options.includeDocuments) {
+        include.documents = {
+          include: {
+            document: {
+              select: {
+                id: true,
+                title: true,
+                fileName: true,
+                originalFileName: true,
+                fileSize: true,
+                mimeType: true,
+                type: true,
+                uploadedBy: true,
+                createdAt: true,
+              },
+            },
+            attachedBy: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+          orderBy: { order: "asc" },
+        };
+      }
+
+      if (options.includeAssignments) {
+        include.assignments = {
+          include: {
+            assignee: {
+              select: { id: true, firstName: true, lastName: true, email: true },
+            },
+            assigner: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+          orderBy: [
+            { status: "asc" },
+            { priority: "desc" },
+            { createdAt: "desc" },
+          ],
+        };
+      }
+
+      if (options.includeStructuredTags) {
+        include.structuredTags = {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+                color: true,
+                categoryId: true,
+                usageCount: true,
+              },
+            },
+            createdByUser: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        };
+      }
+
+      // Query note
+      const note = await prisma.note.findUnique({
+        where: { id },
+        include,
+      });
+
+      if (!note) {
+        return null;
+      }
+
+      // Exclude soft deleted notes unless explicitly included
+      if (note.isDeleted && !options.includeDeleted) {
+        return null;
+      }
+
+      // Access control check
+      const canAccess = await this.canUserAccessNote(note, userId);
+      if (!canAccess) {
+        return null;
+      }
+
+      // Increment view count if not creator
+      if (note.createdBy !== userId) {
+        await this.incrementViewCount(id);
+      }
+
+      // Transform documents from junction table if included
+      if (options.includeDocuments && note.documents) {
+        const transformedNote = {
+          ...note,
+          documents: note.documents.map((nd: any) => ({
+            id: nd.id,
+            documentId: nd.documentId,
+            source: nd.source,
+            order: nd.order,
+            createdBy: nd.createdBy,
+            createdAt: nd.createdAt,
+            document: nd.document,
+            attachedBy: nd.attachedBy,
+          })),
+        };
+        return transformedNote;
+      }
+
+      return note;
+    } catch (error) {
+      console.error("❌ Error fetching enhanced note:", error);
+      throw error;
+    }
+  }
+
+  // ====================================
+  // ADMIN DASHBOARD STATS (Session 022)
+  // ====================================
+
+  /**
+   * Get comprehensive note statistics for admin dashboard
+   */
+  async getNoteStats(): Promise<{
+    totalNotes: number;
+    carePlanNotes: number;
+    notesByVisibility: Record<string, number>;
+    notesThisMonth: number;
+    activeNotes: number;
+    notesWithAssignments: number;
+  }> {
+    try {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      // Get all statistics in parallel for performance
+      const [
+        totalNotes,
+        carePlanNotes,
+        publicNotes,
+        familyNotes,
+        privateNotes,
+        sharedNotes,
+        notesThisMonth,
+        activeNotes,
+        notesWithAssignments,
+      ] = await Promise.all([
+        // Total notes (excluding deleted)
+        prisma.note.count({
+          where: { isDeleted: false }
+        }),
+
+        // Care plan notes specifically
+        prisma.note.count({
+          where: {
+            isDeleted: false,
+            type: NoteType.CARE_PLAN
+          }
+        }),
+
+        // Public notes
+        prisma.note.count({
+          where: {
+            isDeleted: false,
+            visibility: NoteVisibility.PUBLIC
+          }
+        }),
+
+        // Family notes
+        prisma.note.count({
+          where: {
+            isDeleted: false,
+            visibility: NoteVisibility.FAMILY
+          }
+        }),
+
+        // Private notes
+        prisma.note.count({
+          where: {
+            isDeleted: false,
+            visibility: NoteVisibility.PRIVATE
+          }
+        }),
+
+        // Shared notes (notes that have been shared with others)
+        prisma.note.count({
+          where: {
+            isDeleted: false,
+            visibility: NoteVisibility.SHARED
+          }
+        }),
+
+        // Notes created this month
+        prisma.note.count({
+          where: {
+            isDeleted: false,
+            createdAt: { gte: startOfMonth }
+          }
+        }),
+
+        // Active notes (not archived, not deleted)
+        prisma.note.count({
+          where: {
+            isDeleted: false,
+            isArchived: false
+          }
+        }),
+
+        // Notes with assignments
+        prisma.note.count({
+          where: {
+            isDeleted: false,
+            assignments: {
+              some: {}
+            }
+          }
+        }),
+      ]);
+
+      const stats = {
+        totalNotes,
+        carePlanNotes,
+        notesByVisibility: {
+          PUBLIC: publicNotes,
+          FAMILY: familyNotes,
+          PRIVATE: privateNotes,
+          SHARED: sharedNotes,
+        },
+        notesThisMonth,
+        activeNotes,
+        notesWithAssignments,
+      };
+
+      console.log("📊 Note statistics generated:", stats);
+      return stats;
+    } catch (error) {
+      console.error("❌ Failed to get note statistics:", error);
+      throw error;
+    }
+  }
 }

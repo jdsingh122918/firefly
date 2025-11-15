@@ -86,13 +86,13 @@ export default async function VolunteerDashboard() {
         </div>
         <div className="flex space-x-2">
           <Button asChild>
-            <Link href="/admin/families/new">
+            <Link href="/volunteer/families/new">
               <Plus className="mr-2 h-4 w-4" />
               Create Family
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/admin/users/new">
+            <Link href="/volunteer/users/new">
               <Plus className="mr-2 h-4 w-4" />
               Add Member
             </Link>
@@ -104,7 +104,7 @@ export default async function VolunteerDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">My Families</CardTitle>
+            <CardTitle className="text-sm font-medium">Families</CardTitle>
             <Heart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -156,13 +156,13 @@ export default async function VolunteerDashboard() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* My Families */}
+        {/* Families */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>My Families</CardTitle>
+              <CardTitle>Families</CardTitle>
               <Button size="sm" variant="outline" asChild>
-                <Link href="/admin/families">
+                <Link href="/volunteer/families">
                   <Eye className="mr-2 h-4 w-4" />
                   View All
                 </Link>
@@ -179,7 +179,7 @@ export default async function VolunteerDashboard() {
                 </p>
                 <div className="mt-6">
                   <Button size="sm" asChild>
-                    <Link href="/admin/families/new">
+                    <Link href="/volunteer/families/new">
                       <Plus className="mr-2 h-4 w-4" />
                       Create Family
                     </Link>
@@ -192,7 +192,7 @@ export default async function VolunteerDashboard() {
                   <div key={family.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
                       <Link
-                        href={`/admin/families/${family.id}`}
+                        href={`/volunteer/families/${family.id}`}
                         className="font-medium text-primary hover:underline"
                       >
                         {family.name}
@@ -209,7 +209,7 @@ export default async function VolunteerDashboard() {
                 {myFamilies.length > 3 && (
                   <div className="text-center pt-2">
                     <Button variant="outline" size="sm" asChild>
-                      <Link href="/admin/families">
+                      <Link href="/volunteer/families">
                         View {myFamilies.length - 3} more families
                       </Link>
                     </Button>
@@ -226,7 +226,7 @@ export default async function VolunteerDashboard() {
             <div className="flex items-center justify-between">
               <CardTitle>Recent Members</CardTitle>
               <Button size="sm" variant="outline" asChild>
-                <Link href="/admin/users?role=MEMBER">
+                <Link href="/volunteer/users?role=MEMBER">
                   <Eye className="mr-2 h-4 w-4" />
                   View All
                 </Link>
@@ -243,7 +243,7 @@ export default async function VolunteerDashboard() {
                 </p>
                 <div className="mt-6">
                   <Button size="sm" asChild>
-                    <Link href="/admin/users/new">
+                    <Link href="/volunteer/users/new">
                       <Plus className="mr-2 h-4 w-4" />
                       Add Member
                     </Link>
@@ -256,7 +256,7 @@ export default async function VolunteerDashboard() {
                   <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
                       <Link
-                        href={`/admin/users/${member.id}`}
+                        href={`/volunteer/users/${member.id}`}
                         className="font-medium text-primary hover:underline"
                       >
                         {member.firstName ? `${member.firstName} ${member.lastName || ''}`.trim() : member.email}
@@ -273,7 +273,7 @@ export default async function VolunteerDashboard() {
                 {myMembers.length > 3 && (
                   <div className="text-center pt-2">
                     <Button variant="outline" size="sm" asChild>
-                      <Link href="/admin/users?role=MEMBER">
+                      <Link href="/volunteer/users?role=MEMBER">
                         View {myMembers.length - 3} more members
                       </Link>
                     </Button>

@@ -72,24 +72,64 @@ export async function GET(request: NextRequest) {
       sortOrder: sortOrder as "asc" | "desc",
     };
 
-    // Convert filters to match repository expectations
-    const repositoryFilters = {
-      familyId: filters.familyId,
-      search: filters.name, // Using name as search
-      // Note: resourceType would need to be converted from string to enum if used
-    };
+    // Get family-specific tags and system tags
+    const familyTagsPromise = user.familyId ? tagRepository.getTags(
+      {
+        familyId: user.familyId,
+        search: search || undefined,
+      },
+      {
+        includeCategory: true,
+        includeUsageCount,
+        sortBy: sortOptions.sortBy,
+        sortOrder: sortOptions.sortOrder,
+      }
+    ) : Promise.resolve([]);
 
-    // Get tags
-    const tags = await tagRepository.getTags(repositoryFilters, {
-      includeCategory: true,
-      includeUsageCount,
-      sortBy: sortOptions.sortBy,
-      sortOrder: sortOptions.sortOrder,
+    // Get system tags (available to all users)
+    const systemTagsPromise = tagRepository.getTags(
+      {
+        isSystem: true,
+        search: search || undefined,
+      },
+      {
+        includeCategory: true,
+        includeUsageCount,
+        sortBy: sortOptions.sortBy,
+        sortOrder: sortOptions.sortOrder,
+      }
+    );
+
+    // Fetch both family and system tags
+    const [familyTags, systemTags] = await Promise.all([
+      familyTagsPromise,
+      systemTagsPromise
+    ]);
+
+    // Combine and deduplicate tags (system tags take precedence for duplicates)
+    const tagMap = new Map();
+
+    // Add family tags first
+    familyTags.forEach(tag => {
+      tagMap.set(tag.name.toLowerCase(), tag);
+    });
+
+    // Add system tags (will override family tags if same name)
+    systemTags.forEach(tag => {
+      tagMap.set(tag.name.toLowerCase(), tag);
+    });
+
+    // Convert back to array and sort
+    const tags = Array.from(tagMap.values()).sort((a, b) => {
+      if (sortOptions.sortOrder === 'desc') {
+        return b[sortOptions.sortBy] > a[sortOptions.sortBy] ? 1 : -1;
+      }
+      return a[sortOptions.sortBy] > b[sortOptions.sortBy] ? 1 : -1;
     });
 
     return NextResponse.json({
       success: true,
-      data: tags,
+      tags: tags, // Changed from 'data' to 'tags' to match component expectations
     });
   } catch (error) {
     console.error("❌ GET /api/tags error:", error);

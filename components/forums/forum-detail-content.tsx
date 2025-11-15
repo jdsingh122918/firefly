@@ -33,7 +33,6 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PostCard } from "./post-card"
-import { SimplePostForm } from "./simple-post-form"
 
 interface Forum {
   id: string
@@ -101,6 +100,10 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
   const { isLoaded, isSignedIn, getToken, sessionClaims } = useAuth()
   const router = useRouter()
 
+  // Get user role for routing
+  const userRole = (sessionClaims?.metadata as { role?: string })?.role || 'member'
+  const rolePrefix = userRole.toLowerCase()
+
   const [forum, setForum] = useState<Forum | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
@@ -150,8 +153,8 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
     try {
       const token = await getToken()
 
-      // Fetch forum details
-      const forumResponse = await fetch(`/api/forums?search=${forumSlug}`, {
+      // Fetch forum details by slug
+      const forumResponse = await fetch(`/api/forums/by-slug/${forumSlug}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -163,16 +166,15 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
       }
 
       const forumData = await forumResponse.json()
-      const foundForum = forumData.forums?.find((f: Forum) => f.slug === forumSlug)
 
-      if (!foundForum) {
+      if (!forumData.forum) {
         throw new Error('Forum not found')
       }
 
-      setForum(foundForum)
+      setForum(forumData.forum)
 
       // Fetch posts for this forum
-      const postsResponse = await fetch(`/api/posts?forumId=${foundForum.id}&includeReplies=true&sortBy=pinned`, {
+      const postsResponse = await fetch(`/api/posts?forumId=${forumData.forum.id}&includeReplies=true&sortBy=pinned`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -242,7 +244,7 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
 
   if (loading || !forum) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-2">
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-16 w-full" />
         {[1, 2, 3].map((i) => (
@@ -255,7 +257,7 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
   const VisibilityIcon = visibilityIcons[forum.visibility]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Back navigation */}
       <Button variant="ghost" asChild className="w-fit">
         <Link href={`/${((sessionClaims?.metadata as { role?: string })?.role || 'member').toLowerCase()}/forums`}>
@@ -267,12 +269,12 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
       {/* Forum header */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
             <div>
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-2 mb-1">
                 <MessageSquare className="h-8 w-8 text-primary" />
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight">{forum.title}</h1>
+                  <h1 className="text-2xl font-bold tracking-tight">{forum.title}</h1>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant="outline" className="flex items-center gap-1">
                       <VisibilityIcon className="h-3 w-3" />
@@ -289,14 +291,15 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
               )}
             </div>
 
-            <SimplePostForm
-              forumId={forum.id}
-              forumSlug={forum.slug}
-              onSuccess={fetchForumAndPosts}
-            />
+            <Button asChild>
+              <Link href={`/${rolePrefix}/forums/${forum.slug}/posts/new`}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Post
+              </Link>
+            </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground pt-2">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground pt-1">
             <div className="flex items-center gap-1">
               <MessageSquare className="h-4 w-4" />
               <span>{forum.postCount} posts</span>
@@ -377,17 +380,12 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
                 }
               </p>
               {!searchTerm && forum && (
-                <SimplePostForm
-                  forumId={forum.id}
-                  forumSlug={forum.slug}
-                  onSuccess={fetchForumAndPosts}
-                  trigger={
-                    <Button className="mt-4">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create First Post
-                    </Button>
-                  }
-                />
+                <Button asChild className="mt-4">
+                  <Link href={`/${rolePrefix}/forums/${forum.slug}/posts/new`}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create First Post
+                  </Link>
+                </Button>
               )}
             </CardContent>
           </Card>

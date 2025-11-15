@@ -5,9 +5,9 @@ import { ForumDetailContent } from '@/components/forums/forum-detail-content'
 import { prisma } from '@/lib/db/prisma'
 
 interface ForumDetailPageProps {
-  params: {
+  params: Promise<{
     slug: string
-  }
+  }>
 }
 
 export default async function AdminForumDetailPage({ params }: ForumDetailPageProps) {
@@ -16,6 +16,9 @@ export default async function AdminForumDetailPage({ params }: ForumDetailPagePr
   if (!userId) {
     redirect('/sign-in')
   }
+
+  // Await params in Next.js 15+
+  const { slug } = await params
 
   // Dual-path authentication pattern (CLAUDE.md requirement)
   const sessionRole = (sessionClaims?.metadata as { role?: UserRole })?.role
@@ -42,12 +45,13 @@ export default async function AdminForumDetailPage({ params }: ForumDetailPagePr
 
   return (
     <div className="space-y-6">
-      <ForumDetailContent forumSlug={params.slug} />
+      <ForumDetailContent forumSlug={slug} />
     </div>
   )
 }
 
 export async function generateMetadata({ params }: ForumDetailPageProps) {
+  const { slug } = await params
   return {
     title: `Forum | Firefly Admin`,
     description: 'View forum discussions and posts',

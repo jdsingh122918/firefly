@@ -46,8 +46,8 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const retryCount = useRef(0);
-  const maxRetries = 5;
-  const baseRetryDelay = 1000;
+  const maxRetries = 3; // Reduced from 5 to 3 for less noise
+  const baseRetryDelay = 2000; // Increased from 1000 to 2000ms
 
   // Fetch notifications from API
   const fetchNotifications = useCallback(
@@ -82,6 +82,18 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
         });
 
         if (!response.ok) {
+          // Handle 404 more gracefully (user not synced yet)
+          if (response.status === 404) {
+            console.log("🔔 User not found in database yet");
+            setState((prev) => ({
+              ...prev,
+              notifications: [],
+              unreadCount: 0,
+              isLoading: false,
+              error: null, // Don't treat this as an error
+            }));
+            return;
+          }
           throw new Error(
             `Failed to fetch notifications: ${response.statusText}`,
           );
@@ -119,13 +131,17 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
     console.log("🔔 Starting polling fallback for notifications");
 
+    // Use longer interval for unsynced users to reduce noise
+    const adjustedInterval = Math.max(pollingInterval, 60000); // At least 60 seconds for unsynced users
+
     pollingIntervalRef.current = setInterval(async () => {
       try {
         await fetchNotifications();
       } catch (error) {
-        console.error("❌ Polling fallback error:", error);
+        // Don't log errors for polling fallback - they're expected for unsynced users
+        // console.error("❌ Polling fallback error:", error);
       }
-    }, pollingInterval);
+    }, adjustedInterval);
   }, [enablePollingFallback, pollingInterval, fetchNotifications]);
 
   // Stop polling fallback
@@ -201,6 +217,18 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
             case "heartbeat":
               // Just log heartbeat if needed
               // console.log("💓 Notification stream heartbeat");
+              break;
+
+            case "user_not_synced":
+              console.log("🔔 User not synced to database yet, using polling fallback");
+              setState((prev) => ({
+                ...prev,
+                isConnected: false,
+                error: "User sync pending",
+              }));
+              // Don't retry immediately for unsynced users
+              retryCount.current = maxRetries;
+              startPollingFallback();
               break;
 
             default:

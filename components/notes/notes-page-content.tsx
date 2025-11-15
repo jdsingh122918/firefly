@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { useAuth } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import {
   StickyNote,
   Plus,
@@ -25,8 +26,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { NoteCard } from "./note-card"
-import { NoteForm } from "./note-form"
-import { NoteType, NoteVisibility } from "@/lib/types"
+import { NoteType, NoteVisibility, UserRole } from "@/lib/types"
 
 interface Note {
   id: string
@@ -65,6 +65,7 @@ interface NotesResponse {
 export function NotesPageContent() {
   const { isLoaded, isSignedIn, getToken, sessionClaims } = useAuth()
   const router = useRouter()
+  const userRole = (sessionClaims?.metadata as { role?: UserRole })?.role || UserRole.MEMBER
 
   // Data state
   const [notes, setNotes] = useState<Note[]>([])
@@ -79,9 +80,7 @@ export function NotesPageContent() {
   const [showArchived, setShowArchived] = useState(false)
   const [sortBy, setSortBy] = useState<string>("updatedAt")
 
-  // UI state
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [editingNote, setEditingNote] = useState<Note | null>(null)
+  // UI state - removed modal dialog state since we now use dedicated pages
 
   // Filter notes client-side for quick filtering
   const filteredNotes = notes.filter((note) => {
@@ -182,25 +181,19 @@ export function NotesPageContent() {
     }
   }, [isLoaded, isSignedIn, fetchNotes])
 
-  const handleNoteClick = (note: Note) => {
-    try {
-      // Set note for editing and open dialog
-      setEditingNote(note)
-      setCreateDialogOpen(true)
-    } catch (err) {
-      console.error('Error handling note click:', err)
-      setError('Failed to open note for editing')
-    }
-  }
+  // Note click handling removed - now handled by NoteCard component directly
 
-  const handleCreateSuccess = () => {
-    try {
-      setCreateDialogOpen(false)
-      setEditingNote(null) // Clear editing note
-      fetchNotes() // Refresh notes list
-    } catch (err) {
-      console.error('Error handling create success:', err)
-      setError('Note created but failed to refresh the list. Please refresh the page.')
+  // Get the correct note creation URL based on user role
+  const getCreateNoteUrl = () => {
+    switch (userRole) {
+      case UserRole.ADMIN:
+        return '/admin/notes/new'
+      case UserRole.VOLUNTEER:
+        return '/volunteer/notes/new'
+      case UserRole.MEMBER:
+        return '/member/notes/new'
+      default:
+        return '/member/notes/new'
     }
   }
 
@@ -214,68 +207,62 @@ export function NotesPageContent() {
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center">
-            <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
-            <h3 className="text-lg font-semibold mb-2">Failed to load notes</h3>
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={fetchNotes} variant="outline">
-              Try Again
-            </Button>
-          </div>
-        </CardContent>
+      <Card className="p-3">
+        <div className="text-center">
+          <AlertCircle className="h-6 w-6 mx-auto mb-2 text-red-500" />
+          <h3 className="text-sm font-semibold mb-1">Failed to load notes</h3>
+          <p className="text-xs text-muted-foreground mb-2">{error}</p>
+          <Button onClick={fetchNotes} variant="outline" size="sm" className="min-h-[44px]">
+            Try Again
+          </Button>
+        </div>
       </Card>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-1">
       {/* Header with actions and search */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <StickyNote className="h-6 w-6" />
-              <CardTitle className="text-xl">
+      <Card className="p-3">
+        <div className="space-y-2">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <StickyNote className="h-4 w-4" />
+              <h2 className="text-lg font-semibold">
                 My Notes
                 {!loading && notes.length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="secondary" className="ml-1 text-xs">
                     {filteredNotes.length} of {notes.length}
                   </Badge>
                 )}
-              </CardTitle>
+              </h2>
             </div>
 
-            <Button
-              className="w-full md:w-auto min-h-[44px]"
-              onClick={() => {
-              setEditingNote(null) // Ensure we're in create mode
-              setCreateDialogOpen(true)
-            }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Create Note
+            <Button asChild className="w-full md:w-auto min-h-[44px]" size="sm">
+              <Link href={getCreateNoteUrl()}>
+                <Plus className="mr-1 h-3 w-3" />
+                Create Note
+              </Link>
             </Button>
           </div>
 
           {/* Search and filters */}
-          <div className="space-y-4 pt-4">
+          <div className="space-y-1">
             {/* Search bar */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
               <Input
                 placeholder="Search notes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 min-h-[44px]"
+                className="pl-8 min-h-[44px] text-sm"
               />
             </div>
 
             {/* Filters row */}
-            <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex flex-col md:flex-row gap-1">
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-full md:w-48 min-h-[44px]">
+                <SelectTrigger className="w-full md:w-36 min-h-[44px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -287,7 +274,7 @@ export function NotesPageContent() {
               </Select>
 
               <Select value={visibilityFilter} onValueChange={setVisibilityFilter}>
-                <SelectTrigger className="w-full md:w-48 min-h-[44px]">
+                <SelectTrigger className="w-full md:w-36 min-h-[44px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -300,7 +287,7 @@ export function NotesPageContent() {
               </Select>
 
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-full md:w-48 min-h-[44px]">
+                <SelectTrigger className="w-full md:w-40 min-h-[44px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -312,57 +299,55 @@ export function NotesPageContent() {
               </Select>
 
               {/* Toggle filters */}
-              <div className="flex gap-2">
+              <div className="flex gap-1">
                 <Button
                   variant={showPinned === true ? "default" : "outline"}
                   size="sm"
                   onClick={() => setShowPinned(showPinned === true ? null : true)}
-                  className="min-h-[44px]"
+                  className="min-h-[44px] px-2"
                 >
-                  <Pin className="mr-2 h-3 w-3" />
+                  <Pin className="mr-1 h-3 w-3" />
                   Pinned
                 </Button>
                 <Button
                   variant={showArchived ? "default" : "outline"}
                   size="sm"
                   onClick={() => setShowArchived(!showArchived)}
-                  className="min-h-[44px]"
+                  className="min-h-[44px] px-2"
                 >
-                  <Archive className="mr-2 h-3 w-3" />
+                  <Archive className="mr-1 h-3 w-3" />
                   Archived
                 </Button>
               </div>
             </div>
           </div>
-        </CardHeader>
+        </div>
       </Card>
 
       {/* Notes list */}
-      <div className="space-y-4">
+      <div className="space-y-1">
         {loading ? (
-          <div className="space-y-4">
+          <div className="space-y-1">
             {[1, 2, 3].map((i) => (
-              <Card key={i}>
-                <CardContent className="p-6">
-                  <div className="space-y-3">
-                    <Skeleton className="h-6 w-48" />
-                    <Skeleton className="h-4 w-full max-w-md" />
-                    <div className="flex gap-4">
-                      <Skeleton className="h-4 w-16" />
-                      <Skeleton className="h-4 w-16" />
-                      <Skeleton className="h-4 w-24" />
-                    </div>
+              <Card key={i} className="p-3">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-full max-w-md" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-3 w-12" />
+                    <Skeleton className="h-3 w-12" />
+                    <Skeleton className="h-3 w-16" />
                   </div>
-                </CardContent>
+                </div>
               </Card>
             ))}
           </div>
         ) : sortedNotes.length === 0 ? (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <StickyNote className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-lg font-medium">No notes found</p>
-              <p className="text-sm text-muted-foreground mt-2">
+          <Card className="p-3">
+            <div className="text-center">
+              <StickyNote className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-sm font-medium">No notes found</p>
+              <p className="text-xs text-muted-foreground mt-1">
                 {searchTerm || typeFilter !== "all" || visibilityFilter !== "all" || showPinned !== null
                   ? "Try adjusting your search or filters."
                   : showArchived
@@ -371,36 +356,26 @@ export function NotesPageContent() {
                 }
               </p>
               {(!searchTerm && typeFilter === "all" && visibilityFilter === "all" && showPinned === null && !showArchived) && (
-                <Button className="mt-4 min-h-[44px]" onClick={() => {
-                  setEditingNote(null) // Ensure we're in create mode
-                  setCreateDialogOpen(true)
-                }}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create First Note
+                <Button size="sm" className="mt-2 min-h-[44px]" asChild>
+                  <Link href={getCreateNoteUrl()}>
+                    <Plus className="mr-1 h-3 w-3" />
+                    Create First Note
+                  </Link>
                 </Button>
               )}
-            </CardContent>
+            </div>
           </Card>
         ) : (
           sortedNotes.map((note) => (
             <NoteCard
               key={note.id}
               note={note}
-              onNoteClick={handleNoteClick}
               showContent={true}
             />
           ))
         )}
       </div>
 
-      {/* Create/Edit Note Dialog */}
-      <NoteForm
-        mode={editingNote ? "edit" : "create"}
-        note={editingNote || undefined}
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-        onSuccess={handleCreateSuccess}
-      />
     </div>
   )
 }

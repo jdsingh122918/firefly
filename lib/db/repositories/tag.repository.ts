@@ -1004,4 +1004,146 @@ export class TagRepository {
       throw error;
     }
   }
+
+  /**
+   * Bulk create categories - for seeding system categories
+   */
+  async createManyCategories(categories: CreateCategoryInput[]): Promise<Category[]> {
+    try {
+      const createdCategories: Category[] = [];
+
+      // Create categories one by one to ensure proper validation and relationships
+      for (const categoryData of categories) {
+        try {
+          // Check if category already exists
+          const existingCategory = await prisma.category.findFirst({
+            where: {
+              name: { equals: categoryData.name, mode: Prisma.QueryMode.insensitive },
+              familyId: categoryData.familyId,
+              isSystemCategory: categoryData.isSystemCategory
+            }
+          });
+
+          if (!existingCategory) {
+            const category = await this.createCategory(categoryData);
+            createdCategories.push(category);
+            console.log(`✅ Created category: ${category.name}`);
+          } else {
+            console.log(`⏭️ Category already exists: ${categoryData.name}`);
+            createdCategories.push(existingCategory as Category);
+          }
+        } catch (error) {
+          console.error(`❌ Failed to create category "${categoryData.name}":`, error);
+          // Continue with other categories
+        }
+      }
+
+      return createdCategories;
+    } catch (error) {
+      console.error("❌ Failed to bulk create categories:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Bulk create tags - for seeding system tags
+   */
+  async createManyTags(tags: CreateTagInput[]): Promise<Tag[]> {
+    try {
+      const createdTags: Tag[] = [];
+
+      // Create tags one by one to ensure proper validation
+      for (const tagData of tags) {
+        try {
+          // Check if tag already exists
+          const existingTag = await prisma.tag.findFirst({
+            where: {
+              name: { equals: tagData.name, mode: Prisma.QueryMode.insensitive },
+              familyId: tagData.familyId,
+              isSystemTag: tagData.isSystemTag
+            }
+          });
+
+          if (!existingTag) {
+            const tag = await this.createTag(tagData);
+            createdTags.push(tag);
+            console.log(`✅ Created tag: ${tag.name}`);
+          } else {
+            console.log(`⏭️ Tag already exists: ${tagData.name}`);
+            createdTags.push(existingTag as Tag);
+          }
+        } catch (error) {
+          console.error(`❌ Failed to create tag "${tagData.name}":`, error);
+          // Continue with other tags
+        }
+      }
+
+      return createdTags;
+    } catch (error) {
+      console.error("❌ Failed to bulk create tags:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Initialize healthcare system tags and categories
+   */
+  async initializeHealthcareTags(systemUserId: string): Promise<{
+    categories: Category[];
+    tags: Tag[];
+  }> {
+    try {
+      console.log("🏥 Initializing healthcare system tags...");
+
+      // Import healthcare data
+      const { HEALTHCARE_CATEGORIES } = await import("@/lib/data/healthcare-tags");
+
+      // Create system categories first
+      const categoryInputs: CreateCategoryInput[] = HEALTHCARE_CATEGORIES.map(cat => ({
+        name: cat.name,
+        description: cat.description,
+        color: cat.color,
+        icon: cat.icon,
+        createdBy: systemUserId,
+        isSystemCategory: true,
+        // No familyId for system categories (global)
+      }));
+
+      const categories = await this.createManyCategories(categoryInputs);
+
+      // Create a map of category name to category for tag creation
+      const categoryMap = new Map<string, Category>();
+      categories.forEach(cat => categoryMap.set(cat.name, cat));
+
+      // Create system tags
+      const tagInputs: CreateTagInput[] = [];
+
+      HEALTHCARE_CATEGORIES.forEach(categoryConfig => {
+        const category = categoryMap.get(categoryConfig.name);
+
+        categoryConfig.tags.forEach(tagName => {
+          tagInputs.push({
+            name: tagName,
+            description: `Healthcare service: ${tagName}`,
+            color: categoryConfig.color,
+            categoryId: category?.id,
+            createdBy: systemUserId,
+            isSystemTag: true,
+            // No familyId for system tags (global)
+          });
+        });
+      });
+
+      const tags = await this.createManyTags(tagInputs);
+
+      console.log(`🏥 Healthcare system initialization complete:`);
+      console.log(`   📁 Categories: ${categories.length}`);
+      console.log(`   🏷️ Tags: ${tags.length}`);
+
+      return { categories, tags };
+    } catch (error) {
+      console.error("❌ Failed to initialize healthcare tags:", error);
+      throw error;
+    }
+  }
 }

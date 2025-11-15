@@ -126,102 +126,103 @@ export function NotificationsPageContent() {
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center text-red-600">
-            <AlertTriangle className="h-12 w-12 mx-auto mb-4" />
-            <p className="text-lg font-medium">Failed to load notifications</p>
-            <p className="text-sm text-muted-foreground mt-2">{error}</p>
-          </div>
+      <Card className="p-2">
+        <CardContent className="p-4 text-center">
+          <AlertTriangle className="h-10 w-10 mx-auto mb-3 text-red-500/60" />
+          <h3 className="text-sm font-semibold mb-1 text-red-600">Failed to load notifications</h3>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto">{error}</p>
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header with actions */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Inbox className="h-6 w-6" />
-              <CardTitle className="text-xl">
-                Notifications {unreadCount > 0 && (
-                  <Badge variant="destructive" className="ml-2">
-                    {unreadCount}
-                  </Badge>
-                )}
-              </CardTitle>
-              <div
-                className={cn(
-                  "w-2 h-2 rounded-full",
-                  isConnected ? "bg-green-500" : "bg-gray-400"
-                )}
-                title={isConnected ? "Connected" : "Disconnected"}
-              />
-            </div>
-
+    <div className="space-y-2">
+      {/* Header */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bell className="h-4 w-4 text-muted-foreground" />
+            <h1 className="text-xl font-semibold">Notifications</h1>
             {unreadCount > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleMarkAllAsRead}
-                className="flex items-center gap-2"
-              >
-                <CheckCheck className="h-4 w-4" />
-                Mark all read
-              </Button>
+              <Badge variant="destructive" className="text-xs px-1.5 py-0.5">
+                {unreadCount}
+              </Badge>
             )}
+            <div
+              className={cn(
+                "w-2 h-2 rounded-full",
+                isConnected ? "bg-green-500" : "bg-gray-400"
+              )}
+              title={isConnected ? "Connected" : "Disconnected"}
+            />
           </div>
 
-          {/* Filters */}
-          <div className="flex gap-4 pt-4">
-            <Select value={filter} onValueChange={(value: "all" | "unread") => setFilter(value)}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="unread">Unread</SelectItem>
-              </SelectContent>
-            </Select>
+          {unreadCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleMarkAllAsRead}
+              className="min-h-[32px] h-8 text-xs"
+            >
+              <CheckCheck className="h-3 w-3 mr-1.5" />
+              Mark All Read
+            </Button>
+          )}
+        </div>
+        <p className="text-muted-foreground text-sm">
+          View and manage all your notifications
+        </p>
+      </div>
 
-            <Select value={typeFilter} onValueChange={(value: NotificationType | "all") => setTypeFilter(value)}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {Object.entries(notificationTypeLabels).map(([type, label]) => (
-                  <SelectItem key={type} value={type}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
+      {/* Filters */}
+      <Card className="p-2">
+        <div className="flex gap-2">
+          <Select value={filter} onValueChange={(value: "all" | "unread") => setFilter(value)}>
+            <SelectTrigger className="w-28 h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="unread">Unread</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={typeFilter} onValueChange={(value: NotificationType | "all") => setTypeFilter(value)}>
+            <SelectTrigger className="w-40 h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {Object.entries(notificationTypeLabels).map(([type, label]) => (
+                <SelectItem key={type} value={type}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </Card>
 
       {/* Notifications list */}
-      <div className="space-y-3">
+      <div className="space-y-1">
         {isLoading ? (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
-              <p>Loading notifications...</p>
+          <Card className="p-2">
+            <CardContent className="p-4 text-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent mx-auto mb-2" />
+              <p className="text-sm font-medium">Loading notifications...</p>
+              <p className="text-xs text-muted-foreground">Please wait while we fetch your updates</p>
             </CardContent>
           </Card>
         ) : filteredNotifications.length === 0 ? (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <Inbox className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-lg font-medium">No notifications</p>
-              <p className="text-sm text-muted-foreground mt-2">
+          <Card className="p-2">
+            <CardContent className="p-4 text-center">
+              <Inbox className="h-10 w-10 mx-auto mb-3 text-muted-foreground/60" />
+              <h3 className="text-sm font-semibold mb-1">No notifications found</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
                 {filter === "unread"
-                  ? "You're all caught up! No unread notifications."
-                  : "You don't have any notifications yet."
+                  ? "You're all caught up! No unread notifications to show."
+                  : "You don't have any notifications yet. When you receive updates, they'll appear here."
                 }
               </p>
             </CardContent>
@@ -233,19 +234,19 @@ export function NotificationsPageContent() {
               <Card
                 key={notification.id}
                 className={cn(
-                  "transition-colors hover:bg-muted/50",
-                  !notification.isRead && "border-l-4 border-l-primary"
+                  "transition-all duration-200 hover:shadow-sm border",
+                  !notification.isRead && "border-l-3 border-l-primary bg-primary/2"
                 )}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
+                <CardContent className="p-2">
+                  <div className="flex items-start gap-2">
                     <div className={cn(
-                      "p-2 rounded-lg flex-shrink-0",
-                      notification.isRead ? "bg-muted" : "bg-primary/10"
+                      "p-1.5 rounded-md flex-shrink-0",
+                      notification.isRead ? "bg-muted/60" : "bg-primary/10"
                     )}>
                       <Icon
                         className={cn(
-                          "h-4 w-4",
+                          "h-3.5 w-3.5",
                           notification.isRead
                             ? "text-muted-foreground"
                             : notificationTypeColors[notification.type]
@@ -254,40 +255,40 @@ export function NotificationsPageContent() {
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-1.5 mb-0.5">
                         <h4 className={cn(
                           "text-sm font-medium truncate",
-                          !notification.isRead && "font-semibold"
+                          !notification.isRead && "font-semibold text-foreground"
                         )}>
                           {notification.title}
                         </h4>
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs px-1 py-0 font-medium">
                           {notificationTypeLabels[notification.type]}
                         </Badge>
                       </div>
 
                       <p className={cn(
-                        "text-sm text-muted-foreground line-clamp-2",
-                        !notification.isRead && "text-foreground"
+                        "text-sm text-muted-foreground line-clamp-2 leading-snug",
+                        !notification.isRead && "text-foreground/90"
                       )}>
                         {notification.message}
                       </p>
 
-                      <p className="text-xs text-muted-foreground mt-2">
+                      <p className="text-xs text-muted-foreground mt-1 font-medium">
                         {formatTimeAgo(new Date(notification.createdAt))}
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
                       {!notification.isRead && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleMarkAsRead(notification.id)}
-                          className="h-8 w-8 p-0"
+                          className="h-7 w-7 p-0 hover:bg-primary/10"
                           title="Mark as read"
                         >
-                          <Check className="h-4 w-4" />
+                          <Check className="h-3 w-3" />
                         </Button>
                       )}
 
@@ -295,10 +296,10 @@ export function NotificationsPageContent() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(notification.id)}
-                        className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
                         title="Delete notification"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>

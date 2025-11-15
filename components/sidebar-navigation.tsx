@@ -61,10 +61,10 @@ const navigationItems: NavigationItem[] = [
     title: 'Families',
     href: '/admin/families',
     icon: Heart,
-    roles: [UserRole.ADMIN, UserRole.VOLUNTEER]
+    roles: [UserRole.ADMIN]
   },
   {
-    title: 'My Families',
+    title: 'Families',
     href: '/volunteer/families',
     icon: Heart,
     roles: [UserRole.VOLUNTEER]

@@ -8,14 +8,20 @@ import {
   ArrowLeft,
   MessageSquare,
   Eye,
-  ThumbsUp,
   Clock,
   User,
   Hash,
   Pin,
   Lock,
   AlertCircle,
-  MessageCircle
+  MessageCircle,
+  Paperclip,
+  FileIcon,
+  FileText,
+  Image,
+  Video,
+  FileAudio,
+  Download
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -24,7 +30,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { VoteButtons } from "./vote-buttons"
 import { ReplyThread } from "./reply-thread"
 import { ReplyForm } from "./reply-form"
 
@@ -47,8 +52,19 @@ interface Post {
   replyCount: number
   score: number
   userVote?: "UPVOTE" | "DOWNVOTE" | null
-  attachments: string[]
-  tags: string[]
+  attachments?: string[]
+  documents?: Array<{
+    id: string
+    title: string
+    fileName?: string
+    originalFileName?: string
+    fileSize?: number
+    mimeType?: string
+    filePath?: string
+    thumbnailPath?: string
+    url?: string
+  }>
+  tags?: string[]
   createdAt: string
   updatedAt: string
   author: {
@@ -96,7 +112,36 @@ function getPostTypeDisplay(type: string): { label: string; color: string; icon:
   }
 }
 
+// Helper function to get file icon
+function getFileIcon(mimeType?: string) {
+  if (!mimeType) return FileIcon
+
+  if (mimeType.startsWith('image/')) return Image
+  if (mimeType.startsWith('video/')) return Video
+  if (mimeType.startsWith('audio/')) return FileAudio
+  if (mimeType.includes('pdf') || mimeType.includes('document')) return FileText
+
+  return FileIcon
+}
+
+// Helper function to format file size
+function formatFileSize(bytes?: number): string {
+  if (!bytes) return 'Unknown size'
+
+  const units = ['B', 'KB', 'MB', 'GB']
+  let size = bytes
+  let unitIndex = 0
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024
+    unitIndex++
+  }
+
+  return `${Math.round(size * 10) / 10}${units[unitIndex]}`
+}
+
 export function PostDetailPage() {
+  // Fixed all avatar and author property access issues with optional chaining
   const { isLoaded, isSignedIn, getToken, sessionClaims } = useAuth()
   const router = useRouter()
   const params = useParams()
@@ -112,6 +157,7 @@ export function PostDetailPage() {
 
   // Get user role for navigation
   const userRole = (sessionClaims?.metadata as { role?: string })?.role || 'member'
+  const rolePrefix = userRole.toLowerCase()
 
   // Fetch post data
   const fetchPost = useCallback(async () => {
@@ -123,9 +169,8 @@ export function PostDetailPage() {
 
       const token = await getToken()
 
-      // First, we need to get the post by slug. For now, let's use the forum endpoint to find posts
-      // We'll use the forum detail endpoint to get posts, then find the matching slug
-      const forumResponse = await fetch(`/api/forums?search=${encodeURIComponent(forumSlug)}`, {
+      // Get forum by slug using the new by-slug endpoint
+      const forumResponse = await fetch(`/api/forums/by-slug/${encodeURIComponent(forumSlug)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -133,11 +178,11 @@ export function PostDetailPage() {
       })
 
       if (!forumResponse.ok) {
-        throw new Error('Failed to fetch forum')
+        throw new Error('Forum not found')
       }
 
-      const forumsData = await forumResponse.json()
-      const forum = forumsData.forums?.[0]
+      const forumData = await forumResponse.json()
+      const forum = forumData.forum
 
       if (!forum) {
         throw new Error('Forum not found')
@@ -175,7 +220,13 @@ export function PostDetailPage() {
       }
 
       const postDetailData = await postDetailResponse.json()
-      setPost({ ...postDetailData, forum })
+      console.log('🔍 Post detail API response:', {
+        postDetailData,
+        post: postDetailData.post,
+        author: postDetailData.post?.author,
+        authorName: postDetailData.post?.author?.name
+      })
+      setPost({ ...postDetailData.post, forum })
 
     } catch (err) {
       console.error('Error fetching post:', err)
@@ -190,30 +241,26 @@ export function PostDetailPage() {
     fetchPost()
   }, [fetchPost])
 
-  // Handle vote success
-  const handleVoteSuccess = () => {
-    fetchPost() // Refresh to get updated vote counts
-  }
 
   // Loading state
   if (!isLoaded || !isSignedIn || loading) {
     return (
-      <div className="container mx-auto p-4 space-y-6">
-        <div className="flex items-center space-x-4">
-          <Skeleton className="h-10 w-32" />
-          <Skeleton className="h-6 w-48" />
+      <div className="space-y-2">
+        <div className="flex items-center space-x-2">
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-4 w-32" />
         </div>
         <Card>
-          <CardHeader>
-            <Skeleton className="h-8 w-3/4" />
-            <div className="flex space-x-2">
-              <Skeleton className="h-6 w-20" />
-              <Skeleton className="h-6 w-24" />
-              <Skeleton className="h-6 w-16" />
+          <CardHeader className="pb-2">
+            <Skeleton className="h-6 w-3/4" />
+            <div className="flex space-x-1">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-12" />
             </div>
           </CardHeader>
           <CardContent>
-            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-24 w-full" />
           </CardContent>
         </Card>
       </div>
@@ -223,19 +270,17 @@ export function PostDetailPage() {
   // Error state
   if (error) {
     return (
-      <div className="container mx-auto p-4">
-        <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => router.back()}
-            className="mb-4"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-        </div>
+      <div className="space-y-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push(`/${rolePrefix}/forums/${forumSlug}`)}
+        >
+          <ArrowLeft className="mr-1 h-3 w-3" />
+          Back to Forum
+        </Button>
 
-        <Alert className="max-w-2xl">
+        <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             {error}. <button onClick={fetchPost} className="underline font-medium">Try again</button>
@@ -248,19 +293,17 @@ export function PostDetailPage() {
   // No post state
   if (!post) {
     return (
-      <div className="container mx-auto p-4">
-        <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => router.back()}
-            className="mb-4"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-        </div>
+      <div className="space-y-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push(`/${rolePrefix}/forums/${forumSlug}`)}
+        >
+          <ArrowLeft className="mr-1 h-3 w-3" />
+          Back to Forum
+        </Button>
 
-        <Alert className="max-w-2xl">
+        <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Post not found.
@@ -273,54 +316,58 @@ export function PostDetailPage() {
   const typeDisplay = getPostTypeDisplay(post.type)
   const TypeIcon = typeDisplay.icon
 
+  // Debug post object when rendering
+  console.log('🎯 Rendering post:', {
+    post,
+    author: post?.author,
+    authorName: post?.author?.name
+  })
+
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
+    <div className="space-y-2">
       {/* Breadcrumb Navigation */}
-      <div className="mb-6">
-        <nav className="flex items-center space-x-2 text-sm text-muted-foreground">
-          <Link
-            href={`/${userRole}/forums`}
-            className="hover:text-foreground transition-colors"
-          >
-            Forums
-          </Link>
-          <span>›</span>
-          <Link
-            href={`/${userRole}/forums/${forumSlug}`}
-            className="hover:text-foreground transition-colors"
-          >
-            {post.forum?.title}
-          </Link>
-          <span>›</span>
-          <span className="text-foreground font-medium truncate">
-            {post.title}
-          </span>
-        </nav>
-      </div>
+      <nav className="flex items-center space-x-1 text-xs text-muted-foreground">
+        <Link
+          href={`/${userRole}/forums`}
+          className="hover:text-foreground transition-colors"
+        >
+          Forums
+        </Link>
+        <span>›</span>
+        <Link
+          href={`/${userRole}/forums/${forumSlug}`}
+          className="hover:text-foreground transition-colors"
+        >
+          {post.forum?.title}
+        </Link>
+        <span>›</span>
+        <span className="text-foreground font-medium truncate">
+          {post.title}
+        </span>
+      </nav>
 
       {/* Back Button */}
-      <div className="mb-6">
-        <Button
-          variant="ghost"
-          onClick={() => router.push(`/${userRole}/forums/${forumSlug}`)}
-          className="mb-4"
-        >
+      <Button
+        variant="ghost"
+        asChild
+      >
+        <Link href={`/${rolePrefix}/forums/${forumSlug}`}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to {post.forum?.title}
-        </Button>
-      </div>
+        </Link>
+      </Button>
 
       {/* Post Content */}
-      <Card className="mb-6">
-        <CardHeader className="pb-4">
+      <Card className="mb-3">
+        <CardHeader className="pb-2">
           {/* Post Header */}
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start">
             <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-foreground mb-2 leading-tight">
+              <h1 className="text-xl font-bold text-foreground mb-1 leading-tight">
                 {post.title}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                 {/* Post Type Badge */}
                 <Badge className={cn(typeDisplay.color, "flex items-center gap-1")}>
                   <TypeIcon className="h-3 w-3" />
@@ -342,40 +389,29 @@ export function PostDetailPage() {
                 )}
 
                 {/* Tags */}
-                {post.tags.map((tag) => (
+                {(post.tags || []).map((tag) => (
                   <Badge key={tag} variant="outline">
                     #{tag}
                   </Badge>
                 ))}
               </div>
             </div>
-
-            {/* Vote Buttons */}
-            <div className="flex-shrink-0">
-              <VoteButtons
-                itemId={post.id}
-                itemType="post"
-                initialScore={post.score}
-                initialUserVote={post.userVote}
-                className="flex-col gap-1"
-              />
-            </div>
           </div>
 
           {/* Author and Metadata */}
-          <div className="flex items-center justify-between pt-4 border-t">
-            <div className="flex items-center space-x-3">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={post.author.imageUrl} alt={post.author.name} />
+          <div className="flex items-center justify-between pt-2 border-t">
+            <div className="flex items-center space-x-2">
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={post.author?.imageUrl || ''} alt={post.author?.name || 'Unknown'} />
                 <AvatarFallback>
-                  <User className="h-4 w-4" />
+                  <User className="h-3 w-3" />
                 </AvatarFallback>
               </Avatar>
               <div>
-                <div className="font-medium text-sm">{post.author.name}</div>
-                <div className="flex items-center space-x-4 text-xs text-muted-foreground">
+                <div className="font-medium text-xs">{post.author?.name || 'Unknown Author'}</div>
+                <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
+                    <Clock className="h-2 w-2" />
                     {new Date(post.createdAt).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
@@ -388,14 +424,10 @@ export function PostDetailPage() {
               </div>
             </div>
 
-            <div className="flex items-center space-x-4 text-xs text-muted-foreground">
+            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
-                <Eye className="h-3 w-3" />
-                {post.viewCount} views
-              </span>
-              <span className="flex items-center gap-1">
-                <MessageCircle className="h-3 w-3" />
-                {post.replyCount} replies
+                <MessageCircle className="h-2 w-2" />
+                {post.replyCount}
               </span>
             </div>
           </div>
@@ -408,6 +440,61 @@ export function PostDetailPage() {
               {post.content}
             </div>
           </div>
+
+          {/* Document Attachments */}
+          {post.documents && post.documents.length > 0 && (
+            <div className="mt-6 pt-4 border-t">
+              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                <Paperclip className="h-4 w-4" />
+                Attachments ({post.documents.length})
+              </h4>
+              <div className="space-y-2">
+                {post.documents.map((doc) => {
+                  const FileIconComponent = getFileIcon(doc.mimeType)
+                  return (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-3 bg-muted rounded-md"
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <FileIconComponent className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <h5 className="font-medium text-sm truncate">{doc.title}</h5>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{formatFileSize(doc.fileSize)}</span>
+                            {doc.fileName && (
+                              <>
+                                <span>•</span>
+                                <span className="truncate">{doc.originalFileName || doc.fileName}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {doc.url && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                          className="flex-shrink-0"
+                        >
+                          <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1"
+                          >
+                            <Download className="h-3 w-3" />
+                            <span className="sr-only">Download {doc.title}</span>
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Attachments */}
           {post.attachments && post.attachments.length > 0 && (
@@ -428,14 +515,14 @@ export function PostDetailPage() {
 
       {/* Reply to Post Form */}
       {!post.isLocked && (
-        <Card>
-          <CardHeader>
-            <h3 className="text-lg font-medium flex items-center gap-2">
-              <MessageCircle className="h-5 w-5" />
+        <Card className="mb-2">
+          <CardHeader className="pb-2">
+            <h3 className="text-sm font-medium flex items-center gap-1">
+              <MessageCircle className="h-4 w-4" />
               Reply to this post
             </h3>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <ReplyForm
               postId={post.id}
               onSuccess={fetchPost}
@@ -447,13 +534,13 @@ export function PostDetailPage() {
 
       {/* Replies Section */}
       {post.replies && post.replies.length > 0 ? (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <MessageCircle className="h-5 w-5" />
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold flex items-center gap-1">
+            <MessageCircle className="h-4 w-4" />
             Replies ({post.replyCount})
           </h2>
 
-          <div className="space-y-4">
+          <div className="space-y-2">
             <ReplyThread
               replies={post.replies}
               postId={post.id}
@@ -462,11 +549,11 @@ export function PostDetailPage() {
         </div>
       ) : (
         <Card>
-          <CardContent className="py-8">
+          <CardContent className="py-4">
             <div className="text-center text-muted-foreground">
-              <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h3 className="font-medium mb-2">No replies yet</h3>
-              <p className="text-sm">Be the first to reply to this post!</p>
+              <MessageCircle className="h-6 w-6 mx-auto mb-2 opacity-50" />
+              <h3 className="font-medium text-sm mb-1">No replies yet</h3>
+              <p className="text-xs">Be the first to reply to this post!</p>
             </div>
           </CardContent>
         </Card>

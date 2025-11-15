@@ -380,14 +380,14 @@ async function createReplyNotifications(
         userId: post.authorId,
         type: NotificationType.FAMILY_ACTIVITY,
         title: "New reply to your post",
-        message: `${author.firstName} ${author.lastName || ""} replied to your post: "${post.title}"`,
+        message: `${author.firstName || author.email || "A user"} ${author.lastName || ""} replied to your post: "${post.title}"`,
         data: {
           replyId,
           postId,
           postTitle: post.title,
           postSlug: post.slug,
           authorId,
-          authorName: `${author.firstName} ${author.lastName || ""}`,
+          authorName: `${author.firstName || author.email || "A user"} ${author.lastName || ""}`,
           activityType: "post_replied"
         },
         actionUrl: post.forum ? `/forums/${post.forum.slug}/posts/${post.slug}#reply-${replyId}` : `/posts/${post.slug}#reply-${replyId}`,
@@ -403,7 +403,7 @@ async function createReplyNotifications(
           userId: parentReply.authorId,
           type: NotificationType.FAMILY_ACTIVITY,
           title: "Someone replied to your comment",
-          message: `${author.firstName} ${author.lastName || ""} replied to your comment on: "${post.title}"`,
+          message: `${author.firstName || author.email || "A user"} ${author.lastName || ""} replied to your comment on: "${post.title}"`,
           data: {
             replyId,
             parentReplyId: parentId,
@@ -411,7 +411,7 @@ async function createReplyNotifications(
             postTitle: post.title,
             postSlug: post.slug,
             authorId,
-            authorName: `${author.firstName} ${author.lastName || ""}`,
+            authorName: `${author.firstName || author.email || "A user"} ${author.lastName || ""}`,
             activityType: "reply_replied"
           },
           actionUrl: post.forum ? `/forums/${post.forum.slug}/posts/${post.slug}#reply-${replyId}` : `/posts/${post.slug}#reply-${replyId}`,
@@ -441,14 +441,14 @@ async function createReplyNotifications(
         userId: participantId,
         type: NotificationType.FAMILY_ACTIVITY,
         title: "New activity in a conversation you're part of",
-        message: `${author.firstName} ${author.lastName || ""} added a reply to: "${post.title}"`,
+        message: `${author.firstName || author.email || "A user"} ${author.lastName || ""} added a reply to: "${post.title}"`,
         data: {
           replyId,
           postId,
           postTitle: post.title,
           postSlug: post.slug,
           authorId,
-          authorName: `${author.firstName} ${author.lastName || ""}`,
+          authorName: `${author.firstName || author.email || "A user"} ${author.lastName || ""}`,
           activityType: "conversation_activity"
         },
         actionUrl: post.forum ? `/forums/${post.forum.slug}/posts/${post.slug}#reply-${replyId}` : `/posts/${post.slug}#reply-${replyId}`,
@@ -473,7 +473,7 @@ async function createReplyNotifications(
         userId: moderator.userId,
         type: NotificationType.FAMILY_ACTIVITY,
         title: "New reply in your moderated forum",
-        message: `${author.firstName} ${author.lastName || ""} replied in ${post.forum?.title || "Forum"}: "${post.title}"`,
+        message: `${author.firstName || author.email || "A user"} ${author.lastName || ""} replied in ${post.forum?.title || "Forum"}: "${post.title}"`,
         data: {
           replyId,
           postId,
@@ -482,7 +482,7 @@ async function createReplyNotifications(
           forumId: post.forumId,
           forumTitle: post.forum?.title || "Forum",
           authorId,
-          authorName: `${author.firstName} ${author.lastName || ""}`,
+          authorName: `${author.firstName || author.email || "A user"} ${author.lastName || ""}`,
           activityType: "moderation_activity"
         },
         actionUrl: post.forum ? `/forums/${post.forum.slug}/posts/${post.slug}#reply-${replyId}` : `/posts/${post.slug}#reply-${replyId}`,
@@ -506,9 +506,9 @@ async function createReplyNotifications(
           },
           {
             recipientName: "Forum Member", // Could be enhanced with actual names
-            senderName: `${author.firstName} ${author.lastName || ""}`,
+            senderName: `${author.firstName || author.email || "A user"} ${author.lastName || ""}`,
             familyName: post.forum?.title || "Forum",
-            authorName: `${author.firstName} ${author.lastName || ""}`,
+            authorName: `${author.firstName || author.email || "A user"} ${author.lastName || ""}`,
           }
         );
       } catch (error) {

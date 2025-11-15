@@ -323,16 +323,16 @@ async function createForumCreatedNotification(
       userId: admin.id,
       type: NotificationType.FAMILY_ACTIVITY,
       title: "New Forum Created",
-      message: `${creator.firstName} ${creator.lastName || ""} created a new forum: "${forum.title}"`,
+      message: `${creator.firstName || creator.email || "A user"} ${creator.lastName || ""} created a new forum: "${forum.title}"`,
       data: {
         forumId,
         forumTitle: forum.title,
         forumSlug: forum.slug,
         creatorId,
-        creatorName: `${creator.firstName} ${creator.lastName || ""}`,
+        creatorName: `${creator.firstName || creator.email || "A user"} ${creator.lastName || ""}`,
         activityType: "forum_created"
       },
-      actionUrl: `/forums/${forum.slug}`,
+      actionUrl: `/${admin.role.toLowerCase()}/forums/${forum.slug}`,
       isActionable: true
     }));
 

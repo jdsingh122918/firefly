@@ -99,9 +99,8 @@ export function NoteCard({
       // Get user role for dynamic routing
       const userRole = (sessionClaims?.metadata as { role?: string })?.role || 'member'
       const rolePrefix = userRole.toLowerCase()
-      // For MVP, we'll edit the note in a dialog (same as create)
-      // Future: navigate to `/notes/${note.id}` for detail view
-      router.push(`/${rolePrefix}/notes`)
+      // Navigate to note detail page
+      router.push(`/${rolePrefix}/notes/${note.id}`)
     }
   }
 
@@ -128,10 +127,10 @@ export function NoteCard({
       )}
       onClick={handleClick}
     >
-      <CardContent className="p-4 md:p-6">
-        <div className="space-y-3">
+      <CardContent className="p-3">
+        <div className="space-y-2">
           {/* Header with badges */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1">
             {note.isPinned && (
               <Badge variant="secondary" className="flex items-center gap-1">
                 <Pin className="h-3 w-3" />
@@ -167,7 +166,7 @@ export function NoteCard({
           </div>
 
           {/* Title */}
-          <h3 className="font-semibold text-lg line-clamp-2 hover:text-primary transition-colors">
+          <h3 className="font-semibold text-base line-clamp-2 hover:text-primary transition-colors">
             {note.title}
           </h3>
 
@@ -196,10 +195,10 @@ export function NoteCard({
           )}
 
           {/* Metadata row */}
-          <div className="flex flex-wrap items-center gap-3 md:gap-4 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             {/* Author */}
-            <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6">
+            <div className="flex items-center gap-1">
+              <Avatar className="h-5 w-5">
                 <AvatarImage src={note.creator.imageUrl} />
                 <AvatarFallback className="text-xs">
                   {initials}
@@ -238,7 +237,7 @@ export function NoteCard({
 
           {/* Edit indicator for recently edited notes */}
           {isEdited && note.lastEditedBy && (
-            <div className="pt-2 border-t text-xs text-muted-foreground">
+            <div className="pt-1 border-t text-xs text-muted-foreground">
               Last edited {formatTimeAgo(note.lastEditedAt!)}
               {note.lastEditedBy !== note.creator.id && (
                 <span> by someone else</span>
@@ -248,7 +247,7 @@ export function NoteCard({
         </div>
 
         {/* Arrow */}
-        <ArrowRight className="absolute top-4 right-4 h-5 w-5 text-muted-foreground hidden sm:block" />
+        <ArrowRight className="absolute top-3 right-3 h-4 w-4 text-muted-foreground hidden sm:block" />
       </CardContent>
     </Card>
   )

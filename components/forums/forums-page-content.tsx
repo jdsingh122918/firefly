@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ForumCreationDialog } from "./forum-creation-dialog"
+import Link from "next/link"
 
 interface Forum {
   id: string
@@ -82,7 +82,9 @@ export function ForumsPageContent() {
   const [searchTerm, setSearchTerm] = useState("")
   const [visibilityFilter, setVisibilityFilter] = useState<string>("all")
   const [sortBy, setSortBy] = useState<string>("lastActivity")
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
+
+  // Get user role from session claims or default to member
+  const userRole = ((sessionClaims?.metadata as { role?: string })?.role || 'member').toLowerCase()
 
   // Filter forums based on current filters
   const filteredForums = forums.filter((forum) => {
@@ -157,10 +159,6 @@ export function ForumsPageContent() {
     router.push(`/${rolePrefix}/forums/${forum.slug}`)
   }
 
-  const handleForumCreated = () => {
-    // Refresh the forums list when a new forum is created
-    fetchForums()
-  }
 
   const formatTimeAgo = (date: string): string => {
     const now = new Date()
@@ -205,7 +203,7 @@ export function ForumsPageContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header with actions and search */}
       <Card>
         <CardHeader className="pb-3">
@@ -222,12 +220,11 @@ export function ForumsPageContent() {
               </CardTitle>
             </div>
 
-            <Button
-              className="w-full md:w-auto"
-              onClick={() => setShowCreateDialog(true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Create Forum
+            <Button asChild className="w-full md:w-auto">
+              <Link href={`/${userRole}/forums/new`}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Forum
+              </Link>
             </Button>
           </div>
 
@@ -277,11 +274,11 @@ export function ForumsPageContent() {
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
               <Card key={i}>
-                <CardContent className="p-6">
+                <CardContent className="p-4">
                   <div className="space-y-3">
                     <Skeleton className="h-6 w-48" />
                     <Skeleton className="h-4 w-full max-w-md" />
-                    <div className="flex gap-4">
+                    <div className="flex gap-2">
                       <Skeleton className="h-4 w-16" />
                       <Skeleton className="h-4 w-16" />
                       <Skeleton className="h-4 w-24" />
@@ -303,12 +300,11 @@ export function ForumsPageContent() {
                 }
               </p>
               {(!searchTerm && visibilityFilter === "all") && (
-                <Button
-                  className="mt-4"
-                  onClick={() => setShowCreateDialog(true)}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Forum
+                <Button asChild className="mt-4">
+                  <Link href={`/${userRole}/forums/new`}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Forum
+                  </Link>
                 </Button>
               )}
             </CardContent>
@@ -322,8 +318,8 @@ export function ForumsPageContent() {
                 className="transition-colors hover:bg-muted/50 cursor-pointer"
                 onClick={() => handleForumClick(forum)}
               >
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
                     {/* Icon */}
                     <div className="p-3 rounded-lg bg-primary/10 flex-shrink-0">
                       <MessageSquare className="h-6 w-6 text-primary" />
@@ -383,12 +379,6 @@ export function ForumsPageContent() {
         )}
       </div>
 
-      {/* Forum Creation Dialog */}
-      <ForumCreationDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
-        onSuccess={handleForumCreated}
-      />
     </div>
   )
 }

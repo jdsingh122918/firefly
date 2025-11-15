@@ -4,12 +4,14 @@ import { useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { HealthcareTagsInitializer } from '@/components/admin/healthcare-tags-initializer'
 import { toast } from 'sonner'
 
 export default function DebugPage() {
   const { isLoaded, isSignedIn, userId } = useAuth()
   const [syncing, setSyncing] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [resettingChat, setResettingChat] = useState(false)
   const [result, setResult] = useState<{ message?: string; user?: object; error?: string } | null>(null)
 
   const syncUser = async () => {
@@ -76,6 +78,40 @@ export default function DebugPage() {
     }
   }
 
+  const resetChatHistory = async () => {
+    if (!confirm('Are you sure you want to reset all chat history? This will delete ALL messages and conversations and cannot be undone!')) {
+      return
+    }
+
+    try {
+      setResettingChat(true)
+
+      const response = await fetch('/api/debug/reset-chat-history', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Chat history reset failed')
+      }
+
+      setResult(data)
+      toast.success('Chat history reset successfully!')
+    } catch (error) {
+      console.error('Error resetting chat history:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to reset chat history'
+      toast.error(errorMessage)
+      setResult({ error: errorMessage })
+    } finally {
+      setResettingChat(false)
+    }
+  }
+
   const checkDatabase = async () => {
     try {
       const response = await fetch('/api/debug/database')
@@ -102,7 +138,7 @@ export default function DebugPage() {
         <p className="text-muted-foreground">Tools to diagnose and fix authentication issues</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader>
             <CardTitle>Database Reset</CardTitle>
@@ -113,6 +149,20 @@ export default function DebugPage() {
             </p>
             <Button onClick={resetDatabase} disabled={resetting} variant="destructive">
               {resetting ? 'Resetting...' : 'Reset Database'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Chat History Reset</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              💬 Reset all chat history. This will delete ALL messages and conversations!
+            </p>
+            <Button onClick={resetChatHistory} disabled={resettingChat} variant="destructive">
+              {resettingChat ? 'Resetting...' : 'Reset Chat History'}
             </Button>
           </CardContent>
         </Card>
@@ -144,6 +194,15 @@ export default function DebugPage() {
             </Button>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Healthcare Tags Initializer */}
+      <div className="space-y-2">
+        <h2 className="text-xl font-semibold">Healthcare System Tags</h2>
+        <p className="text-sm text-muted-foreground">
+          Initialize predefined healthcare service tags for system-wide use
+        </p>
+        <HealthcareTagsInitializer />
       </div>
 
       {result && (

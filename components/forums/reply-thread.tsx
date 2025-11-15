@@ -15,7 +15,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { VoteButtons } from "./vote-buttons"
 import { ReplyForm } from "./reply-form"
 
 interface Reply {
@@ -123,22 +122,12 @@ function ReplyItem({ reply, postId, maxDepth, onReplyUpdate }: ReplyItemProps) {
       <Card className="hover:bg-muted/20 transition-colors">
         <CardContent className="p-3">
           <div className="flex gap-3">
-            {/* Vote buttons - hidden on mobile for replies */}
-            <div className="hidden sm:block flex-shrink-0">
-              <VoteButtons
-                itemId={reply.id}
-                itemType="reply"
-                initialScore={reply.score}
-                initialUserVote={reply.userVote}
-              />
-            </div>
-
             {/* Content */}
             <div className="flex-1 min-w-0">
               {/* Header */}
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <Avatar className="h-6 w-6">
-                  <AvatarImage src={reply.author.imageUrl} />
+                  <AvatarImage src={reply.author?.imageUrl || ''} />
                   <AvatarFallback className="text-xs">
                     {getInitials(reply.author)}
                   </AvatarFallback>
@@ -152,11 +141,6 @@ function ReplyItem({ reply, postId, maxDepth, onReplyUpdate }: ReplyItemProps) {
                 <Badge variant="outline" className="text-xs">
                   Depth {reply.depth}
                 </Badge>
-
-                {/* Mobile score */}
-                <span className="sm:hidden text-xs text-muted-foreground">
-                  {reply.score} points
-                </span>
               </div>
 
               {/* Content */}
@@ -211,7 +195,7 @@ function ReplyItem({ reply, postId, maxDepth, onReplyUpdate }: ReplyItemProps) {
                       onReplyUpdate?.()
                     }}
                     onCancel={() => setShowReplyForm(false)}
-                    placeholder={`Reply to ${reply.author.name}...`}
+                    placeholder={`Reply to ${reply.author?.name || 'this post'}...`}
                   />
                 </div>
               )}

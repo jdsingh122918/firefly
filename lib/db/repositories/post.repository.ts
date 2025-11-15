@@ -116,6 +116,32 @@ export class PostRepository {
         },
       });
 
+      // Create document attachments if provided
+      if (data.documentIds && data.documentIds.length > 0) {
+        try {
+          const documentAttachments = data.documentIds.map((documentId, index) => ({
+            postId: post.id,
+            documentId,
+            order: index,
+            createdBy: data.authorId,
+          }));
+
+          await prisma.postDocument.createMany({
+            data: documentAttachments,
+          });
+
+          console.log("📎 Document attachments created for post:", {
+            postId: post.id,
+            documentCount: data.documentIds.length,
+            documentIds: data.documentIds,
+          });
+        } catch (error) {
+          console.error("❌ Failed to create document attachments for post:", error);
+          // Don't fail the entire post creation if documents fail to attach
+          // The post was created successfully, just log the error
+        }
+      }
+
       // Update forum activity and post count
       await Promise.all([
         this.updateForumActivity(data.forumId, data.authorId),

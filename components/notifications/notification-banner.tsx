@@ -23,6 +23,7 @@ import { Notification, NotificationType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 
 export interface NotificationBannerProps {
   className?: string;
@@ -56,6 +57,13 @@ export function NotificationBanner({
   const { notifications, unreadCount, markAsRead, isConnected } = useNotifications();
   const [isExpanded, setIsExpanded] = useState(false);
   const router = useRouter();
+  const { sessionClaims } = useAuth();
+
+  // Get user role from session metadata
+  const getUserRole = () => {
+    const metadata = sessionClaims?.metadata as { role?: string } | undefined;
+    return metadata?.role?.toLowerCase() || 'member';
+  };
 
   // Filter to unread notifications
   const unreadNotifications = notifications.filter(n => !n.isRead);
@@ -116,7 +124,8 @@ export function NotificationBanner({
           // Navigate to conversation/reply page
           const messageData = notification.data as any;
           if (messageData?.conversationId) {
-            router.push(`/messages/${messageData.conversationId}`);
+            const role = getUserRole();
+            router.push(`/${role}/chat/${messageData.conversationId}`);
           }
           break;
 

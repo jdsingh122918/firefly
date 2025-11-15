@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { FamilyCombobox } from '@/components/ui/family-combobox'
 
 interface UserDetails {
   id: string
@@ -44,6 +46,9 @@ export default function UserDetailPage() {
   const [user, setUser] = useState<UserDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [familyAssignDialog, setFamilyAssignDialog] = useState(false)
+  const [selectedFamilyId, setSelectedFamilyId] = useState<string | undefined>()
+  const [assigningFamily, setAssigningFamily] = useState(false)
 
   // Fetch user details
   const fetchUser = useCallback(async () => {
@@ -94,6 +99,48 @@ export default function UserDetailPage() {
       console.error('Error deleting user:', err)
       alert(err instanceof Error ? err.message : 'Failed to delete user')
     }
+  }
+
+  // Handle family assignment
+  const handleAssignFamily = async () => {
+    if (!user) return
+
+    try {
+      setAssigningFamily(true)
+
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          familyId: selectedFamilyId || null,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update family assignment')
+      }
+
+      // Refresh user data to show updated family
+      await fetchUser()
+      setFamilyAssignDialog(false)
+      setSelectedFamilyId(undefined)
+
+      console.log('✅ Family assignment updated successfully')
+    } catch (err) {
+      console.error('Error assigning family:', err)
+      alert(err instanceof Error ? err.message : 'Failed to assign family')
+    } finally {
+      setAssigningFamily(false)
+    }
+  }
+
+  // Open family assignment dialog
+  const openFamilyAssignDialog = () => {
+    setSelectedFamilyId(user?.familyId || undefined)
+    setFamilyAssignDialog(true)
   }
 
   // Fetch user on component mount
@@ -374,7 +421,7 @@ export default function UserDetailPage() {
                 </div>
 
                 <div className="flex justify-center">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={openFamilyAssignDialog}>
                     Change Family Assignment
                   </Button>
                 </div>
@@ -387,7 +434,7 @@ export default function UserDetailPage() {
                   This user is not currently assigned to any family group.
                 </p>
                 <div className="mt-6">
-                  <Button size="sm" variant="outline">
+                  <Button size="sm" variant="outline" onClick={openFamilyAssignDialog}>
                     Assign to Family
                   </Button>
                 </div>
@@ -428,6 +475,48 @@ export default function UserDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Family Assignment Dialog */}
+      <Dialog open={familyAssignDialog} onOpenChange={setFamilyAssignDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Family Assignment</DialogTitle>
+            <DialogDescription>
+              Assign {user?.name} to a family group for care coordination.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Select Family</label>
+                <div className="mt-2">
+                  <FamilyCombobox
+                    value={selectedFamilyId}
+                    onValueChange={setSelectedFamilyId}
+                    placeholder="Search for a family..."
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setFamilyAssignDialog(false)}
+              disabled={assigningFamily}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAssignFamily}
+              disabled={assigningFamily}
+            >
+              {assigningFamily ? 'Assigning...' : 'Update Assignment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

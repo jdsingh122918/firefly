@@ -90,6 +90,12 @@ export async function GET(
       viewCount: post.viewCount,
     });
 
+    console.log("🔍 API: Post author data from repository:", {
+      author: post.author,
+      authorId: post.authorId,
+      hasAuthor: !!post.author
+    });
+
     // Format response
     const formattedPost = {
       id: post.id,
@@ -168,6 +174,11 @@ export async function GET(
         thumbnailPath: doc.thumbnailPath,
       })) : [],
     };
+
+    console.log("🔍 API: Final formatted response:", {
+      formattedAuthor: formattedPost.author,
+      hasFormattedAuthor: !!formattedPost.author
+    });
 
     return NextResponse.json({
       post: formattedPost,

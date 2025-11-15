@@ -64,10 +64,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Family not found" }, { status: 404 });
     }
 
-    // Check if volunteer has access to this family (for future fine-grained access control)
+    // Check if volunteer has access to this family
     if (user.role === UserRole.VOLUNTEER) {
-      // For now, volunteers can see all families
-      // Future: check if volunteer is assigned to this family
+      // Volunteers can only see families they created
+      if (family.createdById !== user.id) {
+        return NextResponse.json(
+          { error: "Access denied - you can only view families you created" },
+          { status: 403 },
+        );
+      }
     }
 
     console.log("✅ Family retrieved:", {

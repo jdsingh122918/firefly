@@ -52,10 +52,19 @@ export async function POST(request: NextRequest) {
       }
 
       try {
+        console.log("📁 Processing file:", {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          category,
+        });
+
         const uploadResult = await fileStorageService.uploadFile(file, {
           category: category as "images" | "documents" | "temp",
           userId: user.id,
         });
+
+        console.log("📁 Upload result:", uploadResult);
 
         if (uploadResult.success) {
           results.push({
@@ -74,30 +83,44 @@ export async function POST(request: NextRequest) {
             originalName: file.name,
           });
         } else {
-          errors.push(`Failed to upload ${file.name}: ${uploadResult.error}`);
+          const errorMsg = `Failed to upload ${file.name}: ${uploadResult.error}`;
+          errors.push(errorMsg);
           console.error("❌ File upload failed:", {
             fileName: file.name,
             error: uploadResult.error,
+            uploadResult,
           });
         }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
-        errors.push(`Failed to upload ${file.name}: ${errorMessage}`);
-        console.error("❌ File upload error:", {
+        const fullError = `Failed to upload ${file.name}: ${errorMessage}`;
+        errors.push(fullError);
+        console.error("❌ File upload exception:", {
           fileName: file.name,
           error: errorMessage,
+          stack: error instanceof Error ? error.stack : undefined,
         });
       }
     }
 
     // Determine response based on results
     if (results.length === 0) {
+      console.error("❌ No files uploaded successfully:", {
+        totalFiles: files.length,
+        errors,
+        category,
+      });
       return NextResponse.json(
         {
           success: false,
           error: "No files were uploaded successfully",
           errors,
+          details: {
+            totalFiles: files.length,
+            category,
+            userId: user.id,
+          },
         },
         { status: 400 },
       );

@@ -103,22 +103,17 @@ export function EmailSection() {
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="p-3">
+      <CardHeader className="space-y-2 p-0 pb-3">
         <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" />
-              Email Addresses
-            </CardTitle>
-            <CardDescription>
-              Manage your email addresses and verification status
-            </CardDescription>
+          <div className="flex items-center gap-2">
+            <Mail className="h-4 w-4" />
+            <CardTitle className="text-xl font-semibold">Email Addresses</CardTitle>
           </div>
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="min-h-[44px]">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Email
               </Button>
@@ -172,19 +167,22 @@ export function EmailSection() {
             </DialogContent>
           </Dialog>
         </div>
+        <CardDescription className="text-sm">
+          Manage your email addresses and verification status
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 p-0">
         {user.emailAddresses.map((emailAddress) => (
           <div
             key={emailAddress.id}
-            className="flex items-center justify-between p-4 border rounded-lg"
+            className="flex items-center justify-between p-3 border rounded-md bg-muted/30"
           >
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="font-medium">{emailAddress.emailAddress}</span>
+            <div className="space-y-1 min-w-0 flex-1">
+              <div className="flex items-center space-x-1.5 flex-wrap">
+                <span className="font-medium text-sm">{emailAddress.emailAddress}</span>
                 {emailAddress.id === user.primaryEmailAddress?.id && (
-                  <Badge variant="default">
-                    <Shield className="h-3 w-3 mr-1" />
+                  <Badge variant="default" className="text-xs px-1.5 py-0">
+                    <Shield className="h-2 w-2 mr-0.5" />
                     Primary
                   </Badge>
                 )}
@@ -192,29 +190,31 @@ export function EmailSection() {
                   variant={
                     emailAddress.verification?.status === 'verified'
                       ? 'default'
-                      : 'secondary'
+                      : 'outline'
                   }
+                  className="text-xs px-1.5 py-0"
                 >
-                  {emailAddress.verification?.status === 'verified' ? '✓ Verified' : '⚠ Unverified'}
+                  {emailAddress.verification?.status === 'verified' ? '✓ Verified' : 'Pending Verification'}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground leading-tight">
                 {emailAddress.verification?.status === 'verified'
-                  ? 'This email address is verified and can be used for notifications.'
-                  : 'This email address needs to be verified before it can be used.'}
+                  ? 'Verified and ready for notifications'
+                  : 'Click verify to confirm ownership'}
               </p>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1.5 flex-shrink-0">
               {emailAddress.verification?.status !== 'verified' && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleVerifyEmail(emailAddress.id)}
                   disabled={loadingAction === `verify-${emailAddress.id}`}
+                  className="min-h-[44px]"
                 >
                   {loadingAction === `verify-${emailAddress.id}` ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
                     'Verify'
                   )}
@@ -228,11 +228,12 @@ export function EmailSection() {
                   size="sm"
                   onClick={() => handleSetPrimary(emailAddress.id)}
                   disabled={loadingAction === `primary-${emailAddress.id}`}
+                  className="min-h-[44px]"
                 >
                   {loadingAction === `primary-${emailAddress.id}` ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
-                    'Set as Primary'
+                    'Set Primary'
                   )}
                 </Button>
               )}
@@ -243,11 +244,12 @@ export function EmailSection() {
                   size="sm"
                   onClick={() => handleDeleteEmail(emailAddress.id)}
                   disabled={loadingAction === `delete-${emailAddress.id}`}
+                  className="min-h-[44px]"
                 >
                   {loadingAction === `delete-${emailAddress.id}` ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3 w-3" />
                   )}
                 </Button>
               )}
@@ -256,9 +258,9 @@ export function EmailSection() {
         ))}
 
         {user.emailAddresses.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No email addresses added yet.</p>
+          <div className="text-center py-6 text-muted-foreground">
+            <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No email addresses added yet.</p>
           </div>
         )}
       </CardContent>

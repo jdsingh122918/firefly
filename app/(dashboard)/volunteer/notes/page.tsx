@@ -32,10 +32,10 @@ export default async function VolunteerNotesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Notes</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-xl font-semibold">Notes</h1>
+        <p className="text-sm text-muted-foreground">
           Personal and shared notes with file attachments
         </p>
       </div>

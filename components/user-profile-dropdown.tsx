@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { UserRole } from '@prisma/client'
 import {
@@ -39,6 +39,11 @@ interface UserProfileDropdownProps {
 export function UserProfileDropdown({ user, userRole }: UserProfileDropdownProps) {
   const { signOut } = useClerk()
   const router = useRouter()
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const displayName = user?.firstName && user?.lastName
     ? `${user.firstName} ${user.lastName}`
@@ -54,6 +59,31 @@ export function UserProfileDropdown({ user, userRole }: UserProfileDropdownProps
 
   const handleSignOut = async () => {
     await signOut(() => router.push('/sign-in'))
+  }
+
+  if (!isMounted) {
+    return (
+      <Button
+        variant="ghost"
+        className="h-auto p-2 w-full justify-start gap-3 hover:bg-accent"
+        disabled
+      >
+        <Avatar className="h-8 w-8">
+          <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex flex-col items-start flex-1">
+          <span className="text-sm font-medium truncate max-w-[120px]">
+            {displayName}
+          </span>
+          <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+            {user?.email}
+          </span>
+        </div>
+        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+      </Button>
+    )
   }
 
   return (
@@ -154,7 +184,7 @@ export function UserProfileDropdown({ user, userRole }: UserProfileDropdownProps
             <DropdownMenuItem asChild>
               <Link href="/volunteer/families">
                 <Heart className="mr-2 h-4 w-4" />
-                My Families
+                Families
               </Link>
             </DropdownMenuItem>
           </>

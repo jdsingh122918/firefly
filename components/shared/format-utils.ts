@@ -24,9 +24,11 @@ export function getAuthorName(author: {
   name?: string
   firstName?: string
   lastName?: string
+  email?: string
 }): string {
   return author.name ||
     `${author.firstName || ''} ${author.lastName || ''}`.trim() ||
+    author.email ||
     'Unknown User'
 }
 
@@ -34,6 +36,7 @@ export function getInitials(author: {
   name?: string
   firstName?: string
   lastName?: string
+  email?: string
 }): string {
   const name = getAuthorName(author)
   const parts = name.split(' ')

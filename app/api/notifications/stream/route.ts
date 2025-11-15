@@ -20,10 +20,41 @@ export async function GET(request: NextRequest) {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    // Get user from database
+    // Get user from database with graceful handling for unsynced users
     const user = await userRepository.getUserByClerkId(userId);
     if (!user) {
-      return new Response("User not found", { status: 404 });
+      // User not yet synced to database - return a minimal SSE stream
+      console.log("🔔 User not synced yet, returning minimal SSE stream:", userId);
+
+      const stream = new ReadableStream({
+        start(controller) {
+          const initialMessage = {
+            type: "user_not_synced",
+            data: {
+              timestamp: new Date().toISOString(),
+              message: "User not synced to database yet",
+            },
+          };
+          controller.enqueue(`data: ${JSON.stringify(initialMessage)}\n\n`);
+
+          // Close the stream immediately
+          setTimeout(() => {
+            try {
+              controller.close();
+            } catch {
+              // Already closed
+            }
+          }, 100);
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
+      });
     }
 
     console.log("🔔 SSE connection established for user:", {

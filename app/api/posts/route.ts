@@ -391,26 +391,36 @@ async function createPostNotifications(
 
     if (membersToNotify.length === 0) return;
 
+    // Get user details for each member to determine their role
+    const memberUsers = await Promise.all(
+      membersToNotify.map(member => userRepository.getUserById(member.userId))
+    );
+
     // Create notifications for forum members
-    const notifications = membersToNotify.map((member) => ({
-      userId: member.userId,
-      type: NotificationType.FAMILY_ACTIVITY,
-      title: `New Post in ${forum.title}`,
-      message: `${author.firstName} ${author.lastName || ""} posted: "${post.title}"`,
-      data: {
-        postId,
-        postTitle: post.title,
-        postSlug: post.slug,
-        forumId,
-        forumTitle: forum.title,
-        forumSlug: forum.slug,
-        authorId,
-        authorName: `${author.firstName} ${author.lastName || ""}`,
-        activityType: "post_created"
-      },
-      actionUrl: `/forums/${forum.slug}/posts/${post.slug}`,
-      isActionable: true
-    }));
+    const notifications = membersToNotify.map((member, index) => {
+      const memberUser = memberUsers[index];
+      const memberRole = memberUser?.role?.toLowerCase() || 'member';
+
+      return {
+        userId: member.userId,
+        type: NotificationType.FAMILY_ACTIVITY,
+        title: `New Post in ${forum.title}`,
+        message: `${author.firstName || author.email || "A user"} ${author.lastName || ""} posted: "${post.title}"`,
+        data: {
+          postId,
+          postTitle: post.title,
+          postSlug: post.slug,
+          forumId,
+          forumTitle: forum.title,
+          forumSlug: forum.slug,
+          authorId,
+          authorName: `${author.firstName || author.email || "A user"} ${author.lastName || ""}`,
+          activityType: "post_created"
+        },
+        actionUrl: `/${memberRole}/forums/${forum.slug}/posts/${post.slug}`,
+        isActionable: true
+      };
+    });
 
     // Create and dispatch notifications with real-time SSE broadcasting
     // Process notifications individually to ensure proper SSE delivery
@@ -430,7 +440,7 @@ async function createPostNotifications(
             recipientName: "Forum Member", // Could be enhanced with actual names
             senderName: `${author.firstName} ${author.lastName || ""}`,
             familyName: forum.title,
-            authorName: `${author.firstName} ${author.lastName || ""}`,
+            authorName: `${author.firstName || author.email || "A user"} ${author.lastName || ""}`,
           }
         );
       } catch (error) {

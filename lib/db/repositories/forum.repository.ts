@@ -724,6 +724,94 @@ export class ForumRepository {
     }
   }
 
+  // ====================================
+  // ADMIN DASHBOARD STATS (Session 022)
+  // ====================================
+
+  /**
+   * Get simplified forum statistics for admin dashboard
+   */
+  async getForumStats(): Promise<{
+    totalForums: number;
+    activeForums: number;
+    totalPosts: number;
+    totalReplies: number;
+    postsThisMonth: number;
+    forumsWithRecentActivity: number;
+  }> {
+    try {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      // Get all statistics in parallel for performance
+      const [
+        totalForums,
+        activeForums,
+        totalPosts,
+        totalReplies,
+        postsThisMonth,
+        forumsWithRecentActivity,
+      ] = await Promise.all([
+        // Total forums (active only)
+        prisma.forum.count({
+          where: {
+            isActive: true
+          }
+        }),
+
+        // Active forums (not archived)
+        prisma.forum.count({
+          where: {
+            isActive: true,
+            isArchived: false
+          }
+        }),
+
+        // Total posts (not deleted)
+        prisma.post.count({
+          where: { isDeleted: false }
+        }),
+
+        // Total replies (not deleted)
+        prisma.reply.count({
+          where: { isDeleted: false }
+        }),
+
+        // Posts created this month
+        prisma.post.count({
+          where: {
+            isDeleted: false,
+            createdAt: { gte: startOfMonth }
+          }
+        }),
+
+        // Forums with activity in the last week
+        prisma.forum.count({
+          where: {
+            isActive: true,
+            lastActivityAt: { gte: lastWeek }
+          }
+        }),
+      ]);
+
+      const stats = {
+        totalForums,
+        activeForums,
+        totalPosts,
+        totalReplies,
+        postsThisMonth,
+        forumsWithRecentActivity,
+      };
+
+      console.log("📊 Forum statistics generated:", stats);
+      return stats;
+    } catch (error) {
+      console.error("❌ Failed to get forum statistics:", error);
+      throw error;
+    }
+  }
+
   /**
    * Generate URL-friendly slug from title
    */

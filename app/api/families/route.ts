@@ -59,13 +59,8 @@ export async function GET(request: NextRequest) {
       // Admins can see all families
       families = await familyRepository.getAllFamilies();
     } else if (user.role === UserRole.VOLUNTEER) {
-      // Volunteers can see families they created or are assigned to
-      if (createdBy && createdBy === user.id) {
-        families = await familyRepository.getFamiliesByCreator(user.id);
-      } else {
-        // For now, volunteers see all families (could be restricted later)
-        families = await familyRepository.getAllFamilies();
-      }
+      // Volunteers can only see families they created
+      families = await familyRepository.getFamiliesByCreator(user.id);
     } else {
       // Members can only see their own family
       families = user.familyId

@@ -1,11 +1,11 @@
 import { UserRole } from '@prisma/client'
-import { Inbox, MessageSquare, StickyNote } from 'lucide-react'
+import { Inbox, MessageSquare, StickyNote, UserCheck, BookOpen, MessageCircle, FolderOpen } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 /**
  * Feature route definition for navigation menu items
  * This abstraction allows easy addition of new communication features
- * like forums, notes, resources, and real-time chat
+ * like forums, unified content (notes + resources), assignments, and real-time chat
  */
 export interface FeatureRoute {
   /** Unique identifier for the feature */
@@ -52,33 +52,33 @@ export const FEATURE_ROUTES: FeatureRoute[] = [
     // Badge functionality can be added later for real-time updates
   },
   {
-    key: 'notes',
-    title: 'Notes',
-    href: (role: UserRole) => `/${role.toLowerCase()}/notes`,
-    icon: StickyNote,
+    key: 'content',
+    title: 'Content',
+    href: (role: UserRole) => `/${role.toLowerCase()}/content`,
+    icon: FolderOpen,
     roles: [UserRole.ADMIN, UserRole.VOLUNTEER, UserRole.MEMBER]
-    // Badge functionality can be added later for note counts
+    // Badge functionality can be added later for content counts
+  },
+  {
+    key: 'assignments',
+    title: 'Assignments',
+    href: (role: UserRole) => `/${role.toLowerCase()}/assignments`,
+    icon: UserCheck,
+    roles: [UserRole.ADMIN, UserRole.VOLUNTEER, UserRole.MEMBER]
+    // Badge functionality can be added later for overdue assignment counts
+  },
+  {
+    key: 'chat',
+    title: 'Chat',
+    href: (role: UserRole) => `/${role.toLowerCase()}/chat`,
+    icon: MessageCircle,
+    roles: [UserRole.ADMIN, UserRole.VOLUNTEER, UserRole.MEMBER],
+    badge: {
+      shouldShow: (state) => state.unreadCount > 0,
+      getContent: (state) => state.unreadCount > 99 ? '99+' : state.unreadCount
+    }
   }
   // Future features can be added here:
-  // {
-  //   key: 'chat',
-  //   title: 'Chat',
-  //   href: (role: UserRole) => `/${role.toLowerCase()}/chat`,
-  //   icon: MessageCircle,
-  //   roles: [UserRole.ADMIN, UserRole.VOLUNTEER, UserRole.MEMBER],
-  //   badge: {
-  //     shouldShow: (state) => state.unreadMessages > 0,
-  //     getContent: (state) => state.unreadMessages
-  //   }
-  // },
-  // {
-  //   key: 'resources',
-  //   title: 'Resources',
-  //   href: (role: UserRole) => `/${role.toLowerCase()}/resources`,
-  //   icon: FileText,
-  //   roles: [UserRole.ADMIN, UserRole.VOLUNTEER, UserRole.MEMBER]
-  //   // No badge for resources
-  // }
 ]
 
 /**
