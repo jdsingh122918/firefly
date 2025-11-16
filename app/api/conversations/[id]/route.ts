@@ -39,15 +39,32 @@ export async function GET(
       role: user.role,
       email: user.email,
       conversationId,
+      databaseUserId: user.id,
     });
 
     // Check if user is participant in this conversation
+    console.log("💬 Checking participant status for:", {
+      conversationId,
+      userId: user.id,
+    });
+
     const isParticipant = await conversationRepository.isUserParticipant(
       conversationId,
       user.id,
     );
 
+    console.log("💬 Participant check result:", {
+      conversationId,
+      userId: user.id,
+      isParticipant,
+    });
+
     if (!isParticipant) {
+      console.warn("❌ Access denied - user is not a participant:", {
+        conversationId,
+        userId: user.id,
+        userEmail: user.email,
+      });
       return NextResponse.json(
         {
           error:

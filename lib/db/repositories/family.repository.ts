@@ -211,15 +211,18 @@ export class FamilyRepository {
    * Delete family
    */
   async deleteFamily(id: string): Promise<void> {
-    // First, remove all members from the family
-    await prisma.user.updateMany({
-      where: { familyId: id },
-      data: { familyId: null },
-    });
+    // Use transaction to ensure atomicity
+    await prisma.$transaction(async (tx) => {
+      // First, remove all members from the family
+      await tx.user.updateMany({
+        where: { familyId: id },
+        data: { familyId: null },
+      });
 
-    // Then delete the family
-    await prisma.family.delete({
-      where: { id },
+      // Then delete the family
+      await tx.family.delete({
+        where: { id },
+      });
     });
   }
 

@@ -324,7 +324,7 @@ export function PostDetailPage() {
   })
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center space-x-1 text-xs text-muted-foreground">
         <Link
@@ -349,6 +349,7 @@ export function PostDetailPage() {
       {/* Back Button */}
       <Button
         variant="ghost"
+        size="sm"
         asChild
       >
         <Link href={`/${rolePrefix}/forums/${forumSlug}`}>
@@ -358,18 +359,18 @@ export function PostDetailPage() {
       </Button>
 
       {/* Post Content */}
-      <Card className="mb-3">
-        <CardHeader className="pb-2">
+      <Card>
+        <CardHeader className="pb-3">
           {/* Post Header */}
           <div className="flex items-start">
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-bold text-foreground mb-1 leading-tight">
+              <h1 className="text-2xl font-bold text-foreground mb-2 leading-tight">
                 {post.title}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-1">
                 {/* Post Type Badge */}
-                <Badge className={cn(typeDisplay.color, "flex items-center gap-1")}>
+                <Badge className={cn(typeDisplay.color, "flex items-center gap-1 text-xs px-2 py-1")}>
                   <TypeIcon className="h-3 w-3" />
                   {typeDisplay.label}
                 </Badge>
@@ -399,19 +400,19 @@ export function PostDetailPage() {
           </div>
 
           {/* Author and Metadata */}
-          <div className="flex items-center justify-between pt-2 border-t">
+          <div className="flex items-center justify-between pt-3 border-t">
             <div className="flex items-center space-x-2">
-              <Avatar className="h-6 w-6">
+              <Avatar className="h-7 w-7">
                 <AvatarImage src={post.author?.imageUrl || ''} alt={post.author?.name || 'Unknown'} />
                 <AvatarFallback>
                   <User className="h-3 w-3" />
                 </AvatarFallback>
               </Avatar>
               <div>
-                <div className="font-medium text-xs">{post.author?.name || 'Unknown Author'}</div>
-                <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                <div className="font-medium text-sm">{post.author?.name || 'Unknown Author'}</div>
+                <div className="flex items-center space-x-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <Clock className="h-2 w-2" />
+                    <Clock className="h-3 w-3" />
                     {new Date(post.createdAt).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
@@ -420,31 +421,28 @@ export function PostDetailPage() {
                       minute: '2-digit'
                     })}
                   </span>
+                  <span className="flex items-center gap-1">
+                    <MessageCircle className="h-3 w-3" />
+                    {post.replyCount} replies
+                  </span>
                 </div>
               </div>
-            </div>
-
-            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <MessageCircle className="h-2 w-2" />
-                {post.replyCount}
-              </span>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="pt-2">
           {/* Post Content */}
           <div className="prose prose-sm max-w-none">
-            <div className="whitespace-pre-wrap text-foreground">
+            <div className="whitespace-pre-wrap text-foreground leading-relaxed">
               {post.content}
             </div>
           </div>
 
           {/* Document Attachments */}
           {post.documents && post.documents.length > 0 && (
-            <div className="mt-6 pt-4 border-t">
-              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+            <div className="mt-4 pt-3 border-t">
+              <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
                 <Paperclip className="h-4 w-4" />
                 Attachments ({post.documents.length})
               </h4>
@@ -515,9 +513,9 @@ export function PostDetailPage() {
 
       {/* Reply to Post Form */}
       {!post.isLocked && (
-        <Card className="mb-2">
+        <Card>
           <CardHeader className="pb-2">
-            <h3 className="text-sm font-medium flex items-center gap-1">
+            <h3 className="text-sm font-medium flex items-center gap-2">
               <MessageCircle className="h-4 w-4" />
               Reply to this post
             </h3>
@@ -535,23 +533,21 @@ export function PostDetailPage() {
       {/* Replies Section */}
       {post.replies && post.replies.length > 0 ? (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold flex items-center gap-1">
+          <div className="flex items-center gap-2 py-2">
             <MessageCircle className="h-4 w-4" />
-            Replies ({post.replyCount})
-          </h2>
-
-          <div className="space-y-2">
-            <ReplyThread
-              replies={post.replies}
-              postId={post.id}
-            />
+            <h2 className="text-base font-semibold">Replies ({post.replyCount})</h2>
           </div>
+
+          <ReplyThread
+            replies={post.replies}
+            postId={post.id}
+          />
         </div>
       ) : (
         <Card>
-          <CardContent className="py-4">
+          <CardContent className="py-6">
             <div className="text-center text-muted-foreground">
-              <MessageCircle className="h-6 w-6 mx-auto mb-2 opacity-50" />
+              <MessageCircle className="h-8 w-8 mx-auto mb-3 opacity-50" />
               <h3 className="font-medium text-sm mb-1">No replies yet</h3>
               <p className="text-xs">Be the first to reply to this post!</p>
             </div>

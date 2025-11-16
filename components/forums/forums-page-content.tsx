@@ -206,21 +206,21 @@ export function ForumsPageContent() {
     <div className="space-y-4">
       {/* Header with actions and search */}
       <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <MessageSquare className="h-6 w-6" />
-              <CardTitle className="text-xl">
+        <CardHeader className="pb-2">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              <CardTitle className="text-lg">
                 Forums
                 {forums.length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="secondary" className="ml-2 text-xs">
                     {forums.length}
                   </Badge>
                 )}
               </CardTitle>
             </div>
 
-            <Button asChild className="w-full md:w-auto">
+            <Button asChild className="w-full md:w-auto" size="sm">
               <Link href={`/${userRole}/forums/new`}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create Forum
@@ -229,7 +229,7 @@ export function ForumsPageContent() {
           </div>
 
           {/* Search and filters */}
-          <div className="flex flex-col md:flex-row gap-4 pt-4">
+          <div className="flex flex-col md:flex-row gap-3 pt-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -269,20 +269,24 @@ export function ForumsPageContent() {
       </Card>
 
       {/* Forums list */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         {loading ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {[1, 2, 3].map((i) => (
               <Card key={i}>
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <Skeleton className="h-6 w-48" />
-                    <Skeleton className="h-4 w-full max-w-md" />
-                    <div className="flex gap-2">
-                      <Skeleton className="h-4 w-16" />
-                      <Skeleton className="h-4 w-16" />
-                      <Skeleton className="h-4 w-24" />
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-9 w-9 rounded-md" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-5 w-48" />
+                      <Skeleton className="h-4 w-full max-w-md" />
+                      <div className="flex gap-4">
+                        <Skeleton className="h-3 w-12" />
+                        <Skeleton className="h-3 w-12" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
                     </div>
+                    <Skeleton className="h-4 w-4" />
                   </div>
                 </CardContent>
               </Card>
@@ -290,17 +294,17 @@ export function ForumsPageContent() {
           </div>
         ) : sortedForums.length === 0 ? (
           <Card>
-            <CardContent className="p-6 text-center">
-              <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-lg font-medium">No forums found</p>
-              <p className="text-sm text-muted-foreground mt-2">
+            <CardContent className="p-8 text-center">
+              <MessageSquare className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-base font-medium">No forums found</p>
+              <p className="text-sm text-muted-foreground mt-1">
                 {searchTerm || visibilityFilter !== "all"
                   ? "Try adjusting your search or filters."
                   : "Get started by creating your first forum."
                 }
               </p>
               {(!searchTerm && visibilityFilter === "all") && (
-                <Button asChild className="mt-4">
+                <Button asChild className="mt-4" size="sm">
                   <Link href={`/${userRole}/forums/new`}>
                     <Plus className="mr-2 h-4 w-4" />
                     Create Forum
@@ -318,59 +322,62 @@ export function ForumsPageContent() {
                 className="transition-colors hover:bg-muted/50 cursor-pointer"
                 onClick={() => handleForumClick(forum)}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-3">
                     {/* Icon */}
-                    <div className="p-3 rounded-lg bg-primary/10 flex-shrink-0">
-                      <MessageSquare className="h-6 w-6 text-primary" />
+                    <div className="p-2 rounded-md bg-primary/10 flex-shrink-0">
+                      <MessageSquare className="h-5 w-5 text-primary" />
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-semibold text-lg truncate">
+                      {/* Title and visibility row */}
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <h3 className="font-semibold text-base truncate">
                           {forum.title}
                         </h3>
-                        <Badge variant="outline" className="flex items-center gap-1">
+                        <Badge variant="outline" className="flex items-center gap-1 text-xs px-2 py-0.5">
                           <VisibilityIcon className="h-3 w-3" />
                           {visibilityLabels[forum.visibility]}
                         </Badge>
                       </div>
 
+                      {/* Description */}
                       {forum.description && (
-                        <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
+                        <p className="text-muted-foreground text-sm line-clamp-1 mb-2">
                           {forum.description}
                         </p>
                       )}
 
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                      {/* Stats row */}
+                      <div className="flex items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
                         <div className="flex items-center gap-1">
-                          <MessageSquare className="h-4 w-4" />
-                          <span>{forum.postCount} posts</span>
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          <span>{forum.postCount}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Users className="h-4 w-4" />
-                          <span>{forum.memberCount} members</span>
+                          <Users className="h-3.5 w-3.5" />
+                          <span>{forum.memberCount}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
+                          <Calendar className="h-3.5 w-3.5" />
                           <span>
                             {forum.lastActivityAt
-                              ? `Active ${formatTimeAgo(forum.lastActivityAt)}`
-                              : `Created ${formatTimeAgo(forum.createdAt)}`
+                              ? formatTimeAgo(forum.lastActivityAt)
+                              : formatTimeAgo(forum.createdAt)
                             }
                           </span>
                         </div>
                         {forum.lastPostBy && (
-                          <span className="text-xs">
-                            Last post by {forum.lastPostBy.name || `${forum.lastPostBy.firstName} ${forum.lastPostBy.lastName}`.trim()}
-                          </span>
+                          <div className="hidden sm:flex text-xs text-muted-foreground/80">
+                            •&nbsp;{forum.lastPostBy.name || `${forum.lastPostBy.firstName} ${forum.lastPostBy.lastName}`.trim()}
+                          </div>
                         )}
                       </div>
                     </div>
 
                     {/* Arrow */}
-                    <ArrowRight className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-1" />
+                    <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   </div>
                 </CardContent>
               </Card>

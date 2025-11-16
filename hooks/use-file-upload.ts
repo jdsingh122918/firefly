@@ -142,7 +142,6 @@ export function useFileUpload() {
       }
 
       try {
-        const token = await getToken();
         const formData = new FormData();
         formData.append("files", file);
 
@@ -168,14 +167,19 @@ export function useFileUpload() {
 
         const response = await fetch("/api/files/upload", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
           body: formData,
         });
 
         if (!response.ok) {
-          throw new Error(`Upload failed: ${response.statusText}`);
+          // Try to get error details from response body
+          let errorMessage = response.statusText || `HTTP ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch {
+            // If response body is not JSON, use status text
+          }
+          throw new Error(`Upload failed: ${errorMessage}`);
         }
 
         const data = await response.json();
@@ -201,7 +205,14 @@ export function useFileUpload() {
           console.log("✅ File uploaded:", uploadedFile);
           return uploadedFile;
         } else {
-          throw new Error(data.error || "Upload failed");
+          console.error("❌ Upload API response indicates failure:", {
+            success: data.success,
+            error: data.error,
+            errors: data.errors,
+            details: data.details,
+            filesCount: data.files?.length || 0,
+          });
+          throw new Error(data.error || data.errors?.join(', ') || "Upload failed");
         }
       } catch (error) {
         console.error("❌ File upload error:", error);
@@ -293,33 +304,71 @@ export function useFileUpload() {
     }));
   }, []);
 
-  // Get file URL
+  // Get file URL (supports both filesystem and database storage)
   const getFileUrl = useCallback(
     (
-      category: string,
-      filename: string,
-      options?: { download?: boolean; inline?: boolean },
+      categoryOrId: string,
+      filename?: string,
+      options?: { download?: boolean; inline?: boolean; storageMethod?: "filesystem" | "database" },
     ) => {
       const params = new URLSearchParams();
       if (options?.download) params.set("download", "true");
       if (options?.inline) params.set("inline", "true");
 
       const queryString = params.toString();
-      return `/api/files/${category}/${filename}${queryString ? `?${queryString}` : ""}`;
+
+      // If no filename provided, assume it's a database document ID
+      if (!filename || options?.storageMethod === "database") {
+        return `/api/files/db/${categoryOrId}${queryString ? `?${queryString}` : ""}`;
+      }
+
+      // Traditional filesystem path
+      return `/api/files/${categoryOrId}/${filename}${queryString ? `?${queryString}` : ""}`;
     },
     [],
   );
 
-  // Delete file
+  // Helper function to get file URL from upload result
+  const getFileUrlFromResult = useCallback(
+    (uploadResult: UploadedFile, options?: { download?: boolean; inline?: boolean }) => {
+      // New upload results include storageMethod
+      const result = uploadResult as UploadedFile & { storageMethod?: string };
+
+      if (result.storageMethod === "database" || result.url.includes("/api/files/db/")) {
+        // Extract document ID from database URL
+        const documentId = result.url.split("/api/files/db/")[1];
+        return getFileUrl(documentId, undefined, { ...options, storageMethod: "database" });
+      }
+
+      // Traditional filesystem storage
+      const urlParts = result.url.split("/api/files/")[1];
+      const [category, fileName] = urlParts.split("/");
+      return getFileUrl(category, fileName, { ...options, storageMethod: "filesystem" });
+    },
+    [getFileUrl],
+  );
+
+  // Delete file (supports both filesystem and database storage)
   const deleteFile = useCallback(
-    async (category: string, filename: string): Promise<boolean> => {
+    async (categoryOrId: string, filename?: string): Promise<boolean> => {
       if (!isSignedIn) {
         throw new Error("User not authenticated");
       }
 
       try {
         const token = await getToken();
-        const response = await fetch(`/api/files/${category}/${filename}`, {
+        let deleteUrl: string;
+
+        // Determine if this is a database document ID or filesystem path
+        if (!filename || categoryOrId.length === 24) {
+          // Database storage - document ID
+          deleteUrl = `/api/files/db/${categoryOrId}`;
+        } else {
+          // Filesystem storage - category/filename
+          deleteUrl = `/api/files/${categoryOrId}/${filename}`;
+        }
+
+        const response = await fetch(deleteUrl, {
           method: "DELETE",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -333,7 +382,7 @@ export function useFileUpload() {
         const data = await response.json();
 
         if (data.success) {
-          console.log("🗑️ File deleted:", { category, filename });
+          console.log("🗑️ File deleted:", { categoryOrId, filename, deleteUrl });
           return true;
         } else {
           throw new Error(data.error || "Delete failed");
@@ -364,6 +413,7 @@ export function useFileUpload() {
     clearUploads,
     removeUpload,
     getFileUrl,
+    getFileUrlFromResult,
 
     // Derived state
     hasUploads: state.uploads.length > 0,

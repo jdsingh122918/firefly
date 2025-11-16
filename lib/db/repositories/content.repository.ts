@@ -81,6 +81,9 @@ export interface CreateContentInput {
   hasCuration?: boolean;
   hasRatings?: boolean;
   hasSharing?: boolean;
+
+  // Document attachments
+  documentIds?: string[];
 }
 
 export interface UpdateContentInput extends Partial<CreateContentInput> {
@@ -134,19 +137,71 @@ class ContentRepository {
     const contentData = this.prepareContentData(data, userId, userRole);
 
     try {
-      return await this.prisma.content.create({
-        data: contentData,
-        include: {
-          creator: {
-            select: { id: true, firstName: true, lastName: true, email: true }
-          },
-          family: {
-            select: { id: true, name: true }
-          },
-          category: {
-            select: { id: true, name: true, color: true }
+      return await this.prisma.$transaction(async (prisma) => {
+        // Create the content
+        const content = await prisma.content.create({
+          data: contentData,
+          include: {
+            creator: {
+              select: { id: true, firstName: true, lastName: true, email: true }
+            },
+            family: {
+              select: { id: true, name: true }
+            },
+            category: {
+              select: { id: true, name: true, color: true }
+            }
           }
+        });
+
+        // Link documents if provided
+        if (data.documentIds && data.documentIds.length > 0) {
+          const documentAttachments = data.documentIds.map((documentId, index) => ({
+            contentId: content.id,
+            documentId,
+            source: 'UPLOAD' as const,
+            order: index,
+            createdBy: userId
+          }));
+
+          await prisma.contentDocument.createMany({
+            data: documentAttachments
+          });
+
+          // Fetch content with documents included
+          return await prisma.content.findUniqueOrThrow({
+            where: { id: content.id },
+            include: {
+              creator: {
+                select: { id: true, firstName: true, lastName: true, email: true }
+              },
+              family: {
+                select: { id: true, name: true }
+              },
+              category: {
+                select: { id: true, name: true, color: true }
+              },
+              documents: {
+                include: {
+                  document: {
+                    select: {
+                      id: true,
+                      title: true,
+                      fileName: true,
+                      fileSize: true,
+                      mimeType: true,
+                      type: true,
+                      filePath: true
+                    }
+                  }
+                },
+                orderBy: { order: 'asc' }
+              }
+            }
+          });
         }
+
+        return content;
       });
     } catch (error) {
       throw new Error(`Failed to create content: ${error}`);
@@ -555,33 +610,36 @@ class ContentRepository {
     }
 
     try {
-      // Upsert rating
-      const contentRating = await this.prisma.contentRating.upsert({
-        where: {
-          contentId_userId: {
+      // Use transaction to ensure atomicity between rating upsert and recalculation
+      return await this.prisma.$transaction(async (tx) => {
+        // Upsert rating
+        const contentRating = await tx.contentRating.upsert({
+          where: {
+            contentId_userId: {
+              contentId,
+              userId
+            }
+          },
+          create: {
             contentId,
-            userId
+            userId,
+            rating,
+            review,
+            isHelpful
+          },
+          update: {
+            rating,
+            review,
+            isHelpful,
+            updatedAt: new Date()
           }
-        },
-        create: {
-          contentId,
-          userId,
-          rating,
-          review,
-          isHelpful
-        },
-        update: {
-          rating,
-          review,
-          isHelpful,
-          updatedAt: new Date()
-        }
+        });
+
+        // Recalculate average rating within the same transaction
+        await this.recalculateRating(contentId, tx);
+
+        return contentRating;
       });
-
-      // Recalculate average rating
-      await this.recalculateRating(contentId);
-
-      return contentRating;
     } catch (error) {
       throw new Error(`Failed to rate content: ${error}`);
     }
@@ -590,13 +648,15 @@ class ContentRepository {
   /**
    * Recalculate average rating for content
    */
-  private async recalculateRating(contentId: string): Promise<void> {
-    const ratings = await this.prisma.contentRating.findMany({
+  private async recalculateRating(contentId: string, tx?: PrismaClient): Promise<void> {
+    const client = tx || this.prisma;
+
+    const ratings = await client.contentRating.findMany({
       where: { contentId }
     });
 
     if (ratings.length === 0) {
-      await this.prisma.content.update({
+      await client.content.update({
         where: { id: contentId },
         data: {
           rating: null,
@@ -609,7 +669,7 @@ class ContentRepository {
     const totalRating = ratings.reduce((sum, r) => sum + r.rating, 0);
     const averageRating = totalRating / ratings.length;
 
-    await this.prisma.content.update({
+    await client.content.update({
       where: { id: contentId },
       data: {
         rating: Math.round(averageRating * 100) / 100, // Round to 2 decimal places

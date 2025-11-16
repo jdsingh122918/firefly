@@ -182,9 +182,22 @@ export function ConversationDetailPage({
       return;
     }
 
+    // Validate conversationId
+    if (!conversationId || typeof conversationId !== 'string') {
+      setError("Invalid conversation ID");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
+
+      console.log("🔍 Fetching conversation data:", {
+        conversationId,
+        conversationUrl: `/api/conversations/${conversationId}`,
+        messagesUrl: `/api/conversations/${conversationId}/messages?limit=50`
+      });
 
       const [conversationResponse, messagesResponse] = await Promise.all([
         fetch(`/api/conversations/${conversationId}`, {
@@ -195,27 +208,71 @@ export function ConversationDetailPage({
         }),
       ]);
 
+      console.log("📡 API Response status:", {
+        conversation: conversationResponse.status,
+        messages: messagesResponse.status
+      });
+
       if (!conversationResponse.ok) {
+        let errorMessage = "Failed to load conversation";
+        try {
+          const errorData = await conversationResponse.json();
+          console.error("❌ Conversation API error details:", errorData);
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (e) {
+          console.error("❌ Could not parse conversation error response:", e);
+        }
+
         if (conversationResponse.status === 404) {
           setError("Conversation not found");
         } else if (conversationResponse.status === 403) {
-          setError("Access denied");
+          setError("Access denied: You don't have permission to view this conversation");
+        } else if (conversationResponse.status === 401) {
+          setError("Authentication required - please sign in again");
         } else {
-          setError("Failed to load conversation");
+          setError(`Failed to load conversation: ${conversationResponse.status} - ${errorMessage}`);
         }
         return;
       }
 
       if (!messagesResponse.ok) {
-        throw new Error("Failed to load messages");
+        console.error("❌ Messages API error:", {
+          status: messagesResponse.status,
+          statusText: messagesResponse.statusText,
+          url: messagesResponse.url
+        });
+
+        // For messages API errors, show conversation but with no messages
+        // This allows users to still access the conversation and send messages
+        const conversationData = await conversationResponse.json();
+        setConversation(conversationData.conversation || conversationData.data);
+        setMessages([]);
+
+        // Set a warning instead of a full error
+        if (messagesResponse.status === 403) {
+          console.warn("⚠️ Access denied to messages, showing conversation without history");
+        } else if (messagesResponse.status === 404) {
+          console.warn("⚠️ Messages not found, showing empty conversation");
+        } else {
+          try {
+            const errorData = await messagesResponse.json();
+            console.warn("⚠️ Messages API error, showing conversation without history:", errorData);
+          } catch {
+            console.warn(`⚠️ Messages API error (${messagesResponse.status}), showing conversation without history`);
+          }
+        }
+
+        // Don't return early - let the rest of the function complete
+        setLoading(false);
+        return;
       }
 
-      const [conversationData, messagesData] = await Promise.all([
-        conversationResponse.json(),
-        messagesResponse.json(),
-      ]);
-
+      // Handle conversation data
+      const conversationData = await conversationResponse.json();
       setConversation(conversationData.conversation || conversationData.data);
+
+      // Handle messages data separately since it might have failed
+      const messagesData = await messagesResponse.json();
 
       if (DEBUG_MESSAGES) console.log("📨 Messages API Response:", messagesData);
 
@@ -234,8 +291,14 @@ export function ConversationDetailPage({
         setMessages([]);
       }
     } catch (error) {
-      console.error("Error fetching conversation data:", error);
-      setError("Failed to load conversation");
+      console.error("❌ Error fetching conversation data:", error);
+
+      // Provide more specific error message
+      if (error instanceof Error) {
+        setError(`Failed to load conversation: ${error.message}`);
+      } else {
+        setError("Failed to load conversation: Unknown error occurred");
+      }
     } finally {
       setLoading(false);
     }

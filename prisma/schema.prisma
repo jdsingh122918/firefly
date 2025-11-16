@@ -275,8 +275,7 @@ model MessageUserStatus {
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId])
-  @@index([userId])
-  @@index([status])
+  @@index([userId, status])
   @@map("message_user_status")
 }
 
@@ -383,8 +382,9 @@ model Document {
   id               String         @id @default(auto()) @map("_id") @db.ObjectId
   title            String
   description      String?
-  filePath         String         // Path to the file in storage (category/filename)
+  filePath         String?        // Path to the file in storage (category/filename) - DEPRECATED, use fileData
   fileName         String         // Storage filename
+  fileData         Bytes?         // Binary file data stored in database
   originalFileName String?        // Original uploaded filename
   fileSize         Int?           // File size in bytes
   mimeType         String?        // MIME type of the file

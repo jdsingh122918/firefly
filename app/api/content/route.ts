@@ -382,6 +382,7 @@ function validateCreateContentInput(body: any): CreateContentInput {
     hasAssignments: body.hasAssignments,
     hasCuration: body.hasCuration,
     hasRatings: body.hasRatings,
-    hasSharing: body.hasSharing
+    hasSharing: body.hasSharing,
+    documentIds: body.documentIds
   };
 }

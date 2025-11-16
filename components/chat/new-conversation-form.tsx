@@ -23,6 +23,7 @@ interface NewConversationFormProps {
   userId: string;
   onConversationCreated: () => void;
   onCancel: () => void;
+  context?: 'family' | 'all' | 'unread' | 'recent'; // Tab context for smart defaults
 }
 
 interface User {
@@ -66,10 +67,11 @@ export function NewConversationForm({
   userId,
   onConversationCreated,
   onCancel,
+  context,
 }: NewConversationFormProps) {
   const [formData, setFormData] = useState({
     title: "",
-    type: "DIRECT",
+    type: context === 'family' ? "FAMILY_CHAT" : "DIRECT", // Auto-select family chat when from Family tab
     familyId: "",
     participantIds: [] as string[],
   });
@@ -79,31 +81,74 @@ export function NewConversationForm({
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [step, setStep] = useState<'type' | 'details' | 'participants'>('type');
+  const [step, setStep] = useState<'type' | 'details' | 'participants'>(
+    context === 'family' ? 'details' : 'type' // Skip type selection when from Family tab
+  );
 
   // Fetch users and families when component mounts
   useEffect(() => {
     fetchUsersAndFamilies();
   }, []);
 
+  // Auto-select family and family members when context is family
+  useEffect(() => {
+    if (context === 'family' && formData.type === 'FAMILY_CHAT' && families.length === 1) {
+      // Auto-select the only family available
+      const family = families[0];
+      setFormData(prev => ({ ...prev, familyId: family.id }));
+    }
+  }, [context, formData.type, families]);
+
+  // Note: Auto-selection of family members removed to prevent selecting all available users
+  // Family members should be manually selected by the user for better control
+
   const fetchUsersAndFamilies = async () => {
     try {
+      // Use member-friendly endpoints that handle role-based access properly
       const [usersResponse, familiesResponse] = await Promise.all([
-        fetch('/api/users'),
-        fetch('/api/families'),
+        fetch('/api/users/chat-accessible'),
+        fetch('/api/families/member-accessible'),
       ]);
 
       if (usersResponse.ok) {
         const usersData = await usersResponse.json();
+        console.log('💬 NewConversationForm - Users data received:', {
+          success: usersData.success,
+          userCount: usersData.users?.length || 0,
+          currentUserRole: usersData.currentUserRole,
+          sampleUsers: usersData.users?.slice(0, 3) || []
+        });
         setUsers(usersData.users || []);
+      } else {
+        console.error('❌ Failed to fetch chat-accessible users:', {
+          status: usersResponse.status,
+          statusText: usersResponse.statusText
+        });
+        // Fallback to empty array to prevent UI breakage
+        setUsers([]);
       }
 
       if (familiesResponse.ok) {
         const familiesData = await familiesResponse.json();
+        console.log('👨‍👩‍👧‍👦 NewConversationForm - Families data received:', {
+          success: familiesData.success,
+          familyCount: familiesData.families?.length || 0,
+          families: familiesData.families || []
+        });
         setFamilies(familiesData.families || []);
+      } else {
+        console.error('❌ Failed to fetch member-accessible families:', {
+          status: familiesResponse.status,
+          statusText: familiesResponse.statusText
+        });
+        // Fallback to empty array to prevent UI breakage
+        setFamilies([]);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
+      // Ensure arrays are set even on error to prevent UI issues
+      setUsers([]);
+      setFamilies([]);
     }
   };
 
@@ -220,7 +265,23 @@ export function NewConversationForm({
     }
   };
 
-  const selectedType = CONVERSATION_TYPES.find(type => type.value === formData.type);
+  // Filter conversation types based on user role
+  const getAvailableConversationTypes = () => {
+    if (userRole === UserRole.ADMIN) {
+      return CONVERSATION_TYPES; // Admins can create all types
+    } else if (userRole === UserRole.VOLUNTEER) {
+      return CONVERSATION_TYPES; // Volunteers can create all types
+    } else if (userRole === UserRole.MEMBER) {
+      // Members can create direct messages and family chats (but not announcements)
+      return CONVERSATION_TYPES.filter(type =>
+        type.value === "DIRECT" || type.value === "FAMILY_CHAT"
+      );
+    }
+    return CONVERSATION_TYPES.filter(type => type.value === "DIRECT"); // Fallback: just direct messages
+  };
+
+  const availableConversationTypes = getAvailableConversationTypes();
+  const selectedType = availableConversationTypes.find(type => type.value === formData.type);
   const filteredUsers = users.filter(user =>
     !searchQuery ||
     user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -320,7 +381,7 @@ export function NewConversationForm({
           <div className="space-y-3">
             <Label>Choose conversation type</Label>
             <div className="grid gap-3">
-              {CONVERSATION_TYPES.map((type) => {
+              {availableConversationTypes.map((type) => {
                 const Icon = type.icon;
                 return (
                   <Card
@@ -392,10 +453,16 @@ export function NewConversationForm({
             <div className="space-y-2">
               <Label>Add participants <span className="text-destructive">*</span></Label>
 
-              {/* Help text for Direct Messages */}
+              {/* Help text for different conversation types */}
               {formData.type === 'DIRECT' && (
                 <p className="text-sm text-muted-foreground">
                   Select exactly 1 person to start a direct conversation with.
+                </p>
+              )}
+
+              {formData.type === 'ANNOUNCEMENT' && (
+                <p className="text-sm text-muted-foreground">
+                  Select participants to broadcast important information to. Use "Select All" to reach everyone.
                 </p>
               )}
 
@@ -406,6 +473,35 @@ export function NewConversationForm({
                 placeholder="Search users by name or email..."
                 className="min-h-[44px]"
               />
+
+              {/* Select All/None buttons for announcements */}
+              {formData.type === 'ANNOUNCEMENT' && users.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const allUserIds = users.map(user => user.id);
+                      setFormData(prev => ({ ...prev, participantIds: allUserIds }));
+                    }}
+                    className="h-8 px-3 text-xs"
+                  >
+                    Select All ({users.length})
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, participantIds: [] }));
+                    }}
+                    className="h-8 px-3 text-xs"
+                  >
+                    Clear All
+                  </Button>
+                </div>
+              )}
 
               {/* Selected Participants */}
               {formData.participantIds.length > 0 && (
@@ -433,9 +529,16 @@ export function NewConversationForm({
               {/* User List */}
               <div className="max-h-64 overflow-y-auto space-y-1 border rounded-md">
                 {filteredUsers.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-6">
-                    No users found
-                  </p>
+                  <div className="text-center py-6 space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      {users.length === 0 ? 'No users available for chat' : `No users found matching "${searchQuery}"`}
+                    </p>
+                    {users.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Check the browser console for debug information.
+                      </p>
+                    )}
+                  </div>
                 )}
                 {filteredUsers.map((user) => (
                   <div key={user.id} className="flex items-center space-x-2 p-3 hover:bg-muted/30 transition-colors">

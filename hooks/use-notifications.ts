@@ -157,6 +157,8 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   const connectToStream = useCallback(async () => {
     if (!isSignedIn || eventSourceRef.current) return;
 
+    let connectionTimeout: NodeJS.Timeout;
+
     try {
       await getToken();
       console.log("🔔 Connecting to notification stream...");
@@ -166,7 +168,16 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
         // The authentication will be handled by the cookie session
       });
 
+      // Add connection timeout to detect stuck connections
+      connectionTimeout = setTimeout(() => {
+        if (eventSource.readyState === EventSource.CONNECTING) {
+          console.warn("🔔 Connection timeout, closing EventSource");
+          eventSource.close();
+        }
+      }, 15000); // 15 second timeout
+
       eventSource.onopen = () => {
+        clearTimeout(connectionTimeout);
         console.log("🔔 Notification stream connected");
         setState((prev) => ({ ...prev, isConnected: true, error: null }));
         retryCount.current = 0;
@@ -243,12 +254,19 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       };
 
       eventSource.onerror = (error) => {
-        console.error("❌ Notification stream error:", {
+        clearTimeout(connectionTimeout);
+        const errorDetails = {
           readyState: eventSource.readyState,
+          readyStateText: eventSource.readyState === 0 ? 'CONNECTING' :
+                         eventSource.readyState === 1 ? 'OPEN' :
+                         eventSource.readyState === 2 ? 'CLOSED' : 'UNKNOWN',
           url: eventSource.url,
           errorEvent: error,
+          errorType: error?.type || 'unknown',
           timestamp: new Date().toISOString()
-        });
+        };
+        console.error("❌ Notification stream error:", errorDetails);
+
         setState((prev) => ({
           ...prev,
           isConnected: false,
@@ -275,11 +293,10 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
             }
           }, delay);
         } else {
-          console.error("🔔 Max retry attempts reached, starting polling fallback");
+          console.log("🔔 Max retry attempts reached, starting polling fallback");
           setState((prev) => ({
             ...prev,
-            error:
-              "Real-time connection failed, using fallback mode",
+            error: "Using polling mode (real-time connection unavailable)",
           }));
           startPollingFallback();
         }
@@ -287,6 +304,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
       eventSourceRef.current = eventSource;
     } catch (error) {
+      clearTimeout(connectionTimeout);
       console.error("❌ Failed to connect to notification stream:", error);
       setState((prev) => ({
         ...prev,

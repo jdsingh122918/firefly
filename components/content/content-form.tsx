@@ -165,6 +165,7 @@ const ContentForm: React.FC<ContentFormProps> = ({
   };
 
   const [formData, setFormData] = useState<ContentFormData>(initialFormData);
+  const [uploadedAttachments, setUploadedAttachments] = useState<any[]>([]);
 
   const [tagInput, setTagInput] = useState('');
   const [audienceInput, setAudienceInput] = useState('');
@@ -240,6 +241,12 @@ const ContentForm: React.FC<ContentFormProps> = ({
 
 
   const handleDocumentChange = (documentIds: string[]) => {
+    handleInputChange('documentIds', documentIds);
+  };
+
+  const handleAttachmentsChange = (attachments: any[]) => {
+    setUploadedAttachments(attachments);
+    const documentIds = attachments.map(att => att.document.id);
     handleInputChange('documentIds', documentIds);
   };
 
@@ -741,105 +748,6 @@ const ContentForm: React.FC<ContentFormProps> = ({
     </div>
   );
 
-  const renderFeatureSettings = () => (
-    <div className="space-y-3">
-      {/* Note-specific features */}
-      {isNote && (
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium">Note Features</h4>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm font-medium">Pin Note</Label>
-              <p className="text-xs text-gray-600">Pin to the top of your notes</p>
-            </div>
-            <Switch
-              checked={formData.isPinned}
-              onCheckedChange={(checked) => handleInputChange('isPinned', checked)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm font-medium">Allow Comments</Label>
-              <p className="text-xs text-gray-600">Let others comment on this note</p>
-            </div>
-            <Switch
-              checked={formData.allowComments}
-              onCheckedChange={(checked) => handleInputChange('allowComments', checked)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm font-medium">Allow Editing</Label>
-              <p className="text-xs text-gray-600">Let others edit this note</p>
-            </div>
-            <Switch
-              checked={formData.allowEditing}
-              onCheckedChange={(checked) => handleInputChange('allowEditing', checked)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm font-medium">Enable Assignments</Label>
-              <p className="text-xs text-gray-600">Allow tasks to be assigned from this note</p>
-            </div>
-            <Switch
-              checked={formData.hasAssignments}
-              onCheckedChange={(checked) => handleInputChange('hasAssignments', checked)}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Resource-specific features */}
-      {isResource && (
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium">Resource Features</h4>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm font-medium">Enable Ratings</Label>
-              <p className="text-xs text-gray-600">Allow users to rate this resource</p>
-            </div>
-            <Switch
-              checked={formData.hasRatings}
-              onCheckedChange={(checked) => handleInputChange('hasRatings', checked)}
-            />
-          </div>
-
-          {userRole === 'ADMIN' && (
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-sm font-medium">Requires Curation</Label>
-                <p className="text-xs text-gray-600">Needs admin approval before publishing</p>
-              </div>
-              <Switch
-                checked={formData.hasCuration}
-                onCheckedChange={(checked) => handleInputChange('hasCuration', checked)}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Shared features */}
-      <div className="space-y-3 pt-3 border-t">
-        <div className="flex items-center justify-between">
-          <div>
-            <Label className="text-sm font-medium">Enable Sharing</Label>
-            <p className="text-xs text-gray-600">Track when this content is shared</p>
-          </div>
-          <Switch
-            checked={formData.hasSharing}
-            onCheckedChange={(checked) => handleInputChange('hasSharing', checked)}
-          />
-        </div>
-      </div>
-    </div>
-  );
 
   const renderDocumentAttachments = () => (
     <div className="space-y-2">
@@ -849,11 +757,8 @@ const ContentForm: React.FC<ContentFormProps> = ({
       </Label>
       <DocumentAttachmentManager
         noteId={initialData?.id || 'new-content'}
-        attachments={[]} // TODO: Implement document attachments
-        onAttachmentsChange={(attachments) => {
-          const documentIds = attachments.map(att => att.document.id);
-          handleDocumentChange(documentIds);
-        }}
+        attachments={uploadedAttachments}
+        onAttachmentsChange={handleAttachmentsChange}
       />
     </div>
   );
@@ -877,11 +782,6 @@ const ContentForm: React.FC<ContentFormProps> = ({
         {renderDocumentAttachments()}
       </div>
 
-      {/* Features */}
-      <div className="space-y-3 pt-3 border-t">
-        <h3 className="text-xl font-semibold text-gray-900">Features</h3>
-        {renderFeatureSettings()}
-      </div>
 
       {/* Form Actions */}
       <div className="flex items-center gap-3 pt-3 border-t">

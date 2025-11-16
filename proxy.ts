@@ -304,18 +304,15 @@ export default clerkMiddleware(async (auth, request) => {
     return NextResponse.redirect(new URL(defaultRoute, request.url));
   }
 
-  if (
-    isMemberRoute(request) &&
-    finalUserRole === UserRole.MEMBER &&
-    path !== "/member"
-  ) {
-    console.log("❌ Member route restriction:", {
+  // Check if user can access the requested route based on their role permissions
+  if (finalUserRole && !canAccessRoute(finalUserRole, path)) {
+    console.log("❌ Route access denied:", {
       finalUserRole,
       path,
-      redirectingTo: "/member",
+      redirectingTo: getDefaultRoute(finalUserRole),
     });
-    // Members can only access their specific routes
-    return NextResponse.redirect(new URL("/member", request.url));
+    const defaultRoute = getDefaultRoute(finalUserRole);
+    return NextResponse.redirect(new URL(defaultRoute, request.url));
   }
 
   console.log("✅ Access granted:", {

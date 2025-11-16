@@ -4,9 +4,11 @@ import { z } from "zod";
 import { UserRole } from "@prisma/client";
 import { UserRole as AppUserRole } from "@/lib/auth/roles";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
+import { FamilyRepository } from "@/lib/db/repositories/family.repository";
 import type { UserFilters, ClerkError } from "@/lib/types/api";
 
 const userRepository = new UserRepository();
+const familyRepository = new FamilyRepository();
 
 // Validation schema for creating a user
 const createUserSchema = z.object({
@@ -95,6 +97,29 @@ export async function GET(request: NextRequest) {
 
     // Get users from database
     let users = await userRepository.getAllUsers(repoFilters);
+
+    // VOLUNTEER family-scoped filtering: only show users from families they created
+    if (user.role === UserRole.VOLUNTEER) {
+      // Get families that this volunteer created
+      const volunteerFamilies = await familyRepository.getFamiliesByCreator(user.id);
+      const accessibleFamilyIds = volunteerFamilies.map(f => f.id);
+
+      console.log("🔒 VOLUNTEER family filtering:", {
+        volunteerId: user.id,
+        accessibleFamilyIds,
+        totalUsersBeforeFilter: users.length
+      });
+
+      // Filter users to only include those from accessible families
+      users = users.filter((u) => {
+        if (!u.familyId) return false; // Volunteers can't see users without families
+        return accessibleFamilyIds.includes(u.familyId);
+      });
+
+      console.log("🔒 VOLUNTEER family filtering applied:", {
+        usersAfterFilter: users.length
+      });
+    }
 
     // Filter users without family if requested
     if (withoutFamily) {

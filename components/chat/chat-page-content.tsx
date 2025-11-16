@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { UserRole } from "@prisma/client";
-import { Plus, Search, MessageCircle, Users, Clock, Send, MoreVertical } from "lucide-react";
+import { Plus, Search, MessageCircle, Users, Send, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,16 +116,13 @@ export function ChatPageContent({ userRole, userId }: ChatPageContentProps) {
   }, []);
 
   const filteredConversations = (conversations || []).filter(conversation => {
-    if (activeTab === "unread" && conversation.unreadCount === 0) {
-      return false;
-    }
     if (activeTab === "family" && !conversation.familyId) {
       return false;
     }
     return true;
   });
 
-  const canCreateConversations = userRole === UserRole.ADMIN || userRole === UserRole.VOLUNTEER;
+  const canCreateConversations = userRole === UserRole.ADMIN || userRole === UserRole.VOLUNTEER || userRole === UserRole.MEMBER;
 
   return (
     <div className="space-y-4">
@@ -134,6 +131,7 @@ export function ChatPageContent({ userRole, userId }: ChatPageContentProps) {
         <NewConversationForm
           userRole={userRole}
           userId={userId}
+          context={activeTab as 'family' | 'all' | 'unread' | 'recent'}
           onConversationCreated={() => {
             setShowConversationForm(false);
             fetchConversations();
@@ -182,30 +180,21 @@ export function ChatPageContent({ userRole, userId }: ChatPageContentProps) {
           />
         </div>
       </Card>
+        </>
+      )}
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="all">All Chats</TabsTrigger>
-          <TabsTrigger value="unread" className="relative">
-            Unread
-            {conversations.some(c => c.unreadCount > 0) && (
-              <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 text-xs">
-                {conversations.filter(c => c.unreadCount > 0).length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="family">
-            <Users className="h-3 w-3 mr-1" />
-            Family
-          </TabsTrigger>
-          <TabsTrigger value="recent">
-            <Clock className="h-3 w-3 mr-1" />
-            Recent
-          </TabsTrigger>
-        </TabsList>
+      {/* Tabs - Client-only to prevent hydration mismatch */}
+      {typeof window !== 'undefined' && (
+        <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="all">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="all">All Chats</TabsTrigger>
+            <TabsTrigger value="family">
+              <Users className="h-3 w-3 mr-1" />
+              Family
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value={activeTab} className="space-y-4 mt-4">
+          <TabsContent value={activeTab} className="space-y-4 mt-4">
           {/* Conversation List */}
           {loading && conversations.length === 0 && (
             <div className="space-y-3">
@@ -243,7 +232,6 @@ export function ChatPageContent({ userRole, userId }: ChatPageContentProps) {
                 <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p>
                   {searchQuery ? `No conversations found for "${searchQuery}"` :
-                   activeTab === "unread" ? "No unread conversations" :
                    activeTab === "family" ? "No family conversations" :
                    "No conversations yet"}
                 </p>
@@ -269,9 +257,36 @@ export function ChatPageContent({ userRole, userId }: ChatPageContentProps) {
               onConversationUpdate={fetchConversations}
             />
           )}
-        </TabsContent>
-      </Tabs>
-        </>
+          </TabsContent>
+        </Tabs>
+      )}
+
+      {/* Server-side fallback */}
+      {typeof window === 'undefined' && (
+        <div>
+          <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground mb-4">
+            <div className="grid w-full grid-cols-2">
+              <button className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium bg-background text-foreground shadow-sm">
+                All Chats
+              </button>
+              <button className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium">
+                <Users className="h-3 w-3 mr-1" />
+                Family
+              </button>
+            </div>
+          </div>
+          <div className="space-y-4">
+            {/* Show all conversations on server-side render */}
+            {!loading && !error && conversations.length > 0 && (
+              <ConversationList
+                conversations={conversations}
+                userRole={userRole}
+                currentUserId={userId}
+                onConversationUpdate={fetchConversations}
+              />
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

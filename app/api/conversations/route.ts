@@ -166,22 +166,43 @@ export async function POST(request: NextRequest) {
 
 
       case MessageType.FAMILY_CHAT:
-        // Only ADMIN and VOLUNTEER can create family chats
-        if (user.role !== UserRole.ADMIN && user.role !== UserRole.VOLUNTEER) {
+        // ADMIN and VOLUNTEER can create family chats for any family
+        // MEMBER can only create family chats for their own family
+        if (user.role === UserRole.MEMBER) {
+          // Members can only create family chats for their own family
+          if (!user.familyId) {
+            return NextResponse.json(
+              { error: "You must be assigned to a family to create family chats" },
+              { status: 400 },
+            );
+          }
+          if (!validatedData.familyId) {
+            return NextResponse.json(
+              { error: "Family ID is required for family chats" },
+              { status: 400 },
+            );
+          }
+          if (user.familyId !== validatedData.familyId) {
+            return NextResponse.json(
+              { error: "You can only create family chats for your own family" },
+              { status: 403 },
+            );
+          }
+        } else if (user.role !== UserRole.ADMIN && user.role !== UserRole.VOLUNTEER) {
           return NextResponse.json(
             {
-              error:
-                "Only administrators and volunteers can create family chats",
+              error: "Insufficient permissions to create family chats",
             },
             { status: 403 },
           );
-        }
-        // Validate familyId is provided
-        if (!validatedData.familyId) {
-          return NextResponse.json(
-            { error: "Family ID is required for family chats" },
-            { status: 400 },
-          );
+        } else {
+          // ADMIN and VOLUNTEER: Validate familyId is provided
+          if (!validatedData.familyId) {
+            return NextResponse.json(
+              { error: "Family ID is required for family chats" },
+              { status: 400 },
+            );
+          }
         }
         break;
 

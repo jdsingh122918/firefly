@@ -216,6 +216,12 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
         params.set('search', filters.search);
       }
 
+      // Include documents to show attachments in content cards
+      params.set('includeDocuments', 'true');
+      params.set('includeCreator', 'true');
+      params.set('includeFamily', 'true');
+      params.set('includeCategory', 'true');
+
       const response = await fetch(`/api/content?${params}`);
       if (!response.ok) {
         const errorText = await response.text();
@@ -256,7 +262,7 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
     if (!showCurationQueue) return;
 
     try {
-      const response = await fetch('/api/content?hasCuration=true&status=PENDING&contentType=RESOURCE');
+      const response = await fetch('/api/content?hasCuration=true&status=PENDING&contentType=RESOURCE&includeDocuments=true&includeCreator=true&includeFamily=true&includeCategory=true');
       if (response.ok) {
         const data = await response.json();
         if (data.success) {

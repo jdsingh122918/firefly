@@ -6,7 +6,6 @@ import { useFileUpload } from "@/hooks/use-file-upload";
 import {
   Paperclip,
   Upload,
-  Library,
   X,
   Download,
   Eye,
@@ -29,7 +28,6 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from "@/components/ui/tooltip";
-import { DocumentBrowser } from "./document-browser";
 import { formatFileSize } from "@/components/shared/format-utils";
 import { cn } from "@/lib/utils";
 
@@ -99,7 +97,6 @@ export function DocumentAttachmentManager({
 
   // UI state
   const [uploading, setUploading] = useState(false);
-  const [browserOpen, setBrowserOpen] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -185,60 +182,6 @@ export function DocumentAttachmentManager({
     event.target.value = '';
   }, [handleFileSelect]);
 
-  // Handle library document selection
-  const handleLibrarySelect = useCallback(async (selectedDocuments: any[]) => {
-    if (selectedDocuments.length === 0) return;
-
-    setUploading(true);
-    setError(null);
-
-    try {
-      const token = await getToken();
-      if (!token) {
-        throw new Error('Authentication token not available');
-      }
-
-      // Attach each selected document
-      const newAttachments: DocumentAttachment[] = [];
-
-      for (const doc of selectedDocuments) {
-        const response = await fetch(`/api/notes/${noteId}/documents`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            documentId: doc.id,
-            source: "LIBRARY",
-            order: attachments.length + newAttachments.length
-          })
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to attach document');
-        }
-
-        const result = await response.json();
-        // The API should return the updated documents list
-        if (result.documents) {
-          onAttachmentsChange?.(result.documents);
-          return; // Early return since we have the full list
-        }
-      }
-
-      // If we don't get the full list back, refresh the attachments
-      // This would require a re-fetch, but for now we'll just close the dialog
-      setBrowserOpen(false);
-
-    } catch (err) {
-      console.error('Failed to attach documents:', err);
-      setError(err instanceof Error ? err.message : 'Failed to attach documents');
-    } finally {
-      setUploading(false);
-    }
-  }, [getToken, noteId, attachments.length, onAttachmentsChange]);
 
   // Handle document removal
   const handleRemoveAttachment = useCallback(async (attachmentId: string, documentId: string) => {
@@ -365,24 +308,6 @@ export function DocumentAttachmentManager({
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setBrowserOpen(true)}
-                    disabled={isUploading}
-                    className="h-8 px-2"
-                  >
-                    <Library className="h-3 w-3" />
-                    <span className="sr-only">From Library</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Select from document library</p>
-                </TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
                     onClick={handleFileUpload}
                     disabled={isUploading}
                     className="h-8 px-2"
@@ -425,16 +350,6 @@ export function DocumentAttachmentManager({
               </p>
               {!readOnly && (
                 <div className="flex gap-2 justify-center mt-3">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setBrowserOpen(true)}
-                    disabled={isUploading}
-                    className="h-8"
-                  >
-                    <Library className="mr-1 h-3 w-3" />
-                    From Library
-                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -481,14 +396,9 @@ export function DocumentAttachmentManager({
                             )}
                             <Badge
                               variant="outline"
-                              className={cn(
-                                "text-xs px-1 py-0",
-                                (attachment.source || "UPLOAD") === "LIBRARY"
-                                  ? "bg-blue-50 text-blue-700 border-blue-200"
-                                  : "bg-green-50 text-green-700 border-green-200"
-                              )}
+                              className="text-xs px-1 py-0 bg-green-50 text-green-700 border-green-200"
                             >
-                              {(attachment.source || "UPLOAD") === "LIBRARY" ? "Library" : "Upload"}
+                              Upload
                             </Badge>
                           </div>
                         </div>
@@ -569,15 +479,6 @@ export function DocumentAttachmentManager({
           </div>
         )}
 
-        {/* Document Browser Dialog */}
-        <DocumentBrowser
-          open={browserOpen}
-          onOpenChange={setBrowserOpen}
-          onSelect={handleLibrarySelect}
-          selectedDocuments={attachments.map(att => att.documentId)}
-          multiSelect={true}
-          title="Select Documents to Attach"
-        />
       </div>
     </TooltipProvider>
   );

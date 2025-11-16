@@ -8,7 +8,15 @@ import {
   User,
   ChevronDown,
   ChevronRight,
-  Reply
+  Reply,
+  Paperclip,
+  Eye,
+  Download,
+  FileText,
+  Image,
+  Video,
+  FileAudio,
+  FileIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -16,6 +24,17 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ReplyForm } from "./reply-form"
+import { formatFileSize } from "@/components/shared/format-utils"
+
+interface ReplyAttachment {
+  id: string
+  fileId: string
+  fileName: string
+  originalName: string
+  size: number
+  mimeType: string
+  url: string
+}
 
 interface Reply {
   id: string
@@ -31,9 +50,22 @@ interface Reply {
     lastName?: string
     imageUrl?: string
   }
+  attachments?: ReplyAttachment[]
   children?: Reply[]
   isDeleted?: boolean
   deletedAt?: string
+}
+
+// Get appropriate icon for file type
+function getFileIcon(contentType?: string) {
+  if (!contentType) return FileIcon;
+
+  if (contentType.startsWith('image/')) return Image;
+  if (contentType.startsWith('video/')) return Video;
+  if (contentType.startsWith('audio/')) return FileAudio;
+  if (contentType.includes('pdf') || contentType.includes('document')) return FileText;
+
+  return FileIcon;
 }
 
 interface ReplyThreadProps {
@@ -146,6 +178,62 @@ function ReplyItem({ reply, postId, maxDepth, onReplyUpdate }: ReplyItemProps) {
               {/* Content */}
               <div className={cn("mb-3", isCollapsed && "line-clamp-2")}>
                 <p className="text-sm whitespace-pre-wrap">{reply.content}</p>
+
+                {/* Attachments */}
+                {reply.attachments && reply.attachments.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                      <Paperclip className="h-3 w-3" />
+                      {reply.attachments.length} attachment{reply.attachments.length !== 1 ? 's' : ''}
+                    </div>
+                    <div className="space-y-1">
+                      {reply.attachments.map((attachment) => {
+                        const FileIcon = getFileIcon(attachment.mimeType);
+                        return (
+                          <div
+                            key={attachment.id}
+                            className="flex items-center justify-between gap-2 p-2 bg-muted/30 rounded-md border"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FileIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium truncate">{attachment.originalName}</p>
+                                <p className="text-xs text-muted-foreground">{formatFileSize(attachment.size)}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {/* View button */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(attachment.url, '_blank')}
+                                className="h-6 w-6 p-0"
+                                title="View attachment"
+                              >
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                              {/* Download button */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const link = document.createElement('a');
+                                  link.href = attachment.url;
+                                  link.download = attachment.originalName;
+                                  link.click();
+                                }}
+                                className="h-6 w-6 p-0"
+                                title="Download attachment"
+                              >
+                                <Download className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Actions */}

@@ -21,7 +21,10 @@ import {
   Image,
   FileDown,
   Pin,
-  Archive
+  Archive,
+  Paperclip,
+  FileIcon,
+  FileAudio
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -32,6 +35,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ContentType, NoteType, ResourceContentType, ResourceStatus, AssignmentStatus, NoteVisibility } from '@prisma/client';
 import { formatDistanceToNow } from 'date-fns';
+import { formatFileSize } from '@/components/shared/format-utils';
 
 /**
  * Unified Content Card Component
@@ -130,6 +134,20 @@ export interface ContentCardProps {
   canEdit?: boolean;
   canDelete?: boolean;
 }
+
+// Helper function to get appropriate icon for file type
+const getDocumentIcon = (type?: string) => {
+  if (!type) return FileIcon;
+
+  const lowerType = type.toLowerCase();
+
+  if (lowerType.includes('image') || lowerType.includes('png') || lowerType.includes('jpg') || lowerType.includes('jpeg') || lowerType.includes('gif')) return Image;
+  if (lowerType.includes('video') || lowerType.includes('mp4') || lowerType.includes('avi') || lowerType.includes('mov')) return Video;
+  if (lowerType.includes('audio') || lowerType.includes('mp3') || lowerType.includes('wav')) return FileAudio;
+  if (lowerType.includes('pdf') || lowerType.includes('document') || lowerType.includes('doc') || lowerType.includes('docx')) return FileText;
+
+  return FileIcon;
+};
 
 const ContentCard: React.FC<ContentCardProps> = ({
   content,
@@ -281,6 +299,40 @@ const ContentCard: React.FC<ContentCardProps> = ({
     );
   };
 
+  const renderDocuments = () => {
+    if (!showDocuments || !content.documents?.length) return null;
+
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Paperclip className="h-4 w-4" />
+          <span>{content.documents.length} attachment{content.documents.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div className="space-y-1 max-h-16 overflow-y-auto">
+          {content.documents.slice(0, 2).map((doc) => {
+            const DocumentIcon = getDocumentIcon(doc.document.type);
+            return (
+              <div key={doc.id} className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded px-2 py-1">
+                <DocumentIcon className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate flex-1">{doc.document.title}</span>
+                {doc.document.fileSize && (
+                  <span className="text-xs text-gray-400 flex-shrink-0">
+                    {formatFileSize(doc.document.fileSize)}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+          {content.documents.length > 2 && (
+            <div className="text-xs text-gray-500 pl-5">
+              +{content.documents.length - 2} more files
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
 
   const renderActions = () => {
     return (
@@ -418,6 +470,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
             {getStatusBadge()}
             {renderAssignmentInfo()}
             {renderRatingInfo()}
+            {renderDocuments()}
           </div>
         </div>
       </CardHeader>

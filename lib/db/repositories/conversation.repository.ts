@@ -402,6 +402,11 @@ export class ConversationRepository {
     conversationId: string,
     userId: string,
   ): Promise<boolean> {
+    console.log("💬 [REPOSITORY] isUserParticipant called:", {
+      conversationId,
+      userId,
+    });
+
     const participant = await prisma.conversationParticipant.findFirst({
       where: {
         conversationId,
@@ -409,8 +414,23 @@ export class ConversationRepository {
       },
     });
 
+    console.log("💬 [REPOSITORY] Participant lookup result:", {
+      conversationId,
+      userId,
+      foundParticipant: !!participant,
+      leftAt: participant?.leftAt,
+      hasLeft: !!participant?.leftAt,
+    });
+
     // Check if participant exists and hasn't left (leftAt is null/undefined)
-    return !!participant && !participant.leftAt;
+    const isParticipant = !!participant && !participant.leftAt;
+    console.log("💬 [REPOSITORY] Final participant check:", {
+      conversationId,
+      userId,
+      isParticipant,
+    });
+
+    return isParticipant;
   }
 
   /**

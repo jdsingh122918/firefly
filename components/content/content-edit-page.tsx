@@ -171,7 +171,8 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
       const params = new URLSearchParams({
         includeCreator: 'true',
         includeFamily: 'true',
-        includeCategory: 'true'
+        includeCategory: 'true',
+        includeDocuments: 'true'
       });
 
       const response = await fetch(`/api/content/${contentId}?${params}`);

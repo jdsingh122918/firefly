@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
 import { fileStorageService } from "@/lib/storage/file-storage.service";
+import { databaseFileStorageService } from "@/lib/storage/database-file-storage.service";
 
 const userRepository = new UserRepository();
 
@@ -23,6 +24,8 @@ export async function POST(request: NextRequest) {
     console.log("📁 POST /api/files/upload - User:", {
       role: user.role,
       email: user.email,
+      clerkId: userId,
+      dbUserId: user.id,
     });
 
     // Get form data
@@ -44,6 +47,12 @@ export async function POST(request: NextRequest) {
     const results = [];
     const errors = [];
 
+    // Determine storage method - database by default, filesystem if explicitly enabled
+    const useFilesystemStorage = process.env.USE_FILESYSTEM_STORAGE === "true";
+    const storageMethod = useFilesystemStorage ? "filesystem" : "database";
+
+    console.log("📁 Using storage method:", storageMethod);
+
     // Process each file
     for (const file of files) {
       if (!file || file.size === 0) {
@@ -57,39 +66,95 @@ export async function POST(request: NextRequest) {
           size: file.size,
           type: file.type,
           category,
+          storageMethod,
         });
 
-        const uploadResult = await fileStorageService.uploadFile(file, {
-          category: category as "images" | "documents" | "temp",
-          userId: user.id,
-        });
-
-        console.log("📁 Upload result:", uploadResult);
-
-        if (uploadResult.success) {
-          results.push({
-            fileId: uploadResult.fileId,
-            fileName: uploadResult.fileName,
-            originalName: file.name,
-            size: uploadResult.fileSize,
-            mimeType: uploadResult.mimeType,
-            url: uploadResult.url,
-            category,
+        if (useFilesystemStorage) {
+          // Use legacy filesystem storage
+          const uploadResult = await fileStorageService.uploadFile(file, {
+            category: category as "images" | "documents" | "temp",
+            userId: user.id,
           });
 
-          console.log("✅ File uploaded successfully:", {
-            fileId: uploadResult.fileId,
-            fileName: uploadResult.fileName,
-            originalName: file.name,
-          });
+          console.log("📁 Filesystem upload result:", uploadResult);
+
+          if (uploadResult.success) {
+            results.push({
+              fileId: uploadResult.fileId,
+              fileName: uploadResult.fileName,
+              originalName: file.name,
+              size: uploadResult.fileSize,
+              mimeType: uploadResult.mimeType,
+              url: uploadResult.url,
+              category,
+              storageMethod: "filesystem",
+            });
+
+            console.log("✅ File uploaded to filesystem:", {
+              fileId: uploadResult.fileId,
+              fileName: uploadResult.fileName,
+              originalName: file.name,
+            });
+          } else {
+            const errorMsg = `Failed to upload ${file.name}: ${uploadResult.error}`;
+            errors.push(errorMsg);
+            console.error("❌ Filesystem upload failed:", {
+              fileName: file.name,
+              error: uploadResult.error,
+              uploadResult,
+            });
+          }
         } else {
-          const errorMsg = `Failed to upload ${file.name}: ${uploadResult.error}`;
-          errors.push(errorMsg);
-          console.error("❌ File upload failed:", {
+          // Use new database storage
+          const title = description?.trim() || file.name?.trim() || `Uploaded File ${Date.now()}`;
+          console.log("📁 Preparing database upload with title:", {
+            originalDescription: description,
             fileName: file.name,
-            error: uploadResult.error,
-            uploadResult,
+            finalTitle: title,
+            userId: user.id,
+            category: category,
           });
+
+          const uploadResult = await databaseFileStorageService.uploadFile(file, {
+            title: title,
+            description: description?.trim(),
+            category: category as "images" | "documents" | "temp",
+            userId: user.id,
+            tags: [],
+          });
+
+          console.log("📁 Database upload result:", uploadResult);
+
+          if (uploadResult.success) {
+            results.push({
+              fileId: uploadResult.documentId,
+              fileName: uploadResult.fileName,
+              originalName: file.name,
+              size: uploadResult.fileSize,
+              mimeType: uploadResult.mimeType,
+              url: uploadResult.url,
+              category,
+              storageMethod: "database",
+            });
+
+            console.log("✅ File uploaded to database:", {
+              documentId: uploadResult.documentId,
+              fileName: uploadResult.fileName,
+              originalName: file.name,
+            });
+          } else {
+            const errorMsg = `Failed to upload ${file.name}: ${uploadResult.error}`;
+            errors.push(errorMsg);
+            console.error("❌ Database upload failed:", {
+              fileName: file.name,
+              fileSize: file.size,
+              mimeType: file.type,
+              category: category,
+              userId: user.id,
+              error: uploadResult.error,
+              uploadResult,
+            });
+          }
         }
       } catch (error) {
         const errorMessage =
@@ -110,6 +175,8 @@ export async function POST(request: NextRequest) {
         totalFiles: files.length,
         errors,
         category,
+        storageMethod,
+        filesProcessed: files.map(f => ({ name: f.name, size: f.size, type: f.type })),
       });
       return NextResponse.json(
         {
@@ -154,10 +221,17 @@ export async function GET() {
 
     console.log("📁 GET /api/files/upload - Get upload config");
 
+    // Database storage has a 15MB limit (safe under MongoDB's 16MB document limit)
+    // Filesystem storage can use the environment variable or default to 10MB
+    const useFilesystemStorage = process.env.USE_FILESYSTEM_STORAGE === "true";
+    const maxFileSize = useFilesystemStorage
+      ? parseInt(process.env.MAX_FILE_SIZE || "10485760") // 10MB for filesystem
+      : 15 * 1024 * 1024; // 15MB for database
+
     const config = {
-      maxFileSize: parseInt(process.env.MAX_FILE_SIZE || "10485760"), // 10MB
-      maxFileSizeMB:
-        parseInt(process.env.MAX_FILE_SIZE || "10485760") / 1024 / 1024,
+      maxFileSize: maxFileSize,
+      maxFileSizeMB: maxFileSize / 1024 / 1024,
+      storageMethod: useFilesystemStorage ? "filesystem" : "database",
       allowedMimeTypes: [
         // Images
         "image/jpeg",
