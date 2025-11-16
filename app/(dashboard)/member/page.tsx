@@ -1,14 +1,23 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
-import { Heart, MessageSquare, FileText, Calendar, Users, Mail, User } from 'lucide-react'
+import { Heart, MessageSquare, FileText, Calendar, Users, Mail, User, Eye, Plus, BookOpen } from 'lucide-react'
 import { UserRepository } from '@/lib/db/repositories/user.repository'
+import { ConversationRepository } from '@/lib/db/repositories/conversation.repository'
+import { ContentRepository } from '@/lib/db/repositories/content.repository'
+import { ForumRepository } from '@/lib/db/repositories/forum.repository'
+import { NotificationRepository } from '@/lib/db/repositories/notification.repository'
 
 const userRepository = new UserRepository()
+const conversationRepository = new ConversationRepository()
+const contentRepository = new ContentRepository()
+const forumRepository = new ForumRepository()
+const notificationRepository = new NotificationRepository()
 
 export default async function MemberDashboard() {
   const { userId, sessionClaims } = await auth()
@@ -28,20 +37,43 @@ export default async function MemberDashboard() {
   // Get user data including family information
   const user = await userRepository.getUserByClerkId(userId)
   let familyMembers: Array<{ id: string; firstName: string | null; lastName?: string | null; role: string; email: string }> = []
+  let userStats = { conversations: 0, unreadNotifications: 0, content: 0, recentForums: 0 }
 
-  if (user?.family) {
+  if (user) {
     try {
-      // Get all family members
-      familyMembers = await userRepository.getAllUsers({
-        familyId: user.family.id
-      })
-      console.log('👨‍👩‍👧‍👦 Member dashboard - family data:', {
-        userId: user.id,
-        familyName: user.family.name,
-        memberCount: familyMembers.length
-      })
+      // Get family members if user has a family
+      if (user?.family) {
+        familyMembers = await userRepository.getAllUsers({
+          familyId: user.family.id
+        })
+        console.log('👨‍👩‍👧‍👦 Member dashboard - family data:', {
+          userId: user.id,
+          familyName: user.family.name,
+          memberCount: familyMembers.length
+        })
+      }
+
+      // Fetch user-specific data
+      const [conversations, notifications, content] = await Promise.allSettled([
+        conversationRepository.getConversationsForUser(user.id),
+        notificationRepository.getUnreadCount(user.id),
+        contentRepository.filter({
+          createdBy: user.id,
+          page: 1,
+          limit: 5
+        }, user.id, user.role)
+      ])
+
+      userStats = {
+        conversations: conversations.status === 'fulfilled' ? conversations.value.length : 0,
+        unreadNotifications: notifications.status === 'fulfilled' ? notifications.value : 0,
+        content: content.status === 'fulfilled' ? content.value.total : 0,
+        recentForums: 0 // Will be updated when we add forum integration
+      }
+
+      console.log('📊 Member dashboard stats:', userStats)
     } catch (error) {
-      console.error('❌ Error fetching family members:', error)
+      console.error('❌ Error fetching member dashboard data:', error)
     }
   }
 
@@ -88,35 +120,35 @@ export default async function MemberDashboard() {
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{userStats.conversations}</div>
             <p className="text-xs text-muted-foreground">
-              Coming soon - messaging
+              Active conversations
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Resources</CardTitle>
+            <CardTitle className="text-sm font-medium">Content</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{userStats.content}</div>
             <p className="text-xs text-muted-foreground">
-              Coming soon - documents
+              Notes & resources
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
+            <CardTitle className="text-sm font-medium">Notifications</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{userStats.unreadNotifications}</div>
             <p className="text-xs text-muted-foreground">
-              Coming soon - scheduling
+              Unread notifications
             </p>
           </CardContent>
         </Card>
@@ -191,99 +223,214 @@ export default async function MemberDashboard() {
           </CardContent>
         </Card>
 
-        {/* Support & Resources */}
+        {/* Quick Actions */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <FileText className="h-5 w-5" />
-              <span>Support & Resources</span>
+              <BookOpen className="h-5 w-5" />
+              <span>Quick Access</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h3 className="font-medium text-blue-900">Care Coordination</h3>
-                <p className="text-sm text-blue-800 mt-1">
-                  Your volunteer coordinator will help connect you with resources and support services.
-                </p>
-              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Button asChild variant="outline" className="h-auto flex-col p-4">
+                  <Link href="/member/chat">
+                    <MessageSquare className="h-5 w-5 mb-2" />
+                    <span className="text-sm">Chat</span>
+                  </Link>
+                </Button>
 
-              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                <h3 className="font-medium text-green-900">24/7 Support</h3>
-                <p className="text-sm text-green-800 mt-1">
-                  Emergency support and resources are available around the clock for urgent needs.
-                </p>
-              </div>
+                <Button asChild variant="outline" className="h-auto flex-col p-4">
+                  <Link href="/member/content">
+                    <FileText className="h-5 w-5 mb-2" />
+                    <span className="text-sm">Content</span>
+                  </Link>
+                </Button>
 
-              <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                <h3 className="font-medium text-purple-900">Community Connection</h3>
-                <p className="text-sm text-purple-800 mt-1">
-                  Connect with other families and share experiences in our supportive community.
-                </p>
+                <Button asChild variant="outline" className="h-auto flex-col p-4">
+                  <Link href="/member/forums">
+                    <Users className="h-5 w-5 mb-2" />
+                    <span className="text-sm">Forums</span>
+                  </Link>
+                </Button>
+
+                <Button asChild variant="outline" className="h-auto flex-col p-4">
+                  <Link href="/member/notifications">
+                    <Calendar className="h-5 w-5 mb-2" />
+                    <span className="text-sm">Notifications</span>
+                  </Link>
+                </Button>
               </div>
 
               <Separator />
 
-              <div className="text-center">
-                <h4 className="font-medium mb-2">Need Help?</h4>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Reach out to your volunteer coordinator or contact support.
-                </p>
-                <div className="space-y-2">
-                  <Button variant="outline" size="sm" className="w-full">
-                    <Mail className="mr-2 h-4 w-4" />
-                    Contact Support
-                  </Button>
-                  {user?.family && (
-                    <Button variant="outline" size="sm" className="w-full">
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      Message Family
+              <div className="space-y-3">
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <h3 className="font-medium text-blue-900">Create Content</h3>
+                  <p className="text-sm text-blue-800 mt-1">
+                    Share notes, resources, and documentation
+                  </p>
+                  <div className="mt-2">
+                    <Button size="sm" asChild>
+                      <Link href="/member/content/new">
+                        <Plus className="mr-2 h-3 w-3" />
+                        New Content
+                      </Link>
                     </Button>
-                  )}
+                  </div>
                 </div>
+
+                {user?.family && (
+                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                    <h3 className="font-medium text-green-900">Family Communication</h3>
+                    <p className="text-sm text-green-800 mt-1">
+                      Connect with your family members and volunteers
+                    </p>
+                    <div className="mt-2">
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href="/member/chat">
+                          <MessageSquare className="mr-2 h-3 w-3" />
+                          Message Family
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Personal Information */}
-      {user && (
+      {/* Recent Activity & Info */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Recent Activity */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <User className="h-5 w-5" />
-              <span>My Information</span>
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center space-x-2">
+                <FileText className="h-5 w-5" />
+                <span>Recent Activity</span>
+              </CardTitle>
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/member/content">
+                  <Eye className="mr-2 h-4 w-4" />
+                  View All
+                </Link>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-              <div>
-                <h4 className="font-medium">Name</h4>
-                <p className="text-muted-foreground">
-                  {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Not provided'}
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium">Email</h4>
-                <p className="text-muted-foreground truncate">{user.email}</p>
-              </div>
-              <div>
-                <h4 className="font-medium">Phone</h4>
-                <p className="text-muted-foreground">
-                  {user.phoneNumber || 'Not provided'}
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium">Member Since</h4>
-                <p className="text-muted-foreground">
-                  {new Date(user.createdAt).toLocaleDateString()}
-                </p>
-              </div>
+            <div className="space-y-4">
+              {userStats.content > 0 ? (
+                <div className="space-y-3">
+                  <div className="p-3 border rounded-lg">
+                    <div className="text-sm text-muted-foreground">
+                      You have {userStats.content} content items
+                    </div>
+                    <Button size="sm" variant="ghost" asChild className="p-0 h-auto text-primary hover:underline">
+                      <Link href="/member/content">View your content →</Link>
+                    </Button>
+                  </div>
+                  {userStats.conversations > 0 && (
+                    <div className="p-3 border rounded-lg">
+                      <div className="text-sm text-muted-foreground">
+                        You have {userStats.conversations} active conversations
+                      </div>
+                      <Button size="sm" variant="ghost" asChild className="p-0 h-auto text-primary hover:underline">
+                        <Link href="/member/chat">Go to chat →</Link>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-2 text-sm font-semibold text-muted-foreground">No recent activity</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Get started by creating content or joining conversations.
+                  </p>
+                  <div className="mt-6 space-x-2">
+                    <Button size="sm" asChild>
+                      <Link href="/member/content/new">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create Content
+                      </Link>
+                    </Button>
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href="/member/chat">
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        Start Chat
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
-      )}
+
+        {/* Personal Information */}
+        {user && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <User className="h-5 w-5" />
+                <span>My Information</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <h4 className="font-medium">Name</h4>
+                    <p className="text-muted-foreground">
+                      {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Not provided'}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Email</h4>
+                    <p className="text-muted-foreground truncate">{user.email}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Phone</h4>
+                    <p className="text-muted-foreground">
+                      {user.phoneNumber || 'Not provided'}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Member Since</h4>
+                    <p className="text-muted-foreground">
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h4 className="font-medium mb-2">Platform Stats</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Conversations</span>
+                      <span>{userStats.conversations}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Content Created</span>
+                      <span>{userStats.content}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Unread Notifications</span>
+                      <span>{userStats.unreadNotifications}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }

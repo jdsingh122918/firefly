@@ -65,6 +65,68 @@ export default clerkMiddleware(async (auth, request) => {
         { status: 401 }
       );
     }
+
+    // For API routes, check if user exists in database and auto-sync if needed
+    try {
+      const dbUser = await prisma.user.findUnique({
+        where: { clerkId: userId },
+        select: { role: true, id: true, email: true },
+      });
+
+      if (!dbUser) {
+        console.log("⚠️  API route: User not found in database, attempting auto-sync...");
+
+        try {
+          // Auto-sync user from Clerk to database
+          const clerkUser = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+            headers: {
+              Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
+              'Content-Type': 'application/json',
+            },
+          }).then(res => res.json());
+
+          if (clerkUser && clerkUser.email_addresses?.[0]?.email_address) {
+            // Import UserRepository locally to avoid circular dependencies
+            const { UserRepository } = await import("@/lib/db/repositories/user.repository");
+            const { UserRole } = await import("@/lib/auth/roles");
+            const userRepository = new UserRepository();
+
+            // Extract role from Clerk metadata or default to MEMBER
+            const role = clerkUser.public_metadata?.role ||
+                        clerkUser.private_metadata?.role ||
+                        clerkUser.unsafe_metadata?.role ||
+                        UserRole.MEMBER;
+
+            // Create user in database
+            const newUser = await userRepository.createUser({
+              clerkId: userId,
+              email: clerkUser.email_addresses[0].email_address,
+              firstName: clerkUser.first_name || undefined,
+              lastName: clerkUser.last_name || undefined,
+              role: role as UserRole,
+              phoneNumber: clerkUser.phone_numbers?.[0]?.phone_number || undefined,
+            });
+
+            console.log("✅ API route auto-sync successful:", {
+              userId: newUser.id,
+              email: newUser.email,
+              role: newUser.role,
+            });
+          }
+        } catch (syncError) {
+          console.error("❌ API route auto-sync failed:", syncError);
+        }
+      } else {
+        console.log("✅ API route: User found in database:", {
+          userId: dbUser.id,
+          email: dbUser.email,
+          role: dbUser.role,
+        });
+      }
+    } catch (error) {
+      console.error("❌ API route database check failed:", error);
+    }
+
     // API routes don't need role-based routing, just authentication
     console.log("✅ API route authorized:", path);
     return NextResponse.next();
@@ -126,7 +188,49 @@ export default clerkMiddleware(async (auth, request) => {
           roleFromDb: finalUserRole,
         });
       } else {
-        console.log("⚠️  User not found in database, may be newly created");
+        console.log("⚠️  User not found in database, attempting auto-sync...");
+
+        try {
+          // Auto-sync user from Clerk to database
+          const clerkUser = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+            headers: {
+              Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
+              'Content-Type': 'application/json',
+            },
+          }).then(res => res.json());
+
+          if (clerkUser && clerkUser.email_addresses?.[0]?.email_address) {
+            // Import UserRepository locally to avoid circular dependencies
+            const { UserRepository } = await import("@/lib/db/repositories/user.repository");
+            const { UserRole } = await import("@/lib/auth/roles");
+            const userRepository = new UserRepository();
+
+            // Extract role from Clerk metadata or default to MEMBER
+            const role = clerkUser.public_metadata?.role ||
+                        clerkUser.private_metadata?.role ||
+                        clerkUser.unsafe_metadata?.role ||
+                        UserRole.MEMBER;
+
+            // Create user in database
+            const newUser = await userRepository.createUser({
+              clerkId: userId,
+              email: clerkUser.email_addresses[0].email_address,
+              firstName: clerkUser.first_name || undefined,
+              lastName: clerkUser.last_name || undefined,
+              role: role as UserRole,
+              phoneNumber: clerkUser.phone_numbers?.[0]?.phone_number || undefined,
+            });
+
+            finalUserRole = newUser.role as UserRole;
+            console.log("✅ Auto-sync successful:", {
+              userId: newUser.id,
+              email: newUser.email,
+              roleFromSync: finalUserRole,
+            });
+          }
+        } catch (syncError) {
+          console.error("❌ Auto-sync failed:", syncError);
+        }
       }
     } catch (error) {
       console.error("❌ Database fallback failed:", error);

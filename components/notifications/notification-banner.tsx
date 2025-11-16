@@ -98,7 +98,14 @@ export function NotificationBanner({
           break;
 
         case "view":
-          if (notification.actionUrl) {
+          // For MESSAGE notifications, use data.conversationId with role-based routing
+          if (notification.type === NotificationType.MESSAGE) {
+            const messageData = notification.data as any;
+            if (messageData?.conversationId) {
+              const role = getUserRole();
+              router.push(`/${role}/chat/${messageData.conversationId}`);
+            }
+          } else if (notification.actionUrl) {
             router.push(notification.actionUrl);
           }
           break;

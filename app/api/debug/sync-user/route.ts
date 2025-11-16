@@ -30,14 +30,14 @@ export async function POST() {
       },
     }).then((res) => res.json());
 
-    // Create user in database with ADMIN role (since you need admin access)
+    // Create user in database with MEMBER role by default (can be updated by admin)
     const newUser = await userRepository.createUser({
       clerkId: userId,
       email:
         clerkUser.email_addresses[0]?.email_address || "unknown@example.com",
       firstName: clerkUser.first_name,
       lastName: clerkUser.last_name,
-      role: UserRole.ADMIN, // Setting as ADMIN so you can access admin features
+      role: UserRole.MEMBER, // Default to MEMBER role for security
     });
 
     return NextResponse.json({
