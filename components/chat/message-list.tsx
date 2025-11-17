@@ -6,6 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageCircle } from "lucide-react";
 import { formatDistanceToNow, format, isToday, isYesterday } from "date-fns";
+import { MessageReactions } from "@/components/chat/message-reactions";
+import { EmojiPicker } from "@/components/chat/emoji-picker";
+import { MessageContentRenderer } from "@/components/chat/message-content-renderer";
+import { MessageMetadata } from "@/lib/types/api";
 
 interface Message {
   id: string;
@@ -37,6 +41,8 @@ interface MessageListProps {
   currentUserId: string;
   conversationId: string;
   userRole: UserRole;
+  onAddReaction?: (messageId: string, emoji: string) => void;
+  onRemoveReaction?: (messageId: string, emoji: string) => void;
 }
 
 const getSenderDisplayName = (sender: Message['sender']) => {
@@ -90,6 +96,8 @@ export function MessageList({
   currentUserId,
   conversationId,
   userRole,
+  onAddReaction,
+  onRemoveReaction,
 }: MessageListProps) {
 
   if (messages.length === 0) {
@@ -158,31 +166,35 @@ export function MessageList({
 
                 {/* Message Bubble */}
                 <div className={`group relative ${isOwnMessage ? 'flex justify-end' : ''}`}>
-                  <div className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                    isOwnMessage
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted/50 border border-border/50'
-                  }`}>
+                  <div
+                    className={`inline-block max-w-[70%] rounded-lg px-3 py-2 shadow-lg ${
+                      isOwnMessage
+                        ? 'bg-black text-white border-2 border-gray-600'
+                        : 'bg-zinc-900 text-white border-2 border-gray-500'
+                    }`}
+                    style={{
+                      backgroundColor: isOwnMessage ? '#000000' : '#18181b',
+                      color: '#ffffff'
+                    }}
+                  >
                     {/* Reply Context */}
                     {message.replyTo && (
-                      <div className="mb-2 p-2 rounded border-l-2 border-border bg-background/50">
-                        <div className="text-xs text-muted-foreground mb-1">
+                      <div className="mb-2 p-2 rounded border-l-2 border-gray-400 bg-gray-700/50">
+                        <div className="text-xs text-gray-300 mb-1">
                           Replying to {getSenderDisplayName(message.replyTo.sender)}
                         </div>
-                        <div className="text-xs opacity-75 line-clamp-2">
-                          {message.replyTo.content}
+                        <div className="text-xs opacity-75 line-clamp-2 text-gray-200">
+                          <MessageContentRenderer content={message.replyTo.content} />
                         </div>
                       </div>
                     )}
 
                     {/* Message Content */}
-                    <div className="text-sm whitespace-pre-wrap break-words">
-                      {message.content}
-                    </div>
+                    <MessageContentRenderer content={message.content} />
 
                     {/* Edited Indicator */}
                     {message.isEdited && (
-                      <div className="text-xs mt-1 opacity-75">
+                      <div className="text-xs mt-1 opacity-75 text-gray-300">
                         edited {formatDistanceToNow(new Date(message.editedAt!), { addSuffix: true })}
                       </div>
                     )}
@@ -191,7 +203,7 @@ export function MessageList({
                     {message.attachments.length > 0 && (
                       <div className="mt-2 space-y-1">
                         {message.attachments.map((attachment, index) => (
-                          <div key={`${message.id}-attachment-${index}`} className="text-xs opacity-75">
+                          <div key={`${message.id}-attachment-${index}`} className="text-xs opacity-75 text-gray-300">
                             📎 {attachment}
                           </div>
                         ))}
@@ -199,7 +211,26 @@ export function MessageList({
                     )}
                   </div>
 
+                  {/* Reaction Controls - Always visible with proper z-index */}
+                  <div className="absolute top-0 right-0 opacity-60 hover:opacity-100 transition-opacity duration-200 -mt-2 -mr-1 z-10">
+                    <EmojiPicker
+                      onEmojiSelect={(emoji) => onAddReaction?.(message.id, emoji)}
+                      size="sm"
+                    />
+                  </div>
                 </div>
+
+                {/* Message Reactions */}
+                {message.metadata && (
+                  <MessageReactions
+                    messageId={message.id}
+                    reactions={(message.metadata as MessageMetadata).reactions}
+                    currentUserId={currentUserId}
+                    onAddReaction={onAddReaction}
+                    onRemoveReaction={onRemoveReaction}
+                    className={isOwnMessage ? "justify-end" : ""}
+                  />
+                )}
 
                 {/* Time stamp for messages without sender info */}
                 {!showSenderInfo && (

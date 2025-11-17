@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react"
 import { useAuth } from "@clerk/nextjs"
 import { Send, Loader2, Paperclip, Upload, X, Eye, Download, FileText, Image, Video, FileAudio, FileIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
+import { RichTextEditor } from "@/components/editors/editor-migration-wrapper"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { useFileUpload, UploadedFile } from "@/hooks/use-file-upload"
@@ -194,13 +194,14 @@ export function ReplyForm({
       />
 
       <form onSubmit={handleSubmit} className="space-y-3">
-        <Textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
+        <RichTextEditor
+          content={content}
+          onChange={setContent}
           placeholder={placeholder}
-          className="min-h-[80px] resize-none"
+          className="min-h-[80px]"
           disabled={isSubmitting}
           maxLength={10000}
+          minimal={true}
         />
 
         {/* File attachments */}

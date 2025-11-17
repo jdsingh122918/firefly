@@ -21,6 +21,8 @@ interface UseChatRealtimeOptions {
   onMessageUpdated?: (message: Message) => void;
   onMessageDeleted?: (messageId: string) => void;
   onTypingUpdate?: (userId: string, isTyping: boolean, userName?: string) => void;
+  onReactionAdded?: (messageId: string, emoji: string, userId: string, userName: string) => void;
+  onReactionRemoved?: (messageId: string, emoji: string, userId: string, userName: string) => void;
   onConnectionChange?: (connected: boolean) => void;
   enablePollingFallback?: boolean;
   pollingInterval?: number;
@@ -34,6 +36,8 @@ export function useChatRealtime(options: UseChatRealtimeOptions) {
     onMessageUpdated,
     onMessageDeleted,
     onTypingUpdate,
+    onReactionAdded,
+    onReactionRemoved,
     onConnectionChange,
     enablePollingFallback = true,
     pollingInterval = 5000, // 5 seconds for chat polling
@@ -125,6 +129,18 @@ export function useChatRealtime(options: UseChatRealtimeOptions) {
             }
             return { ...prev, typingUsers };
           });
+          break;
+
+        case "message_reaction_added":
+          if (DEBUG_CHAT) console.log("😀 Reaction added:", data.data);
+          const { messageId: addMessageId, emoji: addEmoji, userId: addUserId, userName: addUserName } = data.data;
+          callbacksRef.current.onReactionAdded?.(addMessageId, addEmoji, addUserId, addUserName);
+          break;
+
+        case "message_reaction_removed":
+          if (DEBUG_CHAT) console.log("😞 Reaction removed:", data.data);
+          const { messageId: removeMessageId, emoji: removeEmoji, userId: removeUserId, userName: removeUserName } = data.data;
+          callbacksRef.current.onReactionRemoved?.(removeMessageId, removeEmoji, removeUserId, removeUserName);
           break;
 
         case "typing_status":

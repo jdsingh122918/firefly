@@ -9,6 +9,7 @@ import {
   MessageStatus,
   PaginatedResult,
 } from "@/lib/types";
+import { MessageReaction, MessageMetadata } from "@/lib/types/api";
 
 export class MessageRepository {
   /**
@@ -588,5 +589,228 @@ export class MessageRepository {
       activeParticipants: activeParticipantCount,
       lastMessageAt: lastMessage?.createdAt || null,
     };
+  }
+
+  /**
+   * Add a reaction to a message
+   */
+  async addReactionToMessage(
+    messageId: string,
+    emoji: string,
+    userId: string,
+    userName: string
+  ): Promise<Message> {
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+      select: { metadata: true },
+    });
+
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    const currentMetadata = (message.metadata as MessageMetadata) || {};
+    const currentReactions = currentMetadata.reactions || {};
+    const emojiReactions = currentReactions[emoji] || [];
+
+    // Check if user already reacted with this emoji
+    const existingReaction = emojiReactions.find(r => r.userId === userId);
+    if (existingReaction) {
+      // User already reacted with this emoji, no change needed
+      return await this.getMessageById(messageId);
+    }
+
+    // Add new reaction
+    const newReaction: MessageReaction = {
+      userId,
+      userName,
+      createdAt: new Date(),
+    };
+
+    const updatedReactions = {
+      ...currentReactions,
+      [emoji]: [...emojiReactions, newReaction],
+    };
+
+    const updatedMetadata = {
+      ...currentMetadata,
+      reactions: updatedReactions,
+    };
+
+    // Update message with new reactions
+    const updatedMessage = await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        metadata: updatedMetadata as Prisma.InputJsonValue,
+        updatedAt: new Date(),
+      },
+      include: {
+        conversation: {
+          select: {
+            id: true,
+            title: true,
+            type: true,
+          },
+        },
+        sender: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          },
+        },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            sender: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return updatedMessage as Message;
+  }
+
+  /**
+   * Remove a reaction from a message
+   */
+  async removeReactionFromMessage(
+    messageId: string,
+    emoji: string,
+    userId: string
+  ): Promise<Message> {
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+      select: { metadata: true },
+    });
+
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    const currentMetadata = (message.metadata as MessageMetadata) || {};
+    const currentReactions = currentMetadata.reactions || {};
+    const emojiReactions = currentReactions[emoji] || [];
+
+    // Remove user's reaction
+    const filteredReactions = emojiReactions.filter(r => r.userId !== userId);
+
+    let updatedReactions: Record<string, MessageReaction[]>;
+    if (filteredReactions.length === 0) {
+      // Remove the emoji entirely if no reactions left
+      const { [emoji]: _, ...restReactions } = currentReactions;
+      updatedReactions = restReactions;
+    } else {
+      updatedReactions = {
+        ...currentReactions,
+        [emoji]: filteredReactions,
+      };
+    }
+
+    const updatedMetadata = {
+      ...currentMetadata,
+      reactions: updatedReactions,
+    };
+
+    // Update message
+    const updatedMessage = await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        metadata: updatedMetadata as Prisma.InputJsonValue,
+        updatedAt: new Date(),
+      },
+      include: {
+        conversation: {
+          select: {
+            id: true,
+            title: true,
+            type: true,
+          },
+        },
+        sender: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          },
+        },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            sender: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return updatedMessage as Message;
+  }
+
+  /**
+   * Get reaction counts for a message
+   */
+  async getMessageReactions(messageId: string): Promise<Record<string, MessageReaction[]>> {
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+      select: { metadata: true },
+    });
+
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    const metadata = (message.metadata as MessageMetadata) || {};
+    return metadata.reactions || {};
+  }
+
+  /**
+   * Get reaction counts by emoji for a message
+   */
+  async getReactionCounts(messageId: string): Promise<Record<string, number>> {
+    const reactions = await this.getMessageReactions(messageId);
+    const counts: Record<string, number> = {};
+
+    for (const [emoji, reactionList] of Object.entries(reactions)) {
+      counts[emoji] = reactionList.length;
+    }
+
+    return counts;
+  }
+
+  /**
+   * Check if user has reacted to a message with specific emoji
+   */
+  async hasUserReacted(messageId: string, emoji: string, userId: string): Promise<boolean> {
+    const reactions = await this.getMessageReactions(messageId);
+    const emojiReactions = reactions[emoji] || [];
+    return emojiReactions.some(r => r.userId === userId);
+  }
+
+  /**
+   * Get all users who reacted to a message with specific emoji
+   */
+  async getReactionUsers(messageId: string, emoji: string): Promise<MessageReaction[]> {
+    const reactions = await this.getMessageReactions(messageId);
+    return reactions[emoji] || [];
   }
 }

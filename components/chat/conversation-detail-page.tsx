@@ -20,6 +20,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { ChatEditor } from "@/components/editors/editor-migration-wrapper";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -34,6 +35,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatDistanceToNow } from "date-fns";
 import { MessageList } from "./message-list";
 import { useChatRealtime } from "@/hooks/use-chat-realtime";
+import { useMessageReactions } from "@/components/chat/message-reactions";
+import { MessageMetadata } from "@/lib/types/api";
 import {
   Dialog,
   DialogContent,
@@ -136,6 +139,66 @@ export function ConversationDetailPage({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Reaction state management
+  const {
+    reactions,
+    addReaction,
+    removeReaction,
+    setMessageReactions,
+    getMessageReactions
+  } = useMessageReactions();
+
+  // API functions for reactions
+  const handleAddReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!userId) return;
+
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}/messages/${messageId}/reactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ emoji }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to add reaction:', errorData.error);
+        return;
+      }
+
+      // Optimistically update local state (real-time will also update via SSE)
+      const userName = 'You'; // Simple fallback since this is the current user's action
+
+      addReaction(messageId, emoji, userId, userName);
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+    }
+  }, [conversationId, userId, addReaction]);
+
+  const handleRemoveReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!userId) return;
+
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to remove reaction:', errorData.error);
+        return;
+      }
+
+      // Optimistically update local state (real-time will also update via SSE)
+      const userName = 'You'; // Simple fallback since this is the current user's action
+
+      removeReaction(messageId, emoji, userId, userName);
+    } catch (error) {
+      console.error('Error removing reaction:', error);
+    }
+  }, [conversationId, userId, removeReaction]);
+
   // Real-time chat functionality
   const {
     isConnected,
@@ -172,6 +235,12 @@ export function ConversationDetailPage({
     },
     onConnectionChange: (connected) => {
       // Connection status change handled by component state
+    },
+    onReactionAdded: (messageId, emoji, userId, userName) => {
+      addReaction(messageId, emoji, userId, userName);
+    },
+    onReactionRemoved: (messageId, emoji, userId, userName) => {
+      removeReaction(messageId, emoji, userId, userName);
     },
   });
 
@@ -654,33 +723,41 @@ export function ConversationDetailPage({
       {/* Messages Area */}
       <div className="flex-1 min-h-0">
         <MessageList
-          messages={messages}
+          messages={messages.map(msg => ({
+            ...msg,
+            metadata: {
+              ...msg.metadata,
+              reactions: getMessageReactions(msg.id)
+            }
+          }))}
           currentUserId={userId}
           conversationId={conversationId}
           userRole={userRole}
+          onAddReaction={handleAddReaction}
+          onRemoveReaction={handleRemoveReaction}
         />
         <div ref={messagesEndRef} />
       </div>
 
       {/* Message Input */}
       {canWrite ? (
-        <Card className="flex-shrink-0 p-3">
-          <div className="flex items-center gap-2">
-            <Input
-              value={messageInput}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onKeyPress={handleKeyPress}
+        <Card className="flex-shrink-0 p-1">
+          <div className="flex items-center gap-1">
+            <ChatEditor
+              content={messageInput}
+              onChange={(content) => handleInputChange(content)}
               placeholder="Type your message..."
-              className="flex-1 min-h-[44px]"
+              className="flex-1"
               disabled={sending}
+              maxLength={2000}
             />
             <Button
               size="sm"
               onClick={handleSendMessage}
               disabled={!messageInput.trim() || sending}
-              className="min-h-[44px]"
+              className="h-[32px] w-[32px] p-0 min-h-[32px]"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-3 w-3" />
             </Button>
           </div>
         </Card>

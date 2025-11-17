@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/editors/editor-migration-wrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -344,13 +345,12 @@ const ContentForm: React.FC<ContentFormProps> = ({
         <Label htmlFor="body" className="text-sm font-medium">
           Content
         </Label>
-        <Textarea
-          id="body"
-          value={formData.body}
-          onChange={(e) => handleInputChange('body', e.target.value)}
-          placeholder="Write your content here... (supports Markdown)"
-          rows={6}
-          className="resize-none"
+        <RichTextEditor
+          content={formData.body || ""}
+          onChange={(content) => handleInputChange('body', content)}
+          placeholder="Write your content here... (supports rich text formatting)"
+          maxLength={50000}
+          className="min-h-[200px]"
         />
         {errors.body && (
           <p className="text-sm text-red-600">{errors.body}</p>

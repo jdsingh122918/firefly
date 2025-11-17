@@ -25,6 +25,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ReplyForm } from "./reply-form"
 import { formatFileSize } from "@/components/shared/format-utils"
+import { ContentRenderer } from "@/components/editors/content-renderer"
 
 interface ReplyAttachment {
   id: string
@@ -177,7 +178,12 @@ function ReplyItem({ reply, postId, maxDepth, onReplyUpdate }: ReplyItemProps) {
 
               {/* Content */}
               <div className={cn("mb-3", isCollapsed && "line-clamp-2")}>
-                <p className="text-sm whitespace-pre-wrap">{reply.content}</p>
+                <ContentRenderer
+                  content={reply.content}
+                  className="text-sm"
+                  preview={isCollapsed}
+                  maxLength={isCollapsed ? 150 : undefined}
+                />
 
                 {/* Attachments */}
                 {reply.attachments && reply.attachments.length > 0 && (

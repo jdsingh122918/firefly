@@ -41,8 +41,7 @@ export default function AuthLayout({
               width={120}
               height={120}
               priority
-              className="mx-auto mb-4"
-              style={{ width: 'auto', height: 'auto' }}
+              className="mx-auto mb-4 w-auto h-auto max-w-[120px] max-h-[120px]"
             />
             <h1 className="text-2xl font-bold text-foreground lg:hidden">
               Firefly

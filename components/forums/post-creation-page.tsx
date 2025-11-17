@@ -10,7 +10,7 @@ import { Loader2, MessageSquare, AlertCircle, Paperclip, X, ArrowLeft } from "lu
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { RichTextEditor, countHtmlCharacters } from "@/components/editors/editor-migration-wrapper"
 import {
   Card,
   CardContent,
@@ -40,7 +40,7 @@ import { toast } from "sonner"
 
 const postFormSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title is too long"),
-  content: z.string().min(1, "Content is required").max(10000, "Content is too long"),
+  content: z.string().min(1, "Content is required").max(50000, "Content is too long"),
   type: z.enum(["DISCUSSION", "QUESTION", "ANNOUNCEMENT", "RESOURCE"], "Please select a post type"),
   tags: z.array(z.string()).optional()
 })
@@ -135,7 +135,33 @@ export function PostCreationPage({
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create post')
+
+        // Enhanced logging for debugging
+        console.error('Post creation failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+          requestBody: {
+            title: data.title,
+            contentLength: data.content?.length || 0,
+            type: data.type,
+            forumId: forumId,
+            tagsCount: tagsArray.length,
+            documentIdsCount: selectedDocumentIds.length
+          }
+        })
+
+        // Handle validation errors with detailed messages
+        if (response.status === 400 && errorData.details) {
+          const validationErrors = errorData.details.map((detail: any) =>
+            `${detail.field}: ${detail.message}`
+          ).join(', ')
+          throw new Error(`Validation failed: ${validationErrors}`)
+        }
+
+        // Handle specific error messages
+        const errorMessage = errorData.error || errorData.message || 'Failed to create post'
+        throw new Error(errorMessage)
       }
 
       const result = await response.json()
@@ -253,7 +279,7 @@ export function PostCreationPage({
                             <div>
                               <div className="font-medium">{label}</div>
                               <div className="text-xs text-muted-foreground">
-                                {postTypeDescriptions[value as keyof typeof postTypeDescriptions]}
+                                {value && postTypeDescriptions[value as keyof typeof postTypeDescriptions] || ''}
                               </div>
                             </div>
                           </SelectItem>
@@ -273,15 +299,14 @@ export function PostCreationPage({
                   <FormItem>
                     <FormLabel>Content *</FormLabel>
                     <FormControl>
-                      <Textarea
+                      <RichTextEditor
+                        content={field.value || ""}
+                        onChange={field.onChange}
                         placeholder="Share your thoughts, ask questions, or provide information..."
-                        className="min-h-[300px] resize-y text-base"
-                        {...field}
+                        maxLength={50000}
+                        className="min-h-[300px]"
                       />
                     </FormControl>
-                    <div className="text-xs text-muted-foreground text-right">
-                      {field.value?.length || 0}/10,000 characters
-                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

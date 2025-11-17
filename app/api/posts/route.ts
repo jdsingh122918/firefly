@@ -29,6 +29,7 @@ const createPostSchema = z.object({
   categoryId: z.string().optional(),
   type: z.enum(["DISCUSSION", "QUESTION", "ANNOUNCEMENT", "RESOURCE", "POLL"]).default("DISCUSSION"),
   attachments: z.array(z.string()).optional(),
+  documentIds: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
   metadata: z.record(z.string(), z.any()).optional(),
 });
@@ -282,6 +283,7 @@ export async function POST(request: NextRequest) {
       authorId: user.id,
       type: validatedData.type,
       attachments: validatedData.attachments || [],
+      documentIds: validatedData.documentIds || [],
       tags: validatedData.tags || [],
       metadata: validatedData.metadata || {},
     });

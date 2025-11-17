@@ -245,12 +245,19 @@ export interface NotificationCreateInput {
 /**
  * Message Types
  */
+export interface MessageReaction {
+  userId: string;
+  userName: string;
+  createdAt: Date;
+}
+
 export interface MessageMetadata {
   editHistory?: Array<{
     content: string;
     editedAt: Date;
   }>;
   mentions?: string[];
+  reactions?: Record<string, MessageReaction[]>; // emoji → [users who reacted]
   [key: string]: unknown;
 }
 

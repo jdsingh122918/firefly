@@ -1,0 +1,25 @@
+{
+  "name": "firefly-integration-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:headed": "HEADLESS=false vitest run",
+    "test:debug": "HEADLESS=false vitest --inspect-brk"
+  },
+  "dependencies": {
+    "msw": "^2.0.0",
+    "@mswjs/data": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "dotenv": "^16.3.1",
+    "puppeteer": "^21.5.0",
+    "typescript": "^5",
+    "vitest": "^1.0.0"
+  }
+}
+
