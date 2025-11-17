@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { UserRole } from "@prisma/client";
 import { useAuth } from "@clerk/nextjs";
 import {
@@ -20,7 +20,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { ChatEditor } from "@/components/editors/editor-migration-wrapper";
+import { SlackStyleInput } from "@/components/chat/slack-style-input";
+import { UploadedFile } from "@/hooks/use-file-upload";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -132,9 +133,11 @@ export function ConversationDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
+  const [messageAttachments, setMessageAttachments] = useState<UploadedFile[]>([]);
   const [sending, setSending] = useState(false);
   const [showParticipants, setShowParticipants] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -243,6 +246,17 @@ export function ConversationDetailPage({
       removeReaction(messageId, emoji, userId, userName);
     },
   });
+
+  // Memoize messages with reactions to prevent infinite render loops
+  const messagesWithReactions = useMemo(() => {
+    return messages.map(msg => ({
+      ...msg,
+      metadata: {
+        ...msg.metadata,
+        reactions: getMessageReactions(msg.id)
+      }
+    }));
+  }, [messages, getMessageReactions]);
 
   // Fetch conversation and initial messages
   const fetchConversationData = useCallback(async () => {
@@ -407,9 +421,11 @@ export function ConversationDetailPage({
 
   // Send message with optimistic updates and typing indicators
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || sending) return;
+    if ((!messageInput.trim() && messageAttachments.length === 0) || sending) return;
 
     const content = messageInput.trim();
+    const originalAttachments = [...messageAttachments]; // Store original attachments for error recovery
+    const attachmentIds = messageAttachments.map(attachment => attachment.fileId);
 
     // Clear typing indicator
     if (typingTimeoutRef.current) {
@@ -420,6 +436,7 @@ export function ConversationDetailPage({
     try {
       setSending(true);
       setMessageInput(""); // Clear input immediately for better UX
+      setMessageAttachments([]); // Clear attachments immediately for better UX
 
       // Create optimistic message for immediate UI feedback
       const optimisticMessage: Message = {
@@ -429,7 +446,7 @@ export function ConversationDetailPage({
         senderId: userId,
         isEdited: false,
         isDeleted: false,
-        attachments: [],
+        attachments: attachmentIds,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         sender: {
@@ -452,7 +469,7 @@ export function ConversationDetailPage({
         credentials: 'include', // Ensure cookies are sent
         body: JSON.stringify({
           content,
-          attachments: [],
+          attachments: attachmentIds,
         }),
       });
 
@@ -488,8 +505,9 @@ export function ConversationDetailPage({
 
     } catch (error) {
       console.error('Error sending message:', error);
-      // Restore message input on error
+      // Restore message input and attachments on error
       setMessageInput(content);
+      setMessageAttachments(originalAttachments);
       setError(error instanceof Error ? error.message : 'Failed to send message');
     } finally {
       setSending(false);
@@ -631,143 +649,233 @@ export function ConversationDetailPage({
                    (conversation.participants.find(p => p.userId === userId)?.canManage ?? false);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)]">
-      {/* Header */}
-      <Card className="flex-shrink-0 p-3">
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Link href={`/${userRole.toLowerCase()}/chat`}>
-                <Button variant="ghost" size="sm" className="min-h-[44px]">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
-              </Link>
-              <div>
-                <h1 className="font-semibold">{getDisplayTitle()}</h1>
-                <p className="text-sm text-muted-foreground">
-                  {conversation.participants.length} participants
-                  {!isConnected && " • Disconnected"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="min-h-[44px]"
-                onClick={handleShowParticipants}
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Participants
-              </Button>
-
-              {canManage && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="min-h-[44px]">
-                      <MoreVertical className="h-4 w-4" />
+    <>
+      <div className="flex flex-1 gap-1 min-h-0">
+        {/* Main Chat Area */}
+        <div className="flex flex-col flex-1 min-w-0">
+          {/* Simplified Header */}
+          <Card className="flex-shrink-0 p-3">
+            <CardContent className="py-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Link href={`/${userRole.toLowerCase()}/chat`}>
+                    <Button variant="ghost" size="sm" className="min-h-[44px]">
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Back
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleShowSettings}>
-                      <Settings className="h-4 w-4 mr-2" />
-                      Settings
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleShowParticipants}>
-                      <Users className="h-4 w-4 mr-2" />
-                      Manage Participants
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleArchiveConversation} className="text-destructive">
-                      Archive Conversation
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
+                  </Link>
+                  <div>
+                    <h1 className="font-semibold text-lg">{getDisplayTitle()}</h1>
+                  </div>
+                </div>
+
+                {/* Mobile Sidebar Toggle */}
+                <div className="lg:hidden">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowSidebar(!showSidebar)}
+                    className="min-h-[44px]"
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    Info
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Messages Area */}
+          <div className="flex-1 min-h-0">
+            <MessageList
+              messages={messagesWithReactions}
+              currentUserId={userId}
+              conversationId={conversationId}
+              userRole={userRole}
+              onAddReaction={handleAddReaction}
+              onRemoveReaction={handleRemoveReaction}
+            />
+            <div ref={messagesEndRef} />
           </div>
 
-          {/* Connection Status */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {isConnected ? (
-                <>
-                  <Wifi className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-green-600">Connected</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="h-4 w-4 text-orange-500" />
-                  <span className="text-sm text-orange-500">Connecting...</span>
-                </>
-              )}
+          {/* Message Input */}
+          {canWrite ? (
+            <div className="flex-shrink-0">
+              <SlackStyleInput
+                content={messageInput}
+                onChange={handleInputChange}
+                onSend={handleSendMessage}
+                placeholder="Type your message..."
+                disabled={sending}
+                sending={sending}
+                maxLength={2000}
+                attachments={messageAttachments}
+                onAttachmentsChange={setMessageAttachments}
+              />
+            </div>
+          ) : (
+            <Card className="flex-shrink-0 p-3">
+              <div className="text-center text-muted-foreground">
+                <p className="text-sm">You don't have permission to send messages in this conversation.</p>
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {/* Right Sidebar */}
+        <div className={`
+          lg:w-80 lg:border-l lg:border-border lg:bg-background/50 lg:backdrop-blur-sm lg:block
+          fixed lg:static inset-y-0 right-0 z-50 w-80 bg-background border-l border-border
+          transform transition-transform duration-300 ease-in-out
+          ${showSidebar ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
+        `}>
+          <div className="flex flex-col h-full">
+            {/* Mobile Close Button */}
+            <div className="lg:hidden flex justify-between items-center p-4 border-b">
+              <h2 className="font-semibold">Conversation Info</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSidebar(false)}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
             </div>
 
-            {/* Typing Indicators */}
-            {typingUsers.length > 0 && (
-              <div className="text-sm text-muted-foreground">
-                {typingUsers.length === 1
-                  ? `${typingUsers[0].userName} is typing...`
-                  : typingUsers.length === 2
-                  ? `${typingUsers[0].userName} and ${typingUsers[1].userName} are typing...`
-                  : `${typingUsers[0].userName} and ${typingUsers.length - 1} others are typing...`
-                }
-              </div>
+            {/* Conversation Info */}
+            <Card className="flex-shrink-0 border-0 border-b rounded-none">
+              <CardContent className="p-4 space-y-3">
+                <div>
+                  <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Conversation</h2>
+                  <h3 className="font-medium">{getDisplayTitle()}</h3>
+                  {conversation.family && (
+                    <p className="text-sm text-muted-foreground">Family: {conversation.family.name}</p>
+                  )}
+                </div>
+
+                {/* Connection Status */}
+                <div className="flex items-center gap-2 p-2 rounded-md bg-accent/50">
+                  {isConnected ? (
+                    <>
+                      <Wifi className="h-4 w-4 text-green-600" />
+                      <span className="text-sm text-green-600 font-medium">Connected</span>
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff className="h-4 w-4 text-orange-500" />
+                      <span className="text-sm text-orange-500 font-medium">Connecting...</span>
+                    </>
+                  )}
+                </div>
+
+                {/* Typing Indicators */}
+                {typingUsers.length > 0 && (
+                  <div className="p-2 rounded-md bg-primary/10">
+                    <div className="text-sm text-muted-foreground">
+                      {typingUsers.length === 1
+                        ? `${typingUsers[0].userName} is typing...`
+                        : typingUsers.length === 2
+                        ? `${typingUsers[0].userName} and ${typingUsers[1].userName} are typing...`
+                        : `${typingUsers[0].userName} and ${typingUsers.length - 1} others are typing...`
+                      }
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Participants List */}
+            <Card className="flex-1 border-0 rounded-none overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                    Participants ({conversation.participants.length})
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleShowParticipants}
+                  >
+                    <Users className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <ScrollArea className="h-[calc(100%-40px)]">
+                  <div className="space-y-3">
+                    {conversation.participants.map((participant) => (
+                      <div key={participant.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-accent/50 transition-colors">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={participant.user.imageUrl} />
+                          <AvatarFallback>
+                            {participant.user.firstName?.[0] || participant.user.email[0].toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {participant.user.firstName
+                              ? `${participant.user.firstName} ${participant.user.lastName || ''}`.trim()
+                              : participant.user.email
+                            }
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={participant.user.role === 'ADMIN' ? 'default' : 'secondary'} className="text-xs">
+                              {participant.user.role}
+                            </Badge>
+                            {participant.canManage && (
+                              <Badge variant="outline" className="text-xs">Manager</Badge>
+                            )}
+                            {!participant.canWrite && (
+                              <Badge variant="outline" className="text-xs text-muted-foreground">Read-only</Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            {/* Actions */}
+            {canManage && (
+              <Card className="flex-shrink-0 border-0 border-t rounded-none">
+                <CardContent className="p-4">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full justify-start">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Manage Conversation
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onClick={handleShowSettings}>
+                        <Settings className="h-4 w-4 mr-2" />
+                        Settings
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleShowParticipants}>
+                        <Users className="h-4 w-4 mr-2" />
+                        Manage Participants
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleArchiveConversation} className="text-destructive">
+                        Archive Conversation
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </CardContent>
+              </Card>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 min-h-0">
-        <MessageList
-          messages={messages.map(msg => ({
-            ...msg,
-            metadata: {
-              ...msg.metadata,
-              reactions: getMessageReactions(msg.id)
-            }
-          }))}
-          currentUserId={userId}
-          conversationId={conversationId}
-          userRole={userRole}
-          onAddReaction={handleAddReaction}
-          onRemoveReaction={handleRemoveReaction}
-        />
-        <div ref={messagesEndRef} />
+        {/* Mobile Sidebar Backdrop */}
+        {showSidebar && (
+          <div
+            className="lg:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+            onClick={() => setShowSidebar(false)}
+          />
+        )}
       </div>
-
-      {/* Message Input */}
-      {canWrite ? (
-        <Card className="flex-shrink-0 p-1">
-          <div className="flex items-center gap-1">
-            <ChatEditor
-              content={messageInput}
-              onChange={(content) => handleInputChange(content)}
-              placeholder="Type your message..."
-              className="flex-1"
-              disabled={sending}
-              maxLength={2000}
-            />
-            <Button
-              size="sm"
-              onClick={handleSendMessage}
-              disabled={!messageInput.trim() || sending}
-              className="h-[32px] w-[32px] p-0 min-h-[32px]"
-            >
-              <Send className="h-3 w-3" />
-            </Button>
-          </div>
-        </Card>
-      ) : (
-        <Card className="flex-shrink-0 p-3">
-          <div className="text-center text-muted-foreground">
-            <p className="text-sm">You don't have permission to send messages in this conversation.</p>
-          </div>
-        </Card>
-      )}
 
       {/* Participants Dialog */}
       <Dialog open={showParticipants} onOpenChange={setShowParticipants}>
@@ -866,6 +974,6 @@ export function ConversationDetailPage({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
