@@ -196,7 +196,7 @@ export function useMessageReactions() {
     action: 'add' | 'remove'
   ) => {
     setReactions(prev => {
-      const messageReactions = { ...prev[messageId] } || {}
+      const messageReactions = prev[messageId] ? { ...prev[messageId] } : {}
       const emojiReactions = [...(messageReactions[emoji] || [])]
 
       if (action === 'add') {

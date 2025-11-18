@@ -318,7 +318,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
         </div>
         <div className="space-y-1 max-h-16 overflow-y-auto">
           {content.documents.slice(0, 2).map((doc) => {
-            const DocumentIcon = getDocumentIcon(doc.document.mimeType);
+            const DocumentIcon = getDocumentIcon((doc.document as any).mimeType || '');
             return (
               <div key={doc.id} className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded px-2 py-1">
                 <DocumentIcon className="h-3 w-3 flex-shrink-0" />

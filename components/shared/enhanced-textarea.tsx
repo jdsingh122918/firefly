@@ -100,8 +100,6 @@ export function EnhancedTextarea({
     value,
     onChange,
     maxLength,
-    minHeight: autoResize ? minHeight : undefined,
-    maxHeight: autoResize ? maxHeight : undefined,
   });
 
   // Handle file upload

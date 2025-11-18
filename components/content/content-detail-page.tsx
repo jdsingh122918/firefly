@@ -557,7 +557,7 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">{doc.document.title}</p>
                         <p className="text-xs text-gray-600">
-                          {doc.document.mimeType} • {doc.document.fileSize ? (doc.document.fileSize / 1024).toFixed(1) + ' KB' : 'Unknown size'}
+                          {(doc.document as any).mimeType || 'Unknown type'} • {(doc.document as any).fileSize ? ((doc.document as any).fileSize / 1024).toFixed(1) + ' KB' : 'Unknown size'}
                         </p>
                       </div>
                     </div>
@@ -569,7 +569,7 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
                         const link = document.createElement('a');
                         link.href = downloadUrl;
                         link.target = '_blank';
-                        link.download = doc.document.fileName || doc.document.title;
+                        link.download = doc.document.filename || doc.document.title;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);

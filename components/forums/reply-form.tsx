@@ -63,7 +63,7 @@ export function ReplyForm({
           postId,
           parentId,
           attachments: attachments.map(file => ({
-            documentId: file.document?.id || file.fileId,
+            documentId: file.fileId,
             fileName: file.fileName,
             originalName: file.originalName || file.fileName,
             size: file.size,
@@ -112,7 +112,6 @@ export function ReplyForm({
           showToolbar={true}
           enableEmojis={true}
           enableAttachments={true}
-          enablePreview={true}
           attachments={attachments}
           onAttachmentsChange={setAttachments}
           autoResize={true}

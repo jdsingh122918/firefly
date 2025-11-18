@@ -516,7 +516,7 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
         >
           <Filter className="h-4 w-4" />
           <span className="hidden sm:inline">Filters</span>
-          {((filters.tags && filters.tags.length > 0) || filters.visibility?.length || filters.familyId || filters.categoryId) && (
+          {((filters.healthcareTags && filters.healthcareTags.length > 0) || filters.visibility?.length || filters.familyId || filters.categoryId) && (
             <Badge variant="secondary" className="ml-1">
               Active
             </Badge>

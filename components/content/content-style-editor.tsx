@@ -39,7 +39,7 @@ export function ContentStyleEditor({
   // Auto-save state
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved' | 'error'>('idle');
   const [lastSavedContent, setLastSavedContent] = useState(content);
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout>();
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Auto-save functionality
   const triggerAutoSave = useCallback(async (contentToSave: string) => {
@@ -165,7 +165,6 @@ export function ContentStyleEditor({
         showToolbar={true}
         enableEmojis={true}
         enableAttachments={true}
-        enablePreview={true}
         attachments={attachments}
         onAttachmentsChange={onAttachmentsChange}
         autoResize={true}

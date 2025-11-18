@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/auth/roles";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
 import { FamilyRepository } from "@/lib/db/repositories/family.repository";
 

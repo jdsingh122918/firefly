@@ -15,7 +15,7 @@ const userRepository = new UserRepository()
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; messageId: string; emoji: string } }
+  { params }: { params: Promise<{ id: string; messageId: string; emoji: string }> }
 ) {
   try {
     const { userId } = await auth()

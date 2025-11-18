@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { RichTextEditor } from '@/components/editors/editor-migration-wrapper';
+// import { RichTextEditor } from '@/components/editors/editor-migration-wrapper'; // Component not found
 import { ContentStyleEditor } from './content-style-editor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -201,10 +201,10 @@ const ContentForm: React.FC<ContentFormProps> = ({
     if (selectedTagsParam && mode === 'create') {
       const tagsFromUrl = decodeURIComponent(selectedTagsParam).split(',').filter(Boolean);
       if (tagsFromUrl.length > 0) {
-        setFormData(prev => ({
-          ...prev,
+        setFormData!({
+          ...formData,
           tags: tagsFromUrl
-        }));
+        });
         // Clean up URL parameter
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.delete('selectedTags');
@@ -224,28 +224,28 @@ const ContentForm: React.FC<ContentFormProps> = ({
       // Only update if values need to change to prevent unnecessary re-renders
       const expectedHasCuration = userRole !== 'ADMIN';
       if (!formData.hasRatings || formData.hasCuration !== expectedHasCuration || formData.visibility !== NoteVisibility.PUBLIC) {
-        setFormData(prev => ({
-          ...prev,
+        setFormData!({
+          ...formData,
           hasRatings: true,
           hasCuration: expectedHasCuration,
           visibility: NoteVisibility.PUBLIC
-        }));
+        });
       }
     } else if (isNote) {
       // Only update if values need to change to prevent unnecessary re-renders
       if (formData.hasRatings || formData.hasCuration || formData.visibility !== NoteVisibility.PRIVATE) {
-        setFormData(prev => ({
-          ...prev,
+        setFormData!({
+          ...formData,
           hasRatings: false,
           hasCuration: false,
           visibility: NoteVisibility.PRIVATE
-        }));
+        });
       }
     }
   }, [formData.contentType, formData.hasRatings, formData.hasCuration, formData.visibility, mode, userRole]);
 
   const handleInputChange = (field: keyof ContentFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData!({ ...formData, [field]: value });
   };
 
   const handleTagAdd = (tag: string) => {
@@ -321,8 +321,8 @@ const ContentForm: React.FC<ContentFormProps> = ({
       const submitData = {
         ...formData,
         description: formData.body, // Map body to description for API
-        familyId: formData.familyId === 'none' ? null : formData.familyId,
-        categoryId: formData.categoryId === 'none' ? null : formData.categoryId
+        familyId: formData.familyId === 'none' ? undefined : formData.familyId,
+        categoryId: formData.categoryId === 'none' ? undefined : formData.categoryId
       };
       await onSubmit(submitData);
     } catch (error) {

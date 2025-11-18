@@ -19,7 +19,7 @@ export async function PATCH(
     // Check if user has permission to archive this conversation
     const hasPermission = await conversationRepo.getUserPermissions(id, clerkUserId);
 
-    if (!hasPermission.canManage) {
+    if (!hasPermission || !hasPermission.canManage) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

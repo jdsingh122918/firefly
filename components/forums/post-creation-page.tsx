@@ -117,7 +117,7 @@ export function PostCreationPage({
   const getAllDocumentIds = () => {
     return [
       ...selectedDocumentIds,
-      ...uploadedDocuments.map(doc => doc.document?.id || doc.fileId)
+      ...uploadedDocuments.map(doc => doc.fileId)
     ]
   }
 
@@ -321,7 +321,6 @@ export function PostCreationPage({
                         showToolbar={true}
                         enableEmojis={true}
                         enableAttachments={true}
-                        enablePreview={true}
                         attachments={uploadedDocuments}
                         onAttachmentsChange={setUploadedDocuments}
                         autoResize={true}

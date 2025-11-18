@@ -4,7 +4,8 @@ import { createResponse } from "@/lib/utils/api-response";
 import { ContentRepository } from "@/lib/db/repositories/content.repository";
 import { DocumentRepository } from "@/lib/db/repositories/document.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
-import { ContentType, ContentVisibility } from "@prisma/client";
+import { ContentType, NoteVisibility } from "@prisma/client";
+import { prisma } from "@/lib/db/prisma";
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     // Get the current user
     const userRepository = new UserRepository();
-    const user = await userRepository.getByClerkId(userId);
+    const user = await userRepository.getUserByClerkId(userId);
 
     if (!user || user.role !== "ADMIN") {
       return createResponse(
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     console.log("🔧 Creating test content with attachments...");
 
-    const contentRepository = new ContentRepository();
+    const contentRepository = new ContentRepository(prisma);
     const documentRepository = new DocumentRepository();
 
     // Create sample documents first
@@ -64,11 +65,9 @@ export async function POST(request: NextRequest) {
         title: docData.title,
         fileName: docData.fileName,
         filePath: `test/${docData.fileName}`, // Legacy field
-        fileData: docData.fileData,
         fileSize: docData.fileSize,
         mimeType: docData.mimeType,
-        uploadedBy: user.id,
-        familyId: user.familyId || undefined
+        uploadedBy: user.id
       });
       createdDocuments.push(document);
     }
@@ -80,7 +79,7 @@ export async function POST(request: NextRequest) {
         description: "This is a test content item that has a PDF attachment to verify the attachment display functionality.",
         content: "This content demonstrates how attachments are displayed in the content management system.",
         type: ContentType.NOTE,
-        visibility: ContentVisibility.PUBLIC,
+        visibility: NoteVisibility.PUBLIC,
         documents: [createdDocuments[0].id] // PDF
       },
       {
@@ -88,7 +87,7 @@ export async function POST(request: NextRequest) {
         description: "This content has multiple attachments of different types.",
         content: "This content shows how multiple attachments are rendered in the UI.",
         type: ContentType.RESOURCE,
-        visibility: ContentVisibility.PUBLIC,
+        visibility: NoteVisibility.PUBLIC,
         documents: [createdDocuments[1].id, createdDocuments[2].id] // Image + Text
       },
       {
@@ -96,28 +95,29 @@ export async function POST(request: NextRequest) {
         description: "This content demonstrates image attachment display.",
         content: "This shows how image attachments are handled in the system.",
         type: ContentType.NOTE,
-        visibility: ContentVisibility.PRIVATE,
+        visibility: NoteVisibility.PRIVATE,
         documents: [createdDocuments[1].id] // Image only
       }
     ];
 
     const createdContent = [];
     for (const contentData of sampleContent) {
-      const { documents: documentIds, ...contentFields } = contentData;
+      const { documents: documentIds, type, content, ...otherFields } = contentData;
 
-      const content = await contentRepository.create({
-        ...contentFields,
-        createdBy: user.id,
+      const contentItem = await contentRepository.create({
+        ...otherFields,
+        contentType: type, // Map 'type' to 'contentType'
+        body: content, // Map 'content' to 'body'
         familyId: user.familyId || undefined,
         tags: ['test-data', 'attachment-test'],
         categoryId: undefined
-      });
+      }, user.id, user.role);
 
       // Link documents to content
       if (documentIds && documentIds.length > 0) {
         for (let i = 0; i < documentIds.length; i++) {
           await contentRepository.attachDocument(
-            content.id,
+            contentItem.id,
             documentIds[i],
             user.id, // attachedBy
             i, // order
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      createdContent.push(content);
+      createdContent.push(contentItem);
     }
 
     console.log("✅ Test content created successfully:", {
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
         content: createdContent.map(content => ({
           id: content.id,
           title: content.title,
-          type: content.type,
+          type: content.contentType,
           visibility: content.visibility
         }))
       }

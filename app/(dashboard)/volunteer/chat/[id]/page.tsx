@@ -25,7 +25,7 @@ export default async function VolunteerConversationDetailPage({ params }: Props)
   // Get user data from database to get the database user ID
   const userData = await getGracefulUserData();
   if (userData?.user) {
-    databaseUserId = userData.user.id;
+    databaseUserId = userData.user.id || null;
     if (!userRole && userData.user.role) {
       finalUserRole = userData.user.role as UserRole;
     }

@@ -648,7 +648,7 @@ class ContentRepository {
   /**
    * Recalculate average rating for content
    */
-  private async recalculateRating(contentId: string, tx?: PrismaClient): Promise<void> {
+  private async recalculateRating(contentId: string, tx?: any): Promise<void> {
     const client = tx || this.prisma;
 
     const ratings = await client.contentRating.findMany({
@@ -666,7 +666,7 @@ class ContentRepository {
       return;
     }
 
-    const totalRating = ratings.reduce((sum, r) => sum + r.rating, 0);
+    const totalRating = ratings.reduce((sum: number, r: any) => sum + r.rating, 0);
     const averageRating = totalRating / ratings.length;
 
     await client.content.update({

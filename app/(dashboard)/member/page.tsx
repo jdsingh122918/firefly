@@ -12,10 +12,11 @@ import { ConversationRepository } from '@/lib/db/repositories/conversation.repos
 import { ContentRepository } from '@/lib/db/repositories/content.repository'
 import { ForumRepository } from '@/lib/db/repositories/forum.repository'
 import { NotificationRepository } from '@/lib/db/repositories/notification.repository'
+import { prisma } from '@/lib/db/prisma'
 
 const userRepository = new UserRepository()
 const conversationRepository = new ConversationRepository()
-const contentRepository = new ContentRepository()
+const contentRepository = new ContentRepository(prisma)
 const forumRepository = new ForumRepository()
 const notificationRepository = new NotificationRepository()
 
@@ -65,7 +66,7 @@ export default async function MemberDashboard() {
       ])
 
       userStats = {
-        conversations: conversations.status === 'fulfilled' ? conversations.value.length : 0,
+        conversations: conversations.status === 'fulfilled' ? conversations.value.total : 0,
         unreadNotifications: notifications.status === 'fulfilled' ? notifications.value : 0,
         content: content.status === 'fulfilled' ? content.value.total : 0,
         recentForums: 0 // Will be updated when we add forum integration

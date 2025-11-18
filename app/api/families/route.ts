@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({
-      families: (families || []).map(family => ({
+      families: (families || []).filter(family => family !== null).map(family => ({
         id: family.id,
         name: family.name,
         description: family.description,

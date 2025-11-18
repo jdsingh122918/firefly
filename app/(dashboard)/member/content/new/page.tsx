@@ -106,6 +106,15 @@ export default function MemberContentCreationPage() {
 
   const userRole = user?.publicMetadata?.role as UserRole;
 
+  // Ensure userId is available before rendering
+  if (!userId) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="text-center">Loading authentication...</div>
+      </div>
+    );
+  }
+
   return (
     <DatabaseErrorBoundary
       fallback={

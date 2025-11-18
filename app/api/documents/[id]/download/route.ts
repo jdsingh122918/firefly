@@ -3,6 +3,7 @@ import { getAuth } from "@clerk/nextjs/server";
 import { createResponse } from "@/lib/utils/api-response";
 import { DocumentRepository } from "@/lib/db/repositories/document.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
+import { fileStorageService } from "@/lib/storage/file-storage.service";
 
 export async function GET(
   request: NextRequest,
@@ -18,17 +19,15 @@ export async function GET(
 
     // Get the current user
     const userRepository = new UserRepository();
-    const user = await userRepository.getByClerkId(userId);
+    const user = await userRepository.getUserByClerkId(userId);
 
     if (!user) {
       return new Response("User not found", { status: 404 });
     }
 
-    // Get the document with binary data
+    // Get the document
     const documentRepository = new DocumentRepository();
-    const document = await documentRepository.getById(id, {
-      includeFileData: true
-    });
+    const document = await documentRepository.getDocumentById(id);
 
     if (!document) {
       return new Response("Document not found", { status: 404 });
@@ -42,7 +41,17 @@ export async function GET(
       return new Response("Forbidden", { status: 403 });
     }
 
-    if (!document.fileData) {
+    if (!document.filePath) {
+      return new Response("File path not found", { status: 404 });
+    }
+
+    // Parse the file path to get category and filename
+    const [category, fileName] = document.filePath.split("/");
+
+    // Read the file from storage
+    const fileResult = await fileStorageService.readFile(category, fileName);
+
+    if (!fileResult.success || !fileResult.buffer) {
       return new Response("File data not found", { status: 404 });
     }
 
@@ -59,7 +68,7 @@ export async function GET(
     headers.set("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
     headers.set("ETag", `"${document.id}-${document.updatedAt.getTime()}"`);
 
-    return new Response(document.fileData, {
+    return new Response(new Uint8Array(fileResult.buffer), {
       status: 200,
       headers
     });

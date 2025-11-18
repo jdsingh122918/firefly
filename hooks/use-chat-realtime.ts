@@ -64,6 +64,8 @@ export function useChatRealtime(options: UseChatRealtimeOptions) {
     onMessageUpdated,
     onMessageDeleted,
     onTypingUpdate,
+    onReactionAdded,
+    onReactionRemoved,
     onConnectionChange,
   });
 
@@ -74,9 +76,11 @@ export function useChatRealtime(options: UseChatRealtimeOptions) {
       onMessageUpdated,
       onMessageDeleted,
       onTypingUpdate,
+      onReactionAdded,
+      onReactionRemoved,
       onConnectionChange,
     };
-  }, [onNewMessage, onMessageUpdated, onMessageDeleted, onTypingUpdate, onConnectionChange]);
+  }, [onNewMessage, onMessageUpdated, onMessageDeleted, onTypingUpdate, onReactionAdded, onReactionRemoved, onConnectionChange]);
 
   // Calculate exponential backoff delay
   const getRetryDelay = useCallback(() => {

@@ -157,7 +157,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   const connectToStream = useCallback(async () => {
     if (!isSignedIn || eventSourceRef.current) return;
 
-    let connectionTimeout: NodeJS.Timeout;
+    let connectionTimeout: NodeJS.Timeout | undefined;
 
     try {
       await getToken();
@@ -304,7 +304,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
       eventSourceRef.current = eventSource;
     } catch (error) {
-      clearTimeout(connectionTimeout);
+      if (connectionTimeout) clearTimeout(connectionTimeout);
       console.error("❌ Failed to connect to notification stream:", error);
       setState((prev) => ({
         ...prev,

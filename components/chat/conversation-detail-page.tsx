@@ -114,6 +114,10 @@ const DEBUG_MESSAGES = false;
 const deduplicateMessages = (messages: Message[]): Message[] => {
   const seen = new Set<string>();
   return messages.filter(message => {
+    // Ensure message has required properties
+    if (!message || !message.id) {
+      return false;
+    }
     if (seen.has(message.id)) {
       return false;
     }
@@ -216,13 +220,13 @@ export function ConversationDetailPage({
           return prev;
         }
         // Add the new message and ensure no duplicates exist
-        const updatedMessages = [...prev, newMessage];
+        const updatedMessages = [...prev, newMessage] as Message[];
         return deduplicateMessages(updatedMessages);
       });
     },
     onMessageUpdated: (updatedMessage) => {
       setMessages(prev => {
-        const updatedMessages = prev.map(msg => msg.id === updatedMessage.id ? updatedMessage : msg);
+        const updatedMessages = prev.map(msg => msg.id === updatedMessage.id ? updatedMessage : msg) as Message[];
         return deduplicateMessages(updatedMessages);
       });
     },
@@ -232,7 +236,7 @@ export function ConversationDetailPage({
           msg.id === messageId
             ? { ...msg, isDeleted: true, content: "[This message was deleted]" }
             : msg
-        );
+        ) as Message[];
         return deduplicateMessages(updatedMessages);
       });
     },
@@ -361,12 +365,12 @@ export function ConversationDetailPage({
 
       if (messagesData.success && messagesData.data) {
         // API returns { success: true, data: { items: Message[], total, page, limit, ... } }
-        const initialMessages = messagesData.data.items || [];
+        const initialMessages = (messagesData.data.items || []).filter((msg: any) => msg && msg.id) as Message[];
         if (DEBUG_MESSAGES) console.log("📨 Initial messages loaded:", initialMessages.length);
         setMessages(deduplicateMessages(initialMessages));
       } else if (messagesData.messages) {
         // Fallback for other response formats
-        const initialMessages = messagesData.messages || [];
+        const initialMessages = (messagesData.messages || []).filter((msg: any) => msg && msg.id) as Message[];
         if (DEBUG_MESSAGES) console.log("📨 Initial messages loaded (fallback):", initialMessages.length);
         setMessages(deduplicateMessages(initialMessages));
       } else {
@@ -459,7 +463,7 @@ export function ConversationDetailPage({
       };
 
       // Add optimistic message immediately for better UX
-      setMessages(prev => deduplicateMessages([...prev, optimisticMessage]));
+      setMessages(prev => deduplicateMessages([...prev, optimisticMessage] as Message[]));
 
       const response = await fetch(`/api/conversations/${conversationId}/messages`, {
         method: 'POST',
@@ -475,7 +479,7 @@ export function ConversationDetailPage({
 
       if (!response.ok) {
         // Remove optimistic message on error
-        setMessages(prev => deduplicateMessages(prev.filter(msg => msg.id !== optimisticMessage.id)));
+        setMessages(prev => deduplicateMessages(prev.filter(msg => msg.id !== optimisticMessage.id) as Message[]));
 
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to send message');
@@ -500,7 +504,7 @@ export function ConversationDetailPage({
         }
 
         // Ensure no duplicates exist as a final safeguard
-        return deduplicateMessages(updatedMessages);
+        return deduplicateMessages(updatedMessages as Message[]);
       });
 
     } catch (error) {
@@ -918,7 +922,7 @@ export function ConversationDetailPage({
                     </div>
                   </div>
                 </div>
-                {participant.leftAt && (
+                {(participant as any).leftAt && (
                   <Badge variant="secondary" className="text-xs text-muted-foreground">
                     Left
                   </Badge>

@@ -49,7 +49,7 @@ export function formatFileSize(bytes: number): string {
 // Upload progress display variants
 type ProgressVariant = 'bar' | 'text' | 'minimal'
 type Layout = 'list' | 'grid' | 'compact'
-type Size = 'sm' | 'md' | 'lg'
+type Size = "default" | "icon" | "sm" | "lg" | "icon-sm" | "icon-lg"
 
 export interface FileUploadPreviewProps {
   // Data
@@ -57,8 +57,8 @@ export interface FileUploadPreviewProps {
   uploads?: UploadProgress[]
 
   // Callbacks
-  onRemoveAttachment?: (fileId: string) => void
-  onRemoveUpload?: (file: File) => void
+  onRemoveAttachment?: (id: string | File) => void
+  onRemoveUpload?: (id: string | File) => void
 
   // Display options
   layout?: Layout
@@ -118,7 +118,7 @@ const FileItem: React.FC<FileItemProps> = ({
     switch (size) {
       case 'sm':
         return layout === 'compact' ? 'p-1.5 text-xs' : 'p-2 text-sm'
-      case 'md':
+      case 'default':
         return layout === 'compact' ? 'p-2 text-sm' : 'p-3 text-sm'
       case 'lg':
         return layout === 'compact' ? 'p-2.5 text-sm' : 'p-4 text-base'
@@ -131,7 +131,7 @@ const FileItem: React.FC<FileItemProps> = ({
     switch (size) {
       case 'sm':
         return 'h-3 w-3'
-      case 'md':
+      case 'default':
         return 'h-4 w-4'
       case 'lg':
         return 'h-5 w-5'
@@ -270,7 +270,7 @@ export const FileUploadPreview: React.FC<FileUploadPreviewProps> = ({
   onRemoveAttachment,
   onRemoveUpload,
   layout = 'list',
-  size = 'md',
+  size = 'default',
   progressVariant = 'bar',
   showFileTypes = true,
   showSizes = true,
