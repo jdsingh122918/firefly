@@ -4,9 +4,18 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "prisma generate",
+    "db:init": "npx tsx scripts/init-production-db.ts",
+    "db:init:force": "npx tsx scripts/init-production-db.ts --force",
+    "db:init:no-backup": "npx tsx scripts/init-production-db.ts --no-backup",
+    "db:validate": "npx tsx scripts/init-production-db.ts --validate-only",
+    "db:backup": "npx tsx scripts/utils/db-backup.ts",
+    "db:seed-tags": "npx tsx scripts/seed-healthcare-tags.ts",
+    "db:backfill-users": "npx tsx scripts/backfill-users.ts",
+    "db:validate-full": "npx tsx scripts/validate-database.ts"
   },
   "dependencies": {
     "@apollo/client": "^4.0.9",

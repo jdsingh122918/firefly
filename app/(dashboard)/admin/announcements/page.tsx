@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db/prisma'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@/lib/auth/roles'
 import { AnnouncementForm } from './announcement-form'
 
 export default async function AdminAnnouncementsPage() {
