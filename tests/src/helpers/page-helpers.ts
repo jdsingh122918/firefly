@@ -46,15 +46,15 @@ export async function waitForText(page: Page, text: string, timeout = 10000): Pr
 export async function clickButton(page: Page, text: string, retries = 3): Promise<void> {
   for (let i = 0; i < retries; i++) {
     try {
-      const [button] = await page.$x(`//button[contains(text(), '${text}')]`)
+      const [button] = await (page as any).$x(`//button[contains(text(), '${text}')]`)
       if (button) {
         await (button as any).click()
-        await page.waitForTimeout(500) // Wait for action to complete
+        await (page as any).waitForTimeout(500) // Wait for action to complete
         return
       }
     } catch (error) {
       if (i === retries - 1) throw error
-      await page.waitForTimeout(1000)
+      await (page as any).waitForTimeout(1000)
     }
   }
   
@@ -62,12 +62,12 @@ export async function clickButton(page: Page, text: string, retries = 3): Promis
 }
 
 export async function clickLink(page: Page, text: string): Promise<void> {
-  const [link] = await page.$x(`//a[contains(text(), '${text}')]`)
+  const [link] = await (page as any).$x(`//a[contains(text(), '${text}')]`)
   if (!link) {
     throw new Error(`Link with text "${text}" not found`)
   }
   await (link as any).click()
-  await page.waitForTimeout(500)
+  await (page as any).waitForTimeout(500)
 }
 
 export async function assertTextVisible(page: Page, text: string): Promise<void> {

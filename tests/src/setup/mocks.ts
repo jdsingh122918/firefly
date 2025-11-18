@@ -400,7 +400,6 @@ const postHandlers = [
         title: post.title,
         content: post.content,
         postType: post.postType,
-        visibility: post.visibility,
         forumId: post.forumId,
         forum: forum ? {
           id: forum.id,
@@ -437,7 +436,6 @@ const postHandlers = [
       title: body.title,
       content: body.content,
       postType: body.postType as any,
-      visibility: body.visibility as any,
       authorId: user.userId,
     })
 

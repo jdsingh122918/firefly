@@ -52,11 +52,11 @@ export function markdownToHtml(markdown: string, options: MarkdownToHtmlOptions 
 
   // Bullet lists
   html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-  html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+  html = html.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
 
   // Numbered lists
   html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-  html = html.replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>');
+  html = html.replace(/(<li>[\s\S]*?<\/li>)/g, '<ol>$1</ol>');
 
   // Blockquotes
   html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');

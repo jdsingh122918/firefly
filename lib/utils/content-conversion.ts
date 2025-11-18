@@ -43,7 +43,7 @@ export interface ContentInfo {
 }
 
 // Format Detection
-export class ContentDetector {
+class ContentDetector {
   static detectFormat(content: string): ContentFormat {
     if (!content || content.trim() === '') {
       return 'plaintext'
@@ -111,7 +111,7 @@ export class ContentDetector {
 }
 
 // HTML Sanitization
-export class HtmlSanitizer {
+class HtmlSanitizer {
   static sanitize(html: string, options: ConversionOptions = {}): string {
     if (!html) return ''
 
@@ -151,7 +151,7 @@ export class HtmlSanitizer {
 }
 
 // Editor.js Converters
-export class EditorJSConverter {
+class EditorJSConverter {
   static toHTML(data: EditorJSData, options: ConversionOptions = {}): string {
     if (!data?.blocks || data.blocks.length === 0) {
       return ''
@@ -211,10 +211,10 @@ export class EditorJSConverter {
           return '<hr />'
 
         case 'warning':
-          const title = block.data.title || 'Warning'
+          const warningTitle = block.data.title || 'Warning'
           const message = block.data.message || ''
           return `<div class="warning">
-            <strong>${title}</strong>
+            <strong>${warningTitle}</strong>
             ${message ? `<p>${message}</p>` : ''}
           </div>`
 
@@ -303,7 +303,7 @@ export class EditorJSConverter {
 }
 
 // Markdown Converters
-export class MarkdownConverter {
+class MarkdownConverter {
   static toHTML(markdown: string, options: ConversionOptions = {}): string {
     if (!markdown) return ''
 
@@ -343,11 +343,11 @@ export class MarkdownConverter {
 
     // Bullet lists
     html = html.replace(/^- (.+)$/gm, '<li>$1</li>')
-    html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+    html = html.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
 
     // Numbered lists
     html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
-    html = html.replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>')
+    html = html.replace(/(<li>[\s\S]*?<\/li>)/g, '<ol>$1</ol>')
 
     // Blockquotes
     html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
@@ -404,7 +404,7 @@ export class MarkdownConverter {
 }
 
 // Universal Content Converter
-export class ContentConverter {
+class ContentConverter {
   static convert(
     content: string,
     fromFormat: ContentFormat,

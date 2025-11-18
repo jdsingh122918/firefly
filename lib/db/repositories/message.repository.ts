@@ -617,7 +617,9 @@ export class MessageRepository {
     const existingReaction = emojiReactions.find(r => r.userId === userId);
     if (existingReaction) {
       // User already reacted with this emoji, no change needed
-      return await this.getMessageById(messageId);
+      const result = await this.getMessageById(messageId);
+      if (!result) throw new Error("Message not found after reaction");
+      return result;
     }
 
     // Add new reaction
@@ -641,7 +643,7 @@ export class MessageRepository {
     const updatedMessage = await prisma.message.update({
       where: { id: messageId },
       data: {
-        metadata: updatedMetadata as Prisma.InputJsonValue,
+        metadata: updatedMetadata as unknown as Prisma.InputJsonValue,
         updatedAt: new Date(),
       },
       include: {
@@ -726,7 +728,7 @@ export class MessageRepository {
     const updatedMessage = await prisma.message.update({
       where: { id: messageId },
       data: {
-        metadata: updatedMetadata as Prisma.InputJsonValue,
+        metadata: updatedMetadata as unknown as Prisma.InputJsonValue,
         updatedAt: new Date(),
       },
       include: {

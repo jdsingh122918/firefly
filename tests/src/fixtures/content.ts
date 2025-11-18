@@ -6,7 +6,7 @@ export function createTestNote(overrides: Partial<Omit<MockContent, 'id' | 'crea
     contentType: 'NOTE' as const,
     title: `Test Note ${Date.now()}`,
     content: 'Test note content',
-    noteType: NoteType.PERSONAL,
+    noteType: NoteType.TEXT,
     noteVisibility: NoteVisibility.PRIVATE,
     resourceType: null,
     resourceStatus: null,
@@ -24,8 +24,8 @@ export function createTestResource(overrides: Partial<Omit<MockContent, 'id' | '
     content: 'Test resource content',
     noteType: null,
     noteVisibility: null,
-    resourceType: ResourceContentType.ARTICLE,
-    resourceStatus: ResourceStatus.PUBLISHED,
+    resourceType: ResourceContentType.DOCUMENT,
+    resourceStatus: ResourceStatus.APPROVED,
     createdById: '', // Must be provided
     familyId: null,
   }
