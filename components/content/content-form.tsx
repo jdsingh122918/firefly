@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RichTextEditor } from '@/components/editors/editor-migration-wrapper';
+import { ContentStyleEditor } from './content-style-editor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -38,7 +39,6 @@ import {
   Link as LinkIcon,
   Tag
 } from 'lucide-react';
-import { DocumentAttachmentManager } from '@/components/notes/document-attachment-manager';
 
 /**
  * Unified Content Form Component
@@ -89,6 +89,12 @@ export interface ContentFormProps {
   userRole?: 'ADMIN' | 'VOLUNTEER' | 'MEMBER';
   userId?: string;
 
+  // Controlled component props (new)
+  formData?: ContentFormData;
+  setFormData?: (data: ContentFormData) => void;
+  uploadedAttachments?: any[];
+  setUploadedAttachments?: (attachments: any[]) => void;
+
   // Callbacks
   onSubmit: (data: ContentFormData) => Promise<void>;
   onCancel?: () => void;
@@ -132,6 +138,10 @@ const ContentForm: React.FC<ContentFormProps> = ({
   availableCategories = [],
   userRole,
   userId,
+  formData: controlledFormData,
+  setFormData: controlledSetFormData,
+  uploadedAttachments: controlledUploadedAttachments,
+  setUploadedAttachments: controlledSetUploadedAttachments,
   onSubmit,
   onCancel,
   onPreview,
@@ -140,7 +150,11 @@ const ContentForm: React.FC<ContentFormProps> = ({
 }) => {
   const searchParams = useSearchParams();
   const router = useRouter();
-  // Form state
+
+  // Determine if using controlled or uncontrolled pattern
+  const isControlled = controlledFormData && controlledSetFormData;
+
+  // Form state (fallback for backward compatibility)
   const initialFormData: ContentFormData = {
     title: initialData?.title || '',
     description: initialData?.description || '',
@@ -165,8 +179,14 @@ const ContentForm: React.FC<ContentFormProps> = ({
     documentIds: []
   };
 
-  const [formData, setFormData] = useState<ContentFormData>(initialFormData);
-  const [uploadedAttachments, setUploadedAttachments] = useState<any[]>([]);
+  const [localFormData, setLocalFormData] = useState<ContentFormData>(initialFormData);
+  const [localUploadedAttachments, setLocalUploadedAttachments] = useState<any[]>([]);
+
+  // Use controlled state if provided, otherwise use local state
+  const formData = isControlled ? controlledFormData : localFormData;
+  const setFormData = isControlled ? controlledSetFormData : setLocalFormData;
+  const uploadedAttachments = controlledUploadedAttachments || localUploadedAttachments;
+  const setUploadedAttachments = controlledSetUploadedAttachments || setLocalUploadedAttachments;
 
   const [tagInput, setTagInput] = useState('');
   const [audienceInput, setAudienceInput] = useState('');
@@ -193,24 +213,36 @@ const ContentForm: React.FC<ContentFormProps> = ({
     }
   }, [searchParams, mode, router]);
 
-  // Update resource-specific defaults when content type changes
+  // Update resource-specific defaults when content type changes (fixed dependencies)
   useEffect(() => {
-    if (isResource && mode === 'create') {
-      setFormData(prev => ({
-        ...prev,
-        hasRatings: true,
-        hasCuration: userRole !== 'ADMIN',
-        visibility: NoteVisibility.PUBLIC
-      }));
-    } else if (isNote && mode === 'create') {
-      setFormData(prev => ({
-        ...prev,
-        hasRatings: false,
-        hasCuration: false,
-        visibility: NoteVisibility.PRIVATE
-      }));
+    const isResource = formData.contentType === ContentType.RESOURCE;
+    const isNote = formData.contentType === ContentType.NOTE;
+
+    if (mode !== 'create') return; // Guard: only run in create mode
+
+    if (isResource) {
+      // Only update if values need to change to prevent unnecessary re-renders
+      const expectedHasCuration = userRole !== 'ADMIN';
+      if (!formData.hasRatings || formData.hasCuration !== expectedHasCuration || formData.visibility !== NoteVisibility.PUBLIC) {
+        setFormData(prev => ({
+          ...prev,
+          hasRatings: true,
+          hasCuration: expectedHasCuration,
+          visibility: NoteVisibility.PUBLIC
+        }));
+      }
+    } else if (isNote) {
+      // Only update if values need to change to prevent unnecessary re-renders
+      if (formData.hasRatings || formData.hasCuration || formData.visibility !== NoteVisibility.PRIVATE) {
+        setFormData(prev => ({
+          ...prev,
+          hasRatings: false,
+          hasCuration: false,
+          visibility: NoteVisibility.PRIVATE
+        }));
+      }
     }
-  }, [formData.contentType, mode, userRole, isResource, isNote]);
+  }, [formData.contentType, formData.hasRatings, formData.hasCuration, formData.visibility, mode, userRole]);
 
   const handleInputChange = (field: keyof ContentFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -342,15 +374,13 @@ const ContentForm: React.FC<ContentFormProps> = ({
 
       {/* Content */}
       <div className="space-y-2">
-        <Label htmlFor="body" className="text-sm font-medium">
-          Content
-        </Label>
-        <RichTextEditor
+        <ContentStyleEditor
           content={formData.body || ""}
           onChange={(content) => handleInputChange('body', content)}
           placeholder="Write your content here... (supports rich text formatting)"
           maxLength={50000}
-          className="min-h-[200px]"
+          attachments={uploadedAttachments}
+          onAttachmentsChange={setUploadedAttachments}
         />
         {errors.body && (
           <p className="text-sm text-red-600">{errors.body}</p>
@@ -749,19 +779,6 @@ const ContentForm: React.FC<ContentFormProps> = ({
   );
 
 
-  const renderDocumentAttachments = () => (
-    <div className="space-y-2">
-      <Label className="text-sm font-medium flex items-center gap-1">
-        <Upload className="h-4 w-4" />
-        Document Attachments
-      </Label>
-      <DocumentAttachmentManager
-        noteId={initialData?.id || 'new-content'}
-        attachments={uploadedAttachments}
-        onAttachmentsChange={handleAttachmentsChange}
-      />
-    </div>
-  );
 
   return (
     <div className="space-y-3">
@@ -776,11 +793,6 @@ const ContentForm: React.FC<ContentFormProps> = ({
         {renderOrganizationFields()}
       </div>
 
-      {/* Document Attachments */}
-      <div className="space-y-3 pt-3 border-t">
-        <h3 className="text-xl font-semibold text-gray-900">Attachments</h3>
-        {renderDocumentAttachments()}
-      </div>
 
 
       {/* Form Actions */}

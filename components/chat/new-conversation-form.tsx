@@ -350,7 +350,7 @@ export function NewConversationForm({
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={onCancel} className="p-1 h-8 w-8">
+          <Button variant="ghost" size="sm" onClick={onCancel} className="p-1 min-h-[44px] min-w-[44px]">
             <X className="h-4 w-4" />
           </Button>
         </div>

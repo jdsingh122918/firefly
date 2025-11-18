@@ -1,8 +1,7 @@
 import { http, HttpResponse } from 'msw'
-import { UserRole } from '@prisma/client'
+import { UserRole, MessageType, MessageStatus } from '@prisma/client'
 import { mockStore } from './mock-store'
 import { getMockUserByRole, getMockUserByEmail } from '../fixtures/mock-data'
-import { getMockAuthHeaders } from './auth'
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000'
 

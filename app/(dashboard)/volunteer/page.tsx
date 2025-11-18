@@ -77,21 +77,21 @@ export default async function VolunteerDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Volunteer Dashboard</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Volunteer Dashboard</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage your assigned families and members
           </p>
         </div>
-        <div className="flex space-x-2">
-          <Button asChild>
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+          <Button asChild className="w-full sm:w-auto min-h-[44px]">
             <Link href="/volunteer/families/new">
               <Plus className="mr-2 h-4 w-4" />
               Create Family
             </Link>
           </Button>
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" className="w-full sm:w-auto min-h-[44px]">
             <Link href="/volunteer/users/new">
               <Plus className="mr-2 h-4 w-4" />
               Add Member
@@ -101,8 +101,8 @@ export default async function VolunteerDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-3">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Families</CardTitle>
             <Heart className="h-4 w-4 text-muted-foreground" />
@@ -115,7 +115,7 @@ export default async function VolunteerDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="p-3">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Members</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -128,7 +128,7 @@ export default async function VolunteerDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="p-3">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Messages</CardTitle>
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -141,7 +141,7 @@ export default async function VolunteerDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="p-3">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">This Week</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -155,7 +155,7 @@ export default async function VolunteerDashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
         {/* Families */}
         <Card>
           <CardHeader>

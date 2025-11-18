@@ -4,6 +4,9 @@ import { SidebarNavigation } from '@/components/sidebar-navigation'
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar'
 import { NotificationBanner } from '@/components/notifications/notification-banner'
 import { DatabaseErrorWrapper } from '@/components/errors/database-error-boundary'
+import { ThemeProvider } from "next-themes"
+import { BreadcrumbNavigation } from '@/components/breadcrumb-navigation'
+import { CookieBanner } from '@/components/cookie-banner'
 
 export default async function DashboardLayout({
   children,
@@ -32,22 +35,29 @@ export default async function DashboardLayout({
   })
 
   return (
-    <DatabaseErrorWrapper
-      maxRetries={2}
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem={true}
+      disableTransitionOnChange={false}
     >
-      <SidebarProvider>
-        <SidebarNavigation
-          userRole={user.role}
-          user={{
-            firstName: user.firstName || clerkUser?.firstName,
-            lastName: user.lastName || clerkUser?.lastName,
-            email: user.email || clerkUser?.emailAddresses[0]?.emailAddress,
-            imageUrl: clerkUser?.imageUrl
-          }}
-        />
-        <SidebarInset>
+      <DatabaseErrorWrapper
+        maxRetries={2}
+      >
+        <SidebarProvider>
+          <SidebarNavigation
+            userRole={user.role}
+            user={{
+              firstName: user.firstName || clerkUser?.firstName,
+              lastName: user.lastName || clerkUser?.lastName,
+              email: user.email || clerkUser?.emailAddresses[0]?.emailAddress,
+              imageUrl: clerkUser?.imageUrl
+            }}
+          />
+          <SidebarInset>
           {/* Header */}
           <header className="border-b bg-background sticky top-0 z-40">
+            {/* Top section with mobile title and welcome message */}
             <div className="flex h-14 sm:h-16 items-center justify-between px-3 sm:px-4 md:px-6">
               <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
                 <SidebarTrigger className="md:hidden h-8 w-8 shrink-0" />
@@ -63,7 +73,11 @@ export default async function DashboardLayout({
                   </div>
                 </div>
               </div>
+            </div>
 
+            {/* Breadcrumb navigation */}
+            <div className="border-t border-border/50 px-3 sm:px-4 md:px-6 py-2">
+              <BreadcrumbNavigation className="mb-0" />
             </div>
           </header>
 
@@ -88,6 +102,10 @@ export default async function DashboardLayout({
           </main>
         </SidebarInset>
       </SidebarProvider>
+
+      {/* Cookie Banner - positioned fixed at bottom */}
+      <CookieBanner />
     </DatabaseErrorWrapper>
+    </ThemeProvider>
   )
 }

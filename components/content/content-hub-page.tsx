@@ -230,6 +230,13 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
 
       const data = await response.json();
       if (data.success) {
+        console.log('🔍 ContentHub API Response:', {
+          totalItems: data.data.content?.length,
+          firstItem: data.data.content?.[0],
+          itemsWithDocuments: data.data.content?.filter((item: any) => item.documents?.length > 0).length,
+          sampleDocuments: data.data.content?.find((item: any) => item.documents?.length > 0)?.documents
+        });
+
         const items = data.data.content.map((item: any) => ({
           ...item,
           createdAt: new Date(item.createdAt).toISOString(),
@@ -565,7 +572,7 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
 
     if (isLoading) {
       return (
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Card key={i} className="p-4 animate-pulse">
               <div className="h-4 bg-gray-200 rounded mb-2"></div>
@@ -599,7 +606,7 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
     }
 
     return (
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 auto-rows-fr">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 auto-rows-fr max-w-7xl mx-auto">
         {filteredContent.map((item) => (
           <div key={item.id} className="min-w-0">
             <ContentCard

@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link'
 import { UserForm } from '@/components/users/user-form'
 

@@ -102,7 +102,7 @@ export function VoteButtons({
         disabled={isVoting}
         onClick={() => handleVote("UPVOTE")}
         className={cn(
-          "h-10 w-10 md:h-8 md:w-8 p-0 hover:bg-orange-100 hover:text-orange-600 transition-colors",
+          "h-10 w-10 sm:h-9 sm:w-9 md:h-8 md:w-8 p-0 hover:bg-orange-100 hover:text-orange-600 transition-colors",
           userVote === "UPVOTE" && "bg-orange-100 text-orange-600"
         )}
       >
@@ -125,7 +125,7 @@ export function VoteButtons({
         disabled={isVoting}
         onClick={() => handleVote("DOWNVOTE")}
         className={cn(
-          "h-10 w-10 md:h-8 md:w-8 p-0 hover:bg-blue-100 hover:text-blue-600 transition-colors",
+          "h-10 w-10 sm:h-9 sm:w-9 md:h-8 md:w-8 p-0 hover:bg-blue-100 hover:text-blue-600 transition-colors",
           userVote === "DOWNVOTE" && "bg-blue-100 text-blue-600"
         )}
       >

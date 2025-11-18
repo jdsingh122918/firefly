@@ -88,7 +88,29 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({
-      families: families || [],
+      families: (families || []).map(family => ({
+        id: family.id,
+        name: family.name,
+        description: family.description,
+        createdAt: family.createdAt,
+        updatedAt: family.updatedAt,
+        createdBy: family.createdBy ? {
+          id: family.createdBy.id,
+          name: family.createdBy.firstName
+            ? `${family.createdBy.firstName} ${family.createdBy.lastName || ""}`.trim()
+            : family.createdBy.email,
+          email: family.createdBy.email,
+        } : undefined,
+        members: (family.members || []).map(member => ({
+          id: member.id,
+          name: member.firstName
+            ? `${member.firstName} ${member.lastName || ""}`.trim()
+            : member.email,
+          email: member.email,
+          role: member.role,
+        })),
+        memberCount: (family.members || []).length,
+      })),
       total: families?.length || 0,
     });
   } catch (error) {

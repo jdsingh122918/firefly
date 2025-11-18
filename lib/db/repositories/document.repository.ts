@@ -101,6 +101,7 @@ export class DocumentRepository {
     id: string,
     options: {
       includeDeleted?: boolean;
+      includeFileData?: boolean;
     } = {},
   ): Promise<Document | null> {
     try {
@@ -110,7 +111,7 @@ export class DocumentRepository {
         whereClause.status = { not: DocumentStatus.DELETED };
       }
 
-      const document = await prisma.document.findUnique({
+      const queryOptions: any = {
         where: whereClause,
         include: {
           uploadedByUser: {
@@ -128,7 +129,53 @@ export class DocumentRepository {
             },
           },
         },
-      });
+      };
+
+      // Exclude fileData by default for performance, unless specifically requested
+      if (!options.includeFileData) {
+        queryOptions.select = {
+          id: true,
+          title: true,
+          description: true,
+          filePath: true,
+          fileName: true,
+          originalFileName: true,
+          fileSize: true,
+          mimeType: true,
+          type: true,
+          status: true,
+          uploadedBy: true,
+          familyId: true,
+          tags: true,
+          duration: true,
+          width: true,
+          height: true,
+          thumbnailPath: true,
+          previewPath: true,
+          metadata: true,
+          isPublic: true,
+          expiresAt: true,
+          createdAt: true,
+          updatedAt: true,
+          // Include relations
+          uploadedByUser: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          family: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        };
+      }
+
+      const document = await prisma.document.findUnique(queryOptions);
 
       return document as Document | null;
     } catch (error) {

@@ -183,18 +183,17 @@ export function ChatPageContent({ userRole, userId }: ChatPageContentProps) {
         </>
       )}
 
-      {/* Tabs - Client-only to prevent hydration mismatch */}
-      {typeof window !== 'undefined' && (
-        <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="all">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="all">All Chats</TabsTrigger>
-            <TabsTrigger value="family">
-              <Users className="h-3 w-3 mr-1" />
-              Family
-            </TabsTrigger>
-          </TabsList>
+      {/* Tabs - Direct rendering following established codebase pattern */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="all">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="all">All Chats</TabsTrigger>
+          <TabsTrigger value="family">
+            <Users className="h-3 w-3 mr-1" />
+            Family
+          </TabsTrigger>
+        </TabsList>
 
-          <TabsContent value={activeTab} className="space-y-4 mt-4">
+        <TabsContent value={activeTab} className="space-y-4 mt-4">
           {/* Conversation List */}
           {loading && conversations.length === 0 && (
             <div className="space-y-3">
@@ -257,37 +256,8 @@ export function ChatPageContent({ userRole, userId }: ChatPageContentProps) {
               onConversationUpdate={fetchConversations}
             />
           )}
-          </TabsContent>
-        </Tabs>
-      )}
-
-      {/* Server-side fallback */}
-      {typeof window === 'undefined' && (
-        <div>
-          <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground mb-4">
-            <div className="grid w-full grid-cols-2">
-              <button className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium bg-background text-foreground shadow-sm">
-                All Chats
-              </button>
-              <button className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium">
-                <Users className="h-3 w-3 mr-1" />
-                Family
-              </button>
-            </div>
-          </div>
-          <div className="space-y-4">
-            {/* Show all conversations on server-side render */}
-            {!loading && !error && conversations.length > 0 && (
-              <ConversationList
-                conversations={conversations}
-                userRole={userRole}
-                currentUserId={userId}
-                onConversationUpdate={fetchConversations}
-              />
-            )}
-          </div>
-        </div>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

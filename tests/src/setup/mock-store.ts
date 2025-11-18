@@ -1,4 +1,4 @@
-import { UserRole, FamilyRole, NoteType, NoteVisibility, ResourceContentType, ResourceStatus, PostType, PostVisibility, MessageType, MessageStatus, NotificationType, AssignmentStatus, AssignmentPriority } from '@prisma/client'
+import { UserRole, FamilyRole, NoteType, NoteVisibility, ResourceContentType, ResourceStatus, PostType, MessageType, MessageStatus, NotificationType, AssignmentStatus, AssignmentPriority } from '@prisma/client'
 
 // Mock data store - in-memory data structures
 export interface MockUser {
@@ -58,7 +58,6 @@ export interface MockPost {
   title: string
   content: string
   postType: PostType
-  visibility: PostVisibility
   authorId: string
   createdAt: Date
   updatedAt: Date

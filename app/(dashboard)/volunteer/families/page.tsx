@@ -24,13 +24,14 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { FamilyTile } from '@/components/families/family-tile'
 
 interface Family {
   id: string
   name: string
   description?: string
   createdAt: string
-  createdBy: {
+  createdBy?: {
     id: string
     name: string
     email: string
@@ -136,14 +137,14 @@ export default function VolunteerFamiliesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Families</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold">Families</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage families you've created and their members
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto min-h-[44px]">
           <Link href="/volunteer/families/new">
             <Plus className="mr-2 h-4 w-4" />
             Create Family
@@ -216,89 +217,116 @@ export default function VolunteerFamiliesPage() {
               )}
             </div>
           ) : (
-            <div className="overflow-hidden rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Family Name</TableHead>
-                    <TableHead>Members</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Creator</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {families.map((family) => (
-                    <TableRow key={family.id}>
-                      <TableCell>
-                        <div>
-                          <Link
-                            href={`/volunteer/families/${family.id}`}
-                            className="font-medium text-primary hover:underline"
-                          >
-                            {family.name}
-                          </Link>
-                          {family.description && (
-                            <div className="text-sm text-muted-foreground">
-                              {family.description}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span>{family.memberCount}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {new Date(family.createdAt).toLocaleDateString()}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <div className="font-medium">{family.createdBy.name}</div>
-                          <div className="text-muted-foreground">
-                            {family.createdBy.email}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/volunteer/families/${family.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Details
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href={`/volunteer/families/${family.id}/edit`}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-red-600"
-                              onClick={() => handleDelete(family.id, family.name)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+            <>
+              {/* Medium Tablet: 2-Column Tiles View */}
+              <div className="hidden md:grid lg:hidden gap-3 grid-cols-2">
+                {families.map((family) => (
+                  <FamilyTile
+                    key={family.id}
+                    family={family}
+                    onDelete={handleDelete}
+                    basePath="/volunteer/families"
+                  />
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-hidden rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Family Name</TableHead>
+                      <TableHead>Members</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Creator</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {families.map((family) => (
+                      <TableRow key={family.id}>
+                        <TableCell>
+                          <div>
+                            <Link
+                              href={`/volunteer/families/${family.id}`}
+                              className="font-medium text-primary hover:underline"
+                            >
+                              {family.name}
+                            </Link>
+                            {family.description && (
+                              <div className="text-sm text-muted-foreground">
+                                {family.description}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <span>{family.memberCount}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {new Date(family.createdAt).toLocaleDateString()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <div className="font-medium">{family.createdBy?.name || 'Unknown Creator'}</div>
+                            <div className="text-muted-foreground">
+                              {family.createdBy?.email || 'N/A'}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="p-0 min-h-[44px] min-w-[44px]">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <Link href={`/volunteer/families/${family.id}`}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  View Details
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem asChild>
+                                <Link href={`/volunteer/families/${family.id}/edit`}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => handleDelete(family.id, family.name)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Tiles View */}
+              <div className="grid gap-3 md:hidden">
+                {families.map((family) => (
+                  <FamilyTile
+                    key={family.id}
+                    family={family}
+                    onDelete={handleDelete}
+                    basePath="/volunteer/families"
+                  />
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

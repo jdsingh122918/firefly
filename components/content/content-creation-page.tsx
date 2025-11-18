@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Plus, FileText, Star } from 'lucide-react';
 import ContentForm, { ContentFormData } from './content-form';
-import { ContentType, UserRole } from '@prisma/client';
+import { ContentType, UserRole, NoteType, ResourceContentType, NoteVisibility } from '@prisma/client';
 import { useToast } from '@/hooks/use-toast';
 
 /**
@@ -46,45 +46,118 @@ const ContentCreationPage: React.FC<ContentCreationPageProps> = ({
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleFormSubmit = async (formData: ContentFormData) => {
+  // Form state management (lifted from ContentForm)
+  const initialFormData: ContentFormData = {
+    title: '',
+    description: '',
+    body: '',
+    contentType: defaultContentType || ContentType.NOTE,
+    noteType: NoteType.TEXT,
+    resourceType: ResourceContentType.DOCUMENT,
+    visibility: NoteVisibility.PRIVATE,
+    familyId: 'none',
+    categoryId: 'none',
+    tags: [],
+    url: '',
+    targetAudience: [],
+    isPinned: false,
+    allowComments: false,
+    allowEditing: false,
+    hasAssignments: false,
+    hasCuration: userRole !== 'ADMIN',
+    hasRatings: defaultContentType === ContentType.RESOURCE,
+    hasSharing: false,
+    externalMeta: undefined,
+    documentIds: []
+  };
+
+  const [formData, setFormData] = useState<ContentFormData>(initialFormData);
+  const [uploadedAttachments, setUploadedAttachments] = useState<any[]>([]);
+
+  // localStorage persistence for draft recovery
+  const DRAFT_KEY = 'content-form-draft';
+
+  // Load draft from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedDraft = localStorage.getItem(DRAFT_KEY);
+      if (savedDraft) {
+        const parsedDraft = JSON.parse(savedDraft);
+        // Only restore if there's meaningful content
+        if (parsedDraft.title || parsedDraft.body || parsedDraft.description) {
+          setFormData(parsedDraft);
+          toast({
+            title: 'Draft Restored',
+            description: 'Your previous draft has been restored.',
+          });
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to restore draft from localStorage:', error);
+      // Clear invalid data
+      localStorage.removeItem(DRAFT_KEY);
+    }
+  }, []); // Fixed: Only run on mount, not when toast function changes
+
+  // Auto-save to localStorage when form data changes
+  useEffect(() => {
+    if (formData.title || formData.body || formData.description) {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
+      } catch (error) {
+        console.warn('Failed to save draft to localStorage:', error);
+      }
+    }
+  }, [formData]);
+
+  // Clear draft after successful submission
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch (error) {
+      console.warn('Failed to clear draft from localStorage:', error);
+    }
+  };
+
+  const handleFormSubmit = async (submittedFormData: ContentFormData) => {
     setIsLoading(true);
 
     try {
-      console.log('📝 Starting content creation with data:', formData);
+      console.log('📝 Starting content creation with data:', submittedFormData);
 
       const requestData = {
         // Basic fields
-        title: formData.title,
-        description: formData.description || formData.body, // Use description or fall back to body
-        body: formData.body, // Include body field for API compatibility
-        contentType: formData.contentType,
+        title: submittedFormData.title,
+        description: submittedFormData.description || submittedFormData.body, // Use description or fall back to body
+        body: submittedFormData.body, // Include body field for API compatibility
+        contentType: submittedFormData.contentType,
 
         // Type-specific fields
-        noteType: formData.noteType,
-        resourceType: formData.resourceType,
-        visibility: formData.visibility || 'PRIVATE',
+        noteType: submittedFormData.noteType,
+        resourceType: submittedFormData.resourceType,
+        visibility: submittedFormData.visibility || 'PRIVATE',
 
         // Organization fields - convert "none" values to null for ObjectId compatibility
-        familyId: formData.familyId === 'none' ? null : formData.familyId,
-        categoryId: formData.categoryId === 'none' ? null : formData.categoryId,
-        tags: formData.tags || [],
+        familyId: submittedFormData.familyId === 'none' ? null : submittedFormData.familyId,
+        categoryId: submittedFormData.categoryId === 'none' ? null : submittedFormData.categoryId,
+        tags: submittedFormData.tags || [],
 
         // Resource-specific fields
-        url: formData.url,
-        targetAudience: formData.targetAudience || [],
+        url: submittedFormData.url,
+        targetAudience: submittedFormData.targetAudience || [],
 
         // Feature flags
-        isPinned: formData.isPinned || false,
-        allowComments: formData.allowComments || false,
-        allowEditing: formData.allowEditing || false,
-        hasAssignments: formData.contentType === ContentType.NOTE ? (formData.hasAssignments || false) : false,
-        hasCuration: formData.contentType === ContentType.RESOURCE ? (canManageCuration ? formData.hasCuration : true) : false,
-        hasRatings: formData.contentType === ContentType.RESOURCE ? (formData.hasRatings || false) : false,
-        hasSharing: formData.hasSharing || false,
+        isPinned: submittedFormData.isPinned || false,
+        allowComments: submittedFormData.allowComments || false,
+        allowEditing: submittedFormData.allowEditing || false,
+        hasAssignments: submittedFormData.contentType === ContentType.NOTE ? (submittedFormData.hasAssignments || false) : false,
+        hasCuration: submittedFormData.contentType === ContentType.RESOURCE ? (canManageCuration ? submittedFormData.hasCuration : true) : false,
+        hasRatings: submittedFormData.contentType === ContentType.RESOURCE ? (submittedFormData.hasRatings || false) : false,
+        hasSharing: submittedFormData.hasSharing || false,
 
         // Additional fields
-        externalMeta: formData.externalMeta,
-        documentIds: formData.documentIds || []
+        externalMeta: submittedFormData.externalMeta,
+        documentIds: submittedFormData.documentIds || []
       };
 
       console.log('📝 Sending request to /api/content with data:', requestData);
@@ -125,9 +198,12 @@ const ContentCreationPage: React.FC<ContentCreationPageProps> = ({
 
       const result = await response.json();
 
+      // Clear draft after successful submission
+      clearDraft();
+
       toast({
         title: 'Content Created',
-        description: `${formData.contentType === ContentType.NOTE ? 'Note' : 'Resource'} "${formData.title}" has been created successfully.`,
+        description: `${submittedFormData.contentType === ContentType.NOTE ? 'Note' : 'Resource'} "${submittedFormData.title}" has been created successfully.`,
       });
 
       // Navigate back to content list
@@ -145,6 +221,18 @@ const ContentCreationPage: React.FC<ContentCreationPageProps> = ({
   };
 
   const handleCancel = () => {
+    // Check if there's unsaved content
+    const hasUnsavedChanges = formData.title || formData.body || formData.description;
+
+    if (hasUnsavedChanges) {
+      const confirmLeave = confirm(
+        'You have unsaved changes. Are you sure you want to leave? Your progress will be saved as a draft.'
+      );
+      if (!confirmLeave) {
+        return;
+      }
+    }
+
     router.push(backUrl);
   };
 
@@ -200,6 +288,10 @@ const ContentCreationPage: React.FC<ContentCreationPageProps> = ({
             availableCategories={availableCategories}
             userRole={userRole}
             userId={userId}
+            formData={formData}
+            setFormData={setFormData}
+            uploadedAttachments={uploadedAttachments}
+            setUploadedAttachments={setUploadedAttachments}
             onSubmit={handleFormSubmit}
             onCancel={handleCancel}
             isLoading={isLoading}

@@ -1,0 +1,7 @@
+node_modules/
+.vitest/
+results/*.json
+results/screenshots/
+*.log
+.DS_Store
+

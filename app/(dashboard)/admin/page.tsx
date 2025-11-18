@@ -62,8 +62,8 @@ export default async function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold tracking-tight">Admin Dashboard</h2>
-        <p className="text-muted-foreground">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Dashboard</h2>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Manage users, families, and platform settings
         </p>
       </div>
@@ -75,7 +75,7 @@ export default async function AdminDashboard() {
           <h3 className="text-lg font-medium">User & Family Management</h3>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="p-3">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -137,7 +137,7 @@ export default async function AdminDashboard() {
           <h3 className="text-lg font-medium">Care Documentation</h3>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="p-3">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Notes</CardTitle>
@@ -199,7 +199,7 @@ export default async function AdminDashboard() {
           <h3 className="text-lg font-medium">Community Engagement</h3>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="p-3">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Forums</CardTitle>

@@ -74,10 +74,10 @@ export function UserProfileDropdown({ user, userRole }: UserProfileDropdownProps
           </AvatarFallback>
         </Avatar>
         <div className="flex flex-col items-start flex-1">
-          <span className="text-sm font-medium truncate max-w-[120px]">
+          <span className="text-sm font-medium truncate max-w-[160px]">
             {displayName}
           </span>
-          <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+          <span className="text-xs text-muted-foreground truncate max-w-[160px]">
             {user?.email}
           </span>
         </div>
@@ -100,10 +100,10 @@ export function UserProfileDropdown({ user, userRole }: UserProfileDropdownProps
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col items-start flex-1">
-            <span className="text-sm font-medium truncate max-w-[120px]">
+            <span className="text-sm font-medium truncate max-w-[160px]">
               {displayName}
             </span>
-            <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+            <span className="text-xs text-muted-foreground truncate max-w-[160px]">
               {user?.email}
             </span>
           </div>

@@ -3,11 +3,13 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { useEffect } from 'react'
 import { UserRole } from '@prisma/client'
 import { UserProfileDropdown } from '@/components/user-profile-dropdown'
 import { getFeatureRoutesForRole } from '@/lib/navigation/feature-routes'
 import { NotificationBadge } from '@/components/notifications/notification-badge'
 import { useNotifications } from '@/hooks/use-notifications'
+import { SimpleThemeToggle } from '@/components/ui/theme-toggle'
 import {
   Users,
   Home,
@@ -23,6 +25,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from '@/components/ui/sidebar'
 
 interface NavigationItem {
@@ -97,6 +100,14 @@ export function SidebarNavigation({
   user?: UserInfo
 }) {
   const pathname = usePathname()
+  const { setOpenMobile, isMobile } = useSidebar()
+
+  // Auto-close mobile sidebar when navigating to different routes
+  useEffect(() => {
+    if (isMobile) {
+      setOpenMobile(false)
+    }
+  }, [pathname, isMobile, setOpenMobile])
 
   // Get real-time notification data
   const { unreadCount, isConnected } = useNotifications({
@@ -125,19 +136,21 @@ export function SidebarNavigation({
   return (
     <Sidebar className="border-r">
       <SidebarHeader>
-        <Link href="/" className="flex items-center justify-center sm:justify-start space-x-2 p-3 hover:bg-gray-50 rounded-lg transition-colors mx-2">
-          <div className="relative shrink-0">
-            <Image
-              src="/firefly.png"
-              alt="Firefly Logo"
-              width={32}
-              height={32}
-              priority
-              className="object-contain"
-            />
-          </div>
-          <span className="hidden sm:block font-bold text-lg truncate">Firefly</span>
-        </Link>
+        <div className="flex flex-col items-center space-y-3 py-4">
+          <Link href="/" className="flex items-center justify-center hover:opacity-80 transition-opacity">
+            <div className="relative shrink-0">
+              <Image
+                src="/firefly.png"
+                alt="Firefly Logo"
+                width={112}
+                height={112}
+                priority
+                className="object-contain w-24 h-24 sm:w-28 sm:h-28"
+              />
+            </div>
+          </Link>
+          <SimpleThemeToggle />
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
@@ -151,9 +164,9 @@ export function SidebarNavigation({
                 <SidebarMenuButton
                   asChild
                   isActive={pathname === item.href}
-                  className="w-full min-h-[44px] touch-manipulation"
+                  className="w-full min-h-[48px] touch-manipulation border-2 border-transparent hover:border-accent/20 data-[active=true]:border-primary/30 backdrop-blur-sm transition-all shadow-xs hover:shadow-sm data-[active=true]:shadow-sm"
                 >
-                  <Link href={item.href} className="flex items-center gap-3 px-3 py-2">
+                  <Link href={item.href} className="flex items-center gap-3 px-4 py-3">
                     <Icon className="h-5 w-5 shrink-0" />
                     <span className="truncate">{item.title}</span>
 
@@ -175,8 +188,7 @@ export function SidebarNavigation({
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
-        <div className="p-3">
-          {/* User Profile - removed notification bell */}
+        <div className="p-2">
           <UserProfileDropdown user={user} userRole={userRole} />
         </div>
       </SidebarFooter>

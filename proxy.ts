@@ -39,14 +39,64 @@ const isVolunteerRoute = createRouteMatcher(["/volunteer(.*)"]);
 const isMemberRoute = createRouteMatcher(["/member(.*)"]);
 
 export default clerkMiddleware(async (auth, request) => {
-  const { userId, sessionClaims } = await auth();
   const path = request.nextUrl.pathname;
+
+  // Test mode: Extract mock authentication from test headers/cookies
+  const isTestMode = process.env.INTEGRATION_TEST_MODE === "true";
+  let userId: string | null = null;
+  let sessionClaims: any = null;
+
+  if (isTestMode) {
+    // Extract test user from test header or cookie
+    const testUserId =
+      request.headers.get("X-Test-User-Id") ||
+      request.cookies.get("__test_user_id")?.value;
+    const testUserRole =
+      request.headers.get("X-Test-User-Role") ||
+      request.cookies.get("__test_user_role")?.value;
+
+    if (testUserId && testUserRole) {
+      userId = testUserId;
+      sessionClaims = {
+        metadata: {
+          role: testUserRole,
+          userId: testUserId,
+        },
+        sub: testUserId,
+      };
+
+      console.log("🧪 Test Mode Auth:", {
+        path,
+        userId,
+        role: testUserRole,
+      });
+
+      // In test mode with test cookies, skip Clerk validation
+      // Continue with test auth instead of calling auth()
+    } else {
+      // Test mode but no test cookies - try Clerk auth (might fail, but that's ok)
+      try {
+        const authResult = await auth();
+        userId = authResult.userId;
+        sessionClaims = authResult.sessionClaims;
+      } catch (error) {
+        // Clerk validation failed in test mode - this is expected
+        console.log("🧪 Test Mode: Clerk auth failed (expected):", error);
+      }
+    }
+  } else {
+    // Normal mode: use Clerk auth
+    const authResult = await auth();
+    userId = authResult.userId;
+    sessionClaims = authResult.sessionClaims;
+  }
 
   console.log("🔒 Middleware Debug:", {
     path,
     userId: userId ? "present" : "missing",
     sessionClaims: sessionClaims ? "present" : "missing",
     metadata: sessionClaims?.metadata,
+    testMode: isTestMode,
   });
 
   // Allow public routes
@@ -60,10 +110,7 @@ export default clerkMiddleware(async (auth, request) => {
     // Require authentication for protected API routes
     if (!userId) {
       console.log("❌ API route unauthorized:", path);
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // For API routes, check if user exists in database and auto-sync if needed
@@ -74,28 +121,36 @@ export default clerkMiddleware(async (auth, request) => {
       });
 
       if (!dbUser) {
-        console.log("⚠️  API route: User not found in database, attempting auto-sync...");
+        console.log(
+          "⚠️  API route: User not found in database, attempting auto-sync..."
+        );
 
         try {
           // Auto-sync user from Clerk to database
-          const clerkUser = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-            headers: {
-              Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
-              'Content-Type': 'application/json',
-            },
-          }).then(res => res.json());
+          const clerkUser = await fetch(
+            `https://api.clerk.com/v1/users/${userId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
+                "Content-Type": "application/json",
+              },
+            }
+          ).then((res) => res.json());
 
           if (clerkUser && clerkUser.email_addresses?.[0]?.email_address) {
             // Import UserRepository locally to avoid circular dependencies
-            const { UserRepository } = await import("@/lib/db/repositories/user.repository");
+            const { UserRepository } = await import(
+              "@/lib/db/repositories/user.repository"
+            );
             const { UserRole } = await import("@/lib/auth/roles");
             const userRepository = new UserRepository();
 
             // Extract role from Clerk metadata or default to MEMBER
-            const role = clerkUser.public_metadata?.role ||
-                        clerkUser.private_metadata?.role ||
-                        clerkUser.unsafe_metadata?.role ||
-                        UserRole.MEMBER;
+            const role =
+              clerkUser.public_metadata?.role ||
+              clerkUser.private_metadata?.role ||
+              clerkUser.unsafe_metadata?.role ||
+              UserRole.MEMBER;
 
             // Create user in database
             const newUser = await userRepository.createUser({
@@ -104,7 +159,8 @@ export default clerkMiddleware(async (auth, request) => {
               firstName: clerkUser.first_name || undefined,
               lastName: clerkUser.last_name || undefined,
               role: role as UserRole,
-              phoneNumber: clerkUser.phone_numbers?.[0]?.phone_number || undefined,
+              phoneNumber:
+                clerkUser.phone_numbers?.[0]?.phone_number || undefined,
             });
 
             console.log("✅ API route auto-sync successful:", {
@@ -140,7 +196,8 @@ export default clerkMiddleware(async (auth, request) => {
 
   // Extract user role from session claims
   // NOTE: This requires session token customization in Clerk Dashboard
-  const userRole = (sessionClaims?.metadata as { role?: string })?.role as UserRole;
+  const userRole = (sessionClaims?.metadata as { role?: string })
+    ?.role as UserRole;
 
   // Enhanced logging for debugging session claims
   console.log("👤 User role extracted:", {
@@ -154,14 +211,14 @@ export default clerkMiddleware(async (auth, request) => {
   // Check if session token customization is missing
   if (sessionClaims && !sessionClaims.metadata) {
     console.error(
-      "⚠️  CONFIGURATION ERROR: Session token metadata is undefined!",
+      "⚠️  CONFIGURATION ERROR: Session token metadata is undefined!"
     );
     console.error(
-      "📋 Required fix: In Clerk Dashboard → Sessions → Customize session token",
+      "📋 Required fix: In Clerk Dashboard → Sessions → Customize session token"
     );
     console.error('📋 Add this JSON: {"metadata": {{user.public_metadata}}}');
     console.error(
-      "🔄 After adding, users will need to sign out and back in for new tokens",
+      "🔄 After adding, users will need to sign out and back in for new tokens"
     );
   }
 
@@ -170,7 +227,7 @@ export default clerkMiddleware(async (auth, request) => {
 
   if (!userRole) {
     console.log(
-      "⚠️  No user role found in session token, attempting database fallback",
+      "⚠️  No user role found in session token, attempting database fallback"
     );
 
     try {
@@ -192,24 +249,30 @@ export default clerkMiddleware(async (auth, request) => {
 
         try {
           // Auto-sync user from Clerk to database
-          const clerkUser = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-            headers: {
-              Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
-              'Content-Type': 'application/json',
-            },
-          }).then(res => res.json());
+          const clerkUser = await fetch(
+            `https://api.clerk.com/v1/users/${userId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
+                "Content-Type": "application/json",
+              },
+            }
+          ).then((res) => res.json());
 
           if (clerkUser && clerkUser.email_addresses?.[0]?.email_address) {
             // Import UserRepository locally to avoid circular dependencies
-            const { UserRepository } = await import("@/lib/db/repositories/user.repository");
+            const { UserRepository } = await import(
+              "@/lib/db/repositories/user.repository"
+            );
             const { UserRole } = await import("@/lib/auth/roles");
             const userRepository = new UserRepository();
 
             // Extract role from Clerk metadata or default to MEMBER
-            const role = clerkUser.public_metadata?.role ||
-                        clerkUser.private_metadata?.role ||
-                        clerkUser.unsafe_metadata?.role ||
-                        UserRole.MEMBER;
+            const role =
+              clerkUser.public_metadata?.role ||
+              clerkUser.private_metadata?.role ||
+              clerkUser.unsafe_metadata?.role ||
+              UserRole.MEMBER;
 
             // Create user in database
             const newUser = await userRepository.createUser({
@@ -218,7 +281,8 @@ export default clerkMiddleware(async (auth, request) => {
               firstName: clerkUser.first_name || undefined,
               lastName: clerkUser.last_name || undefined,
               role: role as UserRole,
-              phoneNumber: clerkUser.phone_numbers?.[0]?.phone_number || undefined,
+              phoneNumber:
+                clerkUser.phone_numbers?.[0]?.phone_number || undefined,
             });
 
             finalUserRole = newUser.role as UserRole;

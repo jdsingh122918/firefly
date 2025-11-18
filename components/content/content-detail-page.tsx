@@ -31,6 +31,7 @@ import {
 import { ContentType, NoteType, ResourceContentType, UserRole } from '@prisma/client';
 import { formatTimeAgo } from '@/components/shared/format-utils';
 import { useToast } from '@/hooks/use-toast';
+import { MessageContentRenderer } from '@/components/chat/message-content-renderer';
 
 /**
  * Content Detail Page Component
@@ -480,15 +481,17 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
             {/* Description */}
             {content.description && (
               <div className="mb-3">
-                <p className="text-gray-700 leading-relaxed">{content.description}</p>
+                <div className="text-gray-700 leading-relaxed">
+                  <MessageContentRenderer content={content.description} />
+                </div>
               </div>
             )}
 
             {/* Body Content */}
             {content.body && (
-              <div className="prose max-w-none">
-                <div className="whitespace-pre-wrap text-gray-900 leading-relaxed">
-                  {content.body}
+              <div className="mt-0 prose prose-sm max-w-none">
+                <div className="leading-relaxed text-foreground">
+                  <MessageContentRenderer content={content.body} />
                 </div>
               </div>
             )}
@@ -554,11 +557,24 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">{doc.document.title}</p>
                         <p className="text-xs text-gray-600">
-                          {doc.document.contentType} • {(doc.document.size / 1024).toFixed(1)} KB
+                          {doc.document.mimeType} • {doc.document.fileSize ? (doc.document.fileSize / 1024).toFixed(1) + ' KB' : 'Unknown size'}
                         </p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const downloadUrl = `/api/documents/${doc.document.id}/download`;
+                        const link = document.createElement('a');
+                        link.href = downloadUrl;
+                        link.target = '_blank';
+                        link.download = doc.document.fileName || doc.document.title;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                    >
                       <Download className="h-3 w-3" />
                     </Button>
                   </div>

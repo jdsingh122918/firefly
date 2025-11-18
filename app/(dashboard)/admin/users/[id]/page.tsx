@@ -249,22 +249,22 @@ export default function UserDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" asChild>
+      <div className="flex flex-col space-y-4 sm:flex-row sm:items-start sm:justify-between sm:space-y-0">
+        <div className="flex items-start space-x-3 sm:space-x-4">
+          <Button variant="ghost" size="icon" asChild className="shrink-0">
             <Link href="/admin/users">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <div className="flex items-center space-x-4">
-            <Avatar className="h-16 w-16">
-              <AvatarFallback className="text-lg">
+          <div className="flex items-start space-x-3 sm:space-x-4 min-w-0 flex-1">
+            <Avatar className="h-12 w-12 sm:h-16 sm:w-16 shrink-0">
+              <AvatarFallback className="text-sm sm:text-lg">
                 {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <h1 className="text-3xl font-bold">{user.name}</h1>
-              <div className="flex items-center space-x-2">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold truncate">{user.name}</h1>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
                 <Badge variant={getRoleColor(user.role)} className="flex items-center space-x-1">
                   <RoleIcon className="h-3 w-3" />
                   <span>{user.role}</span>
@@ -279,19 +279,20 @@ export default function UserDetailPage() {
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" asChild>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:space-x-2">
+          <Button variant="outline" asChild className="w-full sm:w-auto">
             <Link href={`/admin/users/${user.id}/edit`}>
               <Edit className="mr-2 h-4 w-4" />
-              Edit User
+              <span className="sm:inline">Edit User</span>
             </Link>
           </Button>
           <Button
             variant="destructive"
             onClick={handleDeleteUser}
+            className="w-full sm:w-auto"
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete User
+            <span className="sm:inline">Delete User</span>
           </Button>
         </div>
       </div>
@@ -378,12 +379,12 @@ export default function UserDetailPage() {
                   <div className="flex items-center space-x-2 mt-1">
                     <Avatar className="h-6 w-6">
                       <AvatarFallback className="text-xs">
-                        {user.createdBy.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        {user.createdBy.name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="text-sm font-medium">{user.createdBy.name}</p>
-                      <p className="text-xs text-muted-foreground">{user.createdBy.email}</p>
+                      <p className="text-sm font-medium">{user.createdBy.name || 'Unknown Creator'}</p>
+                      <p className="text-xs text-muted-foreground">{user.createdBy.email || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -453,7 +454,7 @@ export default function UserDetailPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
             <div>
               <h3 className="font-medium">User ID</h3>
               <p className="text-muted-foreground font-mono text-xs">{user.id}</p>

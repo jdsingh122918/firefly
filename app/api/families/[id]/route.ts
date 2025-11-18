@@ -8,6 +8,12 @@ import { UserRepository } from "@/lib/db/repositories/user.repository";
 const familyRepository = new FamilyRepository();
 const userRepository = new UserRepository();
 
+// Utility function to validate MongoDB ObjectID format
+function isValidObjectId(id: string): boolean {
+  // MongoDB ObjectIDs are exactly 24 hexadecimal characters
+  return /^[0-9a-fA-F]{24}$/.test(id)
+}
+
 // Validation schema for updating a family
 const updateFamilySchema = z
   .object({
@@ -53,6 +59,32 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const familyId = id;
+
+    console.log('🔍 [API] GET /api/families/[id] - ObjectID validation:', {
+      familyId,
+      length: familyId.length,
+      isValid: isValidObjectId(familyId),
+      pattern: /^[0-9a-fA-F]{24}$/.test(familyId),
+      userRole: user.role
+    })
+
+    // Validate ObjectID format
+    if (!isValidObjectId(familyId)) {
+      console.log('❌ [API] Invalid ObjectID rejected:', {
+        familyId,
+        expectedLength: 24,
+        actualLength: familyId.length,
+        expectedPattern: '24 hexadecimal characters',
+        rejectedBy: 'server-side validation'
+      })
+      return NextResponse.json(
+        { error: "Invalid family ID format. Family IDs must be 24-character hexadecimal strings." },
+        { status: 400 }
+      );
+    }
+
+    console.log('✅ [API] ObjectID validation passed, proceeding with database query...')
+
     console.log("👁️ GET /api/families/[id]:", {
       familyId,
       userRole: user.role,
@@ -141,6 +173,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const familyId = id;
+
+    // Validate ObjectID format
+    if (!isValidObjectId(familyId)) {
+      return NextResponse.json(
+        { error: "Invalid family ID format. Family IDs must be 24-character hexadecimal strings." },
+        { status: 400 }
+      );
+    }
 
     // Check if family exists
     const existingFamily = await familyRepository.getFamilyById(familyId);
@@ -237,6 +277,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
     const familyId = id;
+
+    // Validate ObjectID format
+    if (!isValidObjectId(familyId)) {
+      return NextResponse.json(
+        { error: "Invalid family ID format. Family IDs must be 24-character hexadecimal strings." },
+        { status: 400 }
+      );
+    }
 
     // Check if family exists
     const existingFamily = await familyRepository.getFamilyById(familyId);

@@ -45,3 +45,11 @@ scripts/
 .vscode/
 
 docs/
+
+# test suite
+tests/results/
+tests/.vitest/
+tests/dashboard/.next/
+tests/dashboard/out/
+tests/node_modules/
+tests/dashboard/node_modules/

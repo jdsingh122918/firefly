@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, MessageSquare, AlertCircle, Paperclip, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { EnhancedTextarea } from "@/components/shared/enhanced-textarea"
 import {
   Dialog,
   DialogContent,
@@ -35,6 +35,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { DocumentBrowser } from "@/components/notes/document-browser"
 import { ForumTagSelector } from "@/components/forums/forum-tag-selector"
+import { UploadedFile } from "@/hooks/use-file-upload"
 import { toast } from "sonner"
 
 const postFormSchema = z.object({
@@ -80,6 +81,7 @@ export function SimplePostForm({
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([])
   const [selectedDocuments, setSelectedDocuments] = useState<any[]>([])
   const [browserOpen, setBrowserOpen] = useState(false)
+  const [uploadedDocuments, setUploadedDocuments] = useState<UploadedFile[]>([])
 
   const form = useForm<PostFormData>({
     resolver: zodResolver(postFormSchema),
@@ -127,7 +129,10 @@ export function SimplePostForm({
           type: data.type,
           forumId: forumId,
           tags: tagsArray,
-          documentIds: selectedDocumentIds
+          documentIds: [
+            ...selectedDocumentIds,
+            ...uploadedDocuments.map(doc => doc.document?.id || doc.fileId)
+          ]
         })
       })
 
@@ -142,6 +147,7 @@ export function SimplePostForm({
       form.reset()
       setSelectedDocuments([])
       setSelectedDocumentIds([])
+      setUploadedDocuments([])
       setOpen(false)
 
       // Navigate to the new post or refresh the forum
@@ -241,12 +247,24 @@ export function SimplePostForm({
               name="content"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Content *</FormLabel>
                   <FormControl>
-                    <Textarea
+                    <EnhancedTextarea
+                      value={field.value || ""}
+                      onChange={field.onChange}
                       placeholder="Share your thoughts, ask questions, or provide information..."
-                      className="min-h-[200px] resize-y"
-                      {...field}
+                      maxLength={10000}
+                      minHeight={200}
+                      maxHeight={400}
+                      showToolbar={true}
+                      enableEmojis={true}
+                      enableAttachments={true}
+                      enablePreview={true}
+                      attachments={uploadedDocuments}
+                      onAttachmentsChange={setUploadedDocuments}
+                      autoResize={true}
+                      label="Content *"
+                      description="Create your post with rich formatting, emojis, and file attachments."
+                      showCharacterCount="near-limit"
                     />
                   </FormControl>
                   <FormMessage />

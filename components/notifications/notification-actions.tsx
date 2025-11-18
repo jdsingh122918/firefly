@@ -137,13 +137,6 @@ export function NotificationActions({
           }
           break;
 
-        case "acknowledge":
-          // Simple acknowledgment - mark as read
-          if (!notification.isRead) {
-            await markAsRead(notification.id);
-          }
-          success = true;
-          break;
 
         case "family-view":
           const familyData = notification.data as any;
@@ -255,12 +248,6 @@ export function NotificationActions({
           primary: true,
         });
 
-        actions.push({
-          id: "acknowledge",
-          label: "Acknowledge",
-          icon: CheckCircle,
-          variant: "outline",
-        });
 
         // Check if there's a downloadable document
         const careData = notification.data as any;
@@ -314,12 +301,6 @@ export function NotificationActions({
           primary: true,
         });
 
-        actions.push({
-          id: "acknowledge",
-          label: "Acknowledge",
-          icon: CheckCircle,
-          variant: "outline",
-        });
         break;
 
       case NotificationType.EMERGENCY_ALERT:
@@ -334,12 +315,6 @@ export function NotificationActions({
           confirmationMessage: "This will mark you as responding to the emergency alert.",
         });
 
-        actions.push({
-          id: "acknowledge",
-          label: "Acknowledge",
-          icon: CheckCircle,
-          variant: "outline",
-        });
 
         // Emergency alerts can be shared
         actions.push({

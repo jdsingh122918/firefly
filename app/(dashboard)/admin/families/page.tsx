@@ -24,13 +24,14 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { FamilyTile } from '@/components/families/family-tile'
 
 interface Family {
   id: string
   name: string
   description?: string
   createdAt: string
-  createdBy: {
+  createdBy?: {
     id: string
     name: string
     email: string
@@ -105,7 +106,7 @@ export default function FamiliesPage() {
       const filtered = families.filter(family =>
         family.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (family.description && family.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        family.createdBy.name.toLowerCase().includes(searchTerm.toLowerCase())
+        (family.createdBy?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase())
       )
       setFilteredFamilies(filtered)
     }
@@ -220,14 +221,14 @@ export default function FamiliesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Families</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold">Families</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage families and their members ({families.length} total)
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto min-h-[44px]">
           <Link href="/admin/families/new">
             <Plus className="mr-2 h-4 w-4" />
             Create Family
@@ -255,8 +256,8 @@ export default function FamiliesPage() {
             />
           </div>
 
-          {/* Table */}
-          {filteredFamilies.length === 0 ? (
+          {/* Empty State */}
+          {filteredFamilies.length === 0 && (
             <div className="text-center py-8">
               <Users className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-2 text-sm font-semibold text-muted-foreground">No families found</h3>
@@ -274,88 +275,121 @@ export default function FamiliesPage() {
                 </div>
               )}
             </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Family Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Members</TableHead>
-                  <TableHead>Created By</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredFamilies.map((family) => (
-                  <TableRow key={family.id}>
-                    <TableCell className="font-medium">
-                      <div>
-                        <Link
-                          href={`/admin/families/${family.id}`}
-                          className="text-primary hover:underline"
-                        >
-                          {family.name}
-                        </Link>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="max-w-xs truncate">
-                        {family.description || (
-                          <span className="text-muted-foreground italic">No description</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="text-xs">
-                        {family.memberCount} {family.memberCount === 1 ? 'member' : 'members'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div className="font-medium">{family.createdBy.name}</div>
-                        <div className="text-muted-foreground">{family.createdBy.email}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(family.createdAt).toLocaleDateString()}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link href={`/admin/families/${family.id}`}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/admin/families/${family.id}/edit`}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit Family
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => handleDeleteFamily(family.id, family.name)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Family
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+          )}
+
+          {/* Medium Tablet: 2-Column Tiles View */}
+          {filteredFamilies.length > 0 && (
+            <div className="hidden md:grid lg:hidden gap-3 grid-cols-2">
+              {filteredFamilies.map((family) => (
+                <FamilyTile
+                  key={family.id}
+                  family={family}
+                  onDelete={handleDeleteFamily}
+                  basePath="/admin/families"
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Desktop Table View */}
+          {filteredFamilies.length > 0 && (
+            <div className="hidden lg:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Family Name</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Members</TableHead>
+                    <TableHead>Created By</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredFamilies.map((family) => (
+                    <TableRow key={family.id}>
+                      <TableCell className="font-medium">
+                        <div>
+                          <Link
+                            href={`/admin/families/${family.id}`}
+                            className="text-primary hover:underline"
+                          >
+                            {family.name}
+                          </Link>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="max-w-xs truncate">
+                          {family.description || (
+                            <span className="text-muted-foreground italic">No description</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-xs">
+                          {family.memberCount} {family.memberCount === 1 ? 'member' : 'members'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div className="font-medium">{family.createdBy?.name || 'Unknown Creator'}</div>
+                          <div className="text-muted-foreground">{family.createdBy?.email || 'N/A'}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm text-muted-foreground">
+                          {new Date(family.createdAt).toLocaleDateString()}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="p-0 min-h-[44px] min-w-[44px]">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link href={`/admin/families/${family.id}`}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/admin/families/${family.id}/edit`}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Family
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => handleDeleteFamily(family.id, family.name)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Family
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Mobile Tiles View */}
+          {filteredFamilies.length > 0 && (
+            <div className="grid gap-3 md:hidden">
+              {filteredFamilies.map((family) => (
+                <FamilyTile
+                  key={family.id}
+                  family={family}
+                  onDelete={handleDeleteFamily}
+                  basePath="/admin/families"
+                />
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>

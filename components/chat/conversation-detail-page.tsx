@@ -879,7 +879,7 @@ export function ConversationDetailPage({
 
       {/* Participants Dialog */}
       <Dialog open={showParticipants} onOpenChange={setShowParticipants}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Participants ({conversation?.participants.length})</DialogTitle>
             <DialogDescription>
@@ -931,7 +931,7 @@ export function ConversationDetailPage({
 
       {/* Settings Dialog */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Conversation Settings</DialogTitle>
             <DialogDescription>

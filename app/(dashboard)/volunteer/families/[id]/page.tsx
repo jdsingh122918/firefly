@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Mail, Phone, Calendar, UserPlus, Plus } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, Calendar, UserPlus, Plus, Edit } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -31,7 +31,7 @@ interface FamilyDetails {
   description?: string
   createdAt: string
   updatedAt: string
-  createdBy: {
+  createdBy?: {
     id: string
     name: string
     email: string
@@ -50,6 +50,12 @@ interface UnassignedMember {
   phoneNumber?: string
   emailVerified: boolean
   createdAt: string
+}
+
+// Utility function to validate MongoDB ObjectID format
+function isValidObjectId(id: string): boolean {
+  // MongoDB ObjectIDs are exactly 24 hexadecimal characters
+  return /^[0-9a-fA-F]{24}$/.test(id)
 }
 
 export default function VolunteerFamilyDetailPage() {
@@ -82,6 +88,30 @@ export default function VolunteerFamilyDetailPage() {
   const fetchFamily = useCallback(async () => {
     try {
       setLoading(true)
+
+      console.log('🔍 [CLIENT] Family ID validation:', {
+        familyId,
+        length: familyId.length,
+        isValid: isValidObjectId(familyId),
+        pattern: /^[0-9a-fA-F]{24}$/.test(familyId)
+      })
+
+      // Validate ObjectID format before making API call
+      if (!isValidObjectId(familyId)) {
+        console.log('❌ [CLIENT] Invalid ObjectID detected:', {
+          familyId,
+          expectedLength: 24,
+          actualLength: familyId.length,
+          expectedPattern: '24 hexadecimal characters',
+          actualFormat: 'Invalid format'
+        })
+        setError('Invalid family ID format. Family IDs must be 24-character hexadecimal strings.')
+        setLoading(false)
+        return
+      }
+
+      console.log('✅ [CLIENT] ObjectID validation passed, making API call...')
+
       const response = await fetch(`/api/families/${familyId}`)
 
       if (!response.ok) {
@@ -323,19 +353,29 @@ export default function VolunteerFamilyDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon" asChild className="min-h-[44px]">
             <Link href="/volunteer/families">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">{family.name}</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold">{family.name}</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
               Family Details • {family.memberCount} {family.memberCount === 1 ? 'member' : 'members'}
             </p>
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" asChild className="min-h-[44px]">
+            <Link href={`/volunteer/families/${family.id}/edit`}>
+              <Edit className="mr-0 sm:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Edit Family</span>
+              <span className="sm:hidden">Edit</span>
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -368,12 +408,12 @@ export default function VolunteerFamilyDetailPage() {
               <div className="flex items-center space-x-2 mt-1">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-xs">
-                    {family.createdBy.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                    {family.createdBy?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="text-sm font-medium">{family.createdBy.name}</p>
-                  <p className="text-xs text-muted-foreground">{family.createdBy.email}</p>
+                  <p className="text-sm font-medium">{family.createdBy?.name || 'Unknown Creator'}</p>
+                  <p className="text-xs text-muted-foreground">{family.createdBy?.email || 'N/A'}</p>
                 </div>
               </div>
             </div>
@@ -423,7 +463,7 @@ export default function VolunteerFamilyDetailPage() {
                     Add Member
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Add Member to {family.name}</DialogTitle>
                     <DialogDescription>

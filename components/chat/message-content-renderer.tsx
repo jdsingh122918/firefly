@@ -1,5 +1,7 @@
 "use client";
 
+import { markdownToHtml } from "@/utils/markdown-formatter";
+
 interface EditorJSData {
   blocks: Array<{
     id?: string;
@@ -60,9 +62,31 @@ const isEditorJSContent = (content: string): boolean => {
   }
 };
 
+// Helper function to detect if content contains markdown syntax
+const hasMarkdownSyntax = (content: string): boolean => {
+  if (!content || typeof content !== 'string') return false;
+
+  // Check for common markdown patterns
+  const markdownPatterns = [
+    /\*\*[^*]+\*\*/,        // Bold **text**
+    /__[^_]+__/,            // Bold __text__
+    /\*[^*]+\*/,            // Italic *text*
+    /_[^_]+_/,              // Italic _text_
+    /~~[^~]+~~/,            // Strikethrough ~~text~~
+    /`[^`]+`/,              // Inline code `code`
+    /```[\s\S]*?```/,       // Code blocks ```code```
+    /\[[^\]]+\]\([^)]+\)/,  // Links [text](url)
+    /^[-*+] /m,             // Bullet lists
+    /^\d+\. /m,             // Numbered lists
+    /^> /m,                 // Blockquotes
+  ];
+
+  return markdownPatterns.some(pattern => pattern.test(content));
+};
+
 export function MessageContentRenderer({ content, className = '' }: MessageContentRendererProps) {
   if (!content) {
-    return <div className={`text-gray-300 italic ${className}`}>No content</div>;
+    return <div className={`text-muted-foreground italic ${className}`}>No content</div>;
   }
 
   // Check if content is EditorJS JSON
@@ -72,12 +96,12 @@ export function MessageContentRenderer({ content, className = '' }: MessageConte
       const htmlContent = convertEditorJSToHTML(editorData);
 
       if (!htmlContent.trim()) {
-        return <div className={`text-gray-300 italic ${className}`}>Empty message</div>;
+        return <div className={`text-muted-foreground italic ${className}`}>Empty message</div>;
       }
 
       return (
         <div
-          className={`prose prose-sm prose-invert max-w-none text-white ${className}`}
+          className={`prose prose-sm dark:prose-invert max-w-none text-foreground ${className}`}
           dangerouslySetInnerHTML={{ __html: htmlContent }}
         />
       );
@@ -85,16 +109,37 @@ export function MessageContentRenderer({ content, className = '' }: MessageConte
       console.error('Error parsing EditorJS content:', error);
       // Fallback to displaying as plain text
       return (
-        <div className={`text-sm whitespace-pre-wrap break-words text-white ${className}`}>
+        <div className={`text-sm whitespace-pre-wrap break-words text-foreground ${className}`}>
           {content}
         </div>
       );
     }
   }
 
-  // Handle plain text content
+  // Check if content contains markdown syntax
+  if (hasMarkdownSyntax(content)) {
+    try {
+      const htmlContent = markdownToHtml(content, { sanitize: true });
+
+      if (!htmlContent.trim()) {
+        return <div className={`text-muted-foreground italic ${className}`}>Empty message</div>;
+      }
+
+      return (
+        <div
+          className={`prose prose-sm dark:prose-invert max-w-none text-foreground ${className}`}
+          dangerouslySetInnerHTML={{ __html: htmlContent }}
+        />
+      );
+    } catch (error) {
+      console.error('Error parsing markdown content:', error);
+      // Fallback to plain text display
+    }
+  }
+
+  // Handle plain text content (no markdown syntax detected)
   return (
-    <div className={`text-sm whitespace-pre-wrap break-words text-white ${className}`}>
+    <div className={`text-sm whitespace-pre-wrap break-words text-foreground ${className}`}>
       {content}
     </div>
   );

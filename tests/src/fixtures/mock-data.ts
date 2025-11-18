@@ -1,4 +1,4 @@
-import { UserRole, FamilyRole, NoteType, NoteVisibility, ResourceContentType, ResourceStatus, PostType, PostVisibility, MessageType, MessageStatus, NotificationType, AssignmentStatus, AssignmentPriority } from '@prisma/client'
+import { UserRole, FamilyRole, NoteType, NoteVisibility, ResourceContentType, ResourceStatus, PostType, MessageType, MessageStatus, NotificationType, AssignmentStatus, AssignmentPriority } from '@prisma/client'
 import { mockStore, type MockUser, type MockFamily, type MockContent, type MockForum, type MockPost, type MockConversation, type MockMessage, type MockAssignment, type MockNotification } from '../setup/mock-store'
 
 // Static test user IDs
@@ -144,7 +144,6 @@ export function initializeMockData() {
     title: 'Welcome to Firefly',
     content: 'This is a test post in the public forum.',
     postType: PostType.DISCUSSION,
-    visibility: PostVisibility.PUBLIC,
     authorId: adminUser.id,
   })
 

@@ -136,10 +136,6 @@ export function NotificationBanner({
           }
           break;
 
-        case "acknowledge":
-          // Simple acknowledgment - just mark as read
-          await markAsRead(notification.id);
-          break;
 
         default:
           console.warn("Unknown action type:", actionType);
@@ -193,12 +189,6 @@ export function NotificationBanner({
           action: "view",
           variant: "default" as const,
         });
-        buttons.push({
-          label: "Acknowledge",
-          icon: CheckCircle,
-          action: "acknowledge",
-          variant: "outline" as const,
-        });
         break;
 
       case NotificationType.SYSTEM_ANNOUNCEMENT:
@@ -227,12 +217,6 @@ export function NotificationBanner({
           action: "view",
           variant: "default" as const,
         });
-        buttons.push({
-          label: "Acknowledge",
-          icon: CheckCircle,
-          action: "acknowledge",
-          variant: "outline" as const,
-        });
         break;
 
       case NotificationType.EMERGENCY_ALERT:
@@ -241,12 +225,6 @@ export function NotificationBanner({
           icon: AlertTriangle,
           action: "view",
           variant: "destructive" as const,
-        });
-        buttons.push({
-          label: "Acknowledge",
-          icon: CheckCircle,
-          action: "acknowledge",
-          variant: "outline" as const,
         });
         break;
 

@@ -300,6 +300,14 @@ const ContentCard: React.FC<ContentCardProps> = ({
   };
 
   const renderDocuments = () => {
+    console.log('🔍 ContentCard Debug:', {
+      contentId: content.id,
+      showDocuments,
+      documentsArray: content.documents,
+      documentsLength: content.documents?.length,
+      hasDocuments: !!content.documents?.length
+    });
+
     if (!showDocuments || !content.documents?.length) return null;
 
     return (
@@ -310,7 +318,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
         </div>
         <div className="space-y-1 max-h-16 overflow-y-auto">
           {content.documents.slice(0, 2).map((doc) => {
-            const DocumentIcon = getDocumentIcon(doc.document.type);
+            const DocumentIcon = getDocumentIcon(doc.document.mimeType);
             return (
               <div key={doc.id} className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded px-2 py-1">
                 <DocumentIcon className="h-3 w-3 flex-shrink-0" />
@@ -338,7 +346,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+          <Button variant="ghost" size="sm" className="p-0 min-h-[44px] min-w-[44px]">
             <MoreVertical className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>

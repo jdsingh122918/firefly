@@ -1,0 +1,8 @@
+# Ignore parent directory files
+../../
+../../proxy.ts
+../../lib/
+../../app/
+../../components/
+../../prisma/
+../../scripts/

@@ -32,7 +32,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ReplyThread } from "./reply-thread"
 import { ReplyForm } from "./reply-form"
-import { ContentRenderer } from "@/components/editors/content-renderer"
+import { MessageContentRenderer } from "@/components/chat/message-content-renderer"
 
 interface Post {
   id: string
@@ -434,10 +434,9 @@ export function PostDetailPage() {
 
         <CardContent className="pt-2">
           {/* Post Content */}
-          <ContentRenderer
-            content={post.content}
-            className="mt-4"
-          />
+          <div className="mt-4 text-foreground prose prose-sm max-w-none">
+            <MessageContentRenderer content={post.content} />
+          </div>
 
           {/* Document Attachments */}
           {post.documents && post.documents.length > 0 && (

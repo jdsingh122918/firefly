@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link'
 import { FamilyForm } from '@/components/families/family-form'
 

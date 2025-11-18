@@ -1,7 +1,11 @@
-import { auth } from '@clerk/nextjs/server';
-import { redirect } from 'next/navigation';
-import { PrismaClient, UserRole, ContentType } from '@prisma/client';
+'use client';
+
+import { useAuth, useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { UserRole, ContentType } from '@prisma/client';
 import ContentCreationPage from '@/components/content/content-creation-page';
+import { DatabaseErrorBoundary } from '@/components/errors/database-error-boundary';
 
 /**
  * Member Content Creation Page
@@ -13,68 +17,117 @@ import ContentCreationPage from '@/components/content/content-creation-page';
  * - Simple assignment management within family scope
  */
 
-const prisma = new PrismaClient();
+export default function MemberContentCreationPage() {
+  const router = useRouter();
+  const { userId, isLoaded: authLoaded } = useAuth();
+  const { user } = useUser();
+  const [families, setFamilies] = useState<Array<{ id: string; name: string }>>([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; color?: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default async function MemberContentCreationPage() {
-  const { userId, sessionClaims } = await auth();
+  // Auth and permission check
+  useEffect(() => {
+    if (!authLoaded) return;
 
-  if (!userId) {
-    redirect('/sign-in');
-  }
-
-  // Get user role with dual-path pattern
-  const userRole = (sessionClaims?.metadata as { role?: UserRole })?.role;
-  let finalUserRole = userRole;
-
-  if (!userRole) {
-    const dbUser = await prisma.user.findUnique({
-      where: { clerkId: userId },
-      select: { role: true, familyId: true }
-    });
-    if (dbUser?.role) finalUserRole = dbUser.role as UserRole;
-  }
-
-  if (finalUserRole !== UserRole.MEMBER) {
-    redirect('/unauthorized');
-  }
-
-  // Get user's family and available categories
-  const user = await prisma.user.findUnique({
-    where: { clerkId: userId },
-    select: {
-      familyId: true,
-      family: {
-        select: { id: true, name: true }
-      }
+    if (!userId) {
+      router.push('/sign-in');
+      return;
     }
-  });
 
-  const [families, categories] = await Promise.all([
-    user?.family ? [user.family] : [],
-    prisma.category.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true, color: true },
-      orderBy: { name: 'asc' }
-    })
-  ]);
+    // Check if user is MEMBER
+    const userRole = user?.publicMetadata?.role as UserRole | undefined;
+    if (userRole !== UserRole.MEMBER) {
+      router.push('/unauthorized');
+      return;
+    }
+  }, [authLoaded, userId, user, router]);
 
-  // Transform categories to handle null vs undefined for color
-  const transformedCategories = categories.map(category => ({
-    ...category,
-    color: category.color ?? undefined
-  }));
+  // Fetch data
+  useEffect(() => {
+    if (!authLoaded || !userId) return;
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch user's family and categories
+        const [userResponse, categoriesResponse] = await Promise.all([
+          fetch('/api/users/me'),
+          fetch('/api/categories?active=true&orderBy=name')
+        ]);
+
+        if (!userResponse.ok || !categoriesResponse.ok) {
+          throw new Error('Failed to fetch data');
+        }
+
+        const [userData, categoriesData] = await Promise.all([
+          userResponse.json(),
+          categoriesResponse.json()
+        ]);
+
+        // Set families (just the user's family)
+        const userFamilies = userData.user?.family ? [userData.user.family] : [];
+        setFamilies(userFamilies);
+
+        // Transform categories to handle null vs undefined for color
+        const transformedCategories = (categoriesData.categories || []).map((category: any) => ({
+          ...category,
+          color: category.color ?? undefined
+        }));
+        setCategories(transformedCategories);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [authLoaded, userId]);
+
+  // Show loading state
+  if (!authLoaded || loading) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="text-center text-red-600">Error: {error}</div>
+      </div>
+    );
+  }
+
+  const userRole = user?.publicMetadata?.role as UserRole;
 
   return (
-    <ContentCreationPage
-      userRole={finalUserRole}
-      userId={userId}
-      availableFamilies={families}
-      availableCategories={transformedCategories}
-      enableTypeSelection={true}
-      defaultContentType={ContentType.NOTE} // Default to NOTE type
-      showAdvancedFeatures={false}
-      canManageCuration={false}
-      backUrl="/member/content"
-    />
+    <DatabaseErrorBoundary
+      fallback={
+        <div className="max-w-4xl mx-auto p-6">
+          <div className="text-center text-red-600">
+            <h2 className="text-xl font-semibold mb-2">Error Loading Content Creation</h2>
+            <p>There was an error loading the content creation form. Please try refreshing the page.</p>
+          </div>
+        </div>
+      }
+    >
+      <ContentCreationPage
+        userRole={userRole}
+        userId={userId}
+        availableFamilies={families}
+        availableCategories={categories}
+        enableTypeSelection={true}
+        defaultContentType={ContentType.NOTE} // Default to NOTE type
+        showAdvancedFeatures={false}
+        canManageCuration={false}
+        backUrl="/member/content"
+      />
+    </DatabaseErrorBoundary>
   );
 }

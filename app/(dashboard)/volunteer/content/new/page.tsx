@@ -1,7 +1,11 @@
-import { auth } from '@clerk/nextjs/server';
-import { redirect } from 'next/navigation';
-import { PrismaClient, UserRole, ContentType } from '@prisma/client';
+'use client';
+
+import { useAuth, useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { UserRole, ContentType } from '@prisma/client';
 import ContentCreationPage from '@/components/content/content-creation-page';
+import { DatabaseErrorBoundary } from '@/components/errors/database-error-boundary';
 
 /**
  * Volunteer Content Creation Page
@@ -13,70 +17,115 @@ import ContentCreationPage from '@/components/content/content-creation-page';
  * - Assignment management for their families
  */
 
-const prisma = new PrismaClient();
+export default function VolunteerContentCreationPage() {
+  const router = useRouter();
+  const { userId, isLoaded: authLoaded } = useAuth();
+  const { user } = useUser();
+  const [families, setFamilies] = useState<Array<{ id: string; name: string }>>([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; color?: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default async function VolunteerContentCreationPage() {
-  const { userId, sessionClaims } = await auth();
+  // Auth and permission check
+  useEffect(() => {
+    if (!authLoaded) return;
 
-  if (!userId) {
-    redirect('/sign-in');
+    if (!userId) {
+      router.push('/sign-in');
+      return;
+    }
+
+    // Check if user is VOLUNTEER
+    const userRole = user?.publicMetadata?.role as UserRole | undefined;
+    if (userRole !== UserRole.VOLUNTEER) {
+      router.push('/unauthorized');
+      return;
+    }
+  }, [authLoaded, userId, user, router]);
+
+  // Fetch data
+  useEffect(() => {
+    if (!authLoaded || !userId) return;
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch families created by this volunteer and categories
+        const [familiesResponse, categoriesResponse] = await Promise.all([
+          fetch('/api/families?createdBy=me&orderBy=name'),
+          fetch('/api/categories?active=true&orderBy=name')
+        ]);
+
+        if (!familiesResponse.ok || !categoriesResponse.ok) {
+          throw new Error('Failed to fetch data');
+        }
+
+        const [familiesData, categoriesData] = await Promise.all([
+          familiesResponse.json(),
+          categoriesResponse.json()
+        ]);
+
+        setFamilies(familiesData.families || []);
+
+        // Transform categories to handle null vs undefined for color
+        const transformedCategories = (categoriesData.categories || []).map((category: any) => ({
+          ...category,
+          color: category.color ?? undefined
+        }));
+        setCategories(transformedCategories);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [authLoaded, userId]);
+
+  // Show loading state
+  if (!authLoaded || loading) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
   }
 
-  // Get user role and database ID with dual-path pattern
-  const userRole = (sessionClaims?.metadata as { role?: UserRole })?.role;
-  let finalUserRole = userRole;
-  let dbUserId: string | undefined;
-
-  // Get user's database record for ID and role
-  const dbUser = await prisma.user.findUnique({
-    where: { clerkId: userId },
-    select: { id: true, role: true }
-  });
-
-  if (dbUser) {
-    dbUserId = dbUser.id;
-    if (!finalUserRole) finalUserRole = dbUser.role as UserRole;
+  // Show error state
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="text-center text-red-600">Error: {error}</div>
+      </div>
+    );
   }
 
-  if (finalUserRole !== UserRole.VOLUNTEER) {
-    redirect('/unauthorized');
-  }
-
-  if (!dbUserId) {
-    redirect('/admin/debug'); // User needs to sync their account
-  }
-
-  // Fetch families created by this volunteer (family-scoped access using database ID)
-  const [families, categories] = await Promise.all([
-    prisma.family.findMany({
-      where: { createdById: dbUserId },
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' }
-    }),
-    prisma.category.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true, color: true },
-      orderBy: { name: 'asc' }
-    })
-  ]);
-
-  // Transform categories to handle null vs undefined for color
-  const transformedCategories = categories.map(category => ({
-    ...category,
-    color: category.color ?? undefined
-  }));
+  const userRole = user?.publicMetadata?.role as UserRole;
 
   return (
-    <ContentCreationPage
-      userRole={finalUserRole}
-      userId={userId}
-      availableFamilies={families}
-      availableCategories={transformedCategories}
-      enableTypeSelection={true}
-      defaultContentType={ContentType.NOTE} // Default to NOTE type
-      showAdvancedFeatures={false}
-      canManageCuration={false}
-      backUrl="/volunteer/content"
-    />
+    <DatabaseErrorBoundary
+      fallback={
+        <div className="max-w-4xl mx-auto p-6">
+          <div className="text-center text-red-600">
+            <h2 className="text-xl font-semibold mb-2">Error Loading Content Creation</h2>
+            <p>There was an error loading the content creation form. Please try refreshing the page.</p>
+          </div>
+        </div>
+      }
+    >
+      <ContentCreationPage
+        userRole={userRole}
+        userId={userId}
+        availableFamilies={families}
+        availableCategories={categories}
+        enableTypeSelection={true}
+        defaultContentType={ContentType.NOTE} // Default to NOTE type
+        showAdvancedFeatures={false}
+        canManageCuration={false}
+        backUrl="/volunteer/content"
+      />
+    </DatabaseErrorBoundary>
   );
 }

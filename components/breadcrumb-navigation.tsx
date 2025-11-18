@@ -29,12 +29,12 @@ export function BreadcrumbNavigation({
   return (
     <nav
       className={cn(
-        "flex items-center space-x-1 text-sm text-muted-foreground mb-4",
+        "flex items-center text-sm text-muted-foreground mb-4 overflow-x-auto scrollbar-thin",
         className
       )}
       aria-label="Breadcrumb"
     >
-      <ol className="flex items-center space-x-1">
+      <ol className="flex items-center space-x-1 min-w-max">
         {breadcrumbs.map((item, index) => (
           <li key={item.href} className="flex items-center">
             {index === 0 && (
@@ -47,7 +47,7 @@ export function BreadcrumbNavigation({
 
             {item.isCurrentPage || index === breadcrumbs.length - 1 ? (
               <span
-                className="font-medium text-foreground"
+                className="font-medium text-foreground max-w-[120px] sm:max-w-none truncate"
                 aria-current="page"
               >
                 {item.label}
@@ -55,7 +55,7 @@ export function BreadcrumbNavigation({
             ) : (
               <Link
                 href={item.href}
-                className="hover:text-foreground transition-colors"
+                className="hover:text-foreground transition-colors max-w-[120px] sm:max-w-none truncate"
               >
                 {item.label}
               </Link>

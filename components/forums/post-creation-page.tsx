@@ -10,7 +10,7 @@ import { Loader2, MessageSquare, AlertCircle, Paperclip, X, ArrowLeft } from "lu
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { RichTextEditor, countHtmlCharacters } from "@/components/editors/editor-migration-wrapper"
+import { EnhancedTextarea } from "@/components/shared/enhanced-textarea"
 import {
   Card,
   CardContent,
@@ -36,6 +36,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { DocumentBrowser } from "@/components/notes/document-browser"
 import { ForumTagSelector } from "@/components/forums/forum-tag-selector"
+import { UploadedFile } from "@/hooks/use-file-upload"
 import { toast } from "sonner"
 
 const postFormSchema = z.object({
@@ -79,6 +80,9 @@ export function PostCreationPage({
   const [selectedDocuments, setSelectedDocuments] = useState<any[]>([])
   const [browserOpen, setBrowserOpen] = useState(false)
 
+  // File upload state for enhanced textarea
+  const [uploadedDocuments, setUploadedDocuments] = useState<UploadedFile[]>([])
+
   const form = useForm<PostFormData>({
     resolver: zodResolver(postFormSchema),
     defaultValues: {
@@ -108,6 +112,15 @@ export function PostCreationPage({
     setSelectedDocumentIds(prev => prev.filter(id => id !== documentId))
   }
 
+
+  // Get all document IDs for submission (both selected and uploaded)
+  const getAllDocumentIds = () => {
+    return [
+      ...selectedDocumentIds,
+      ...uploadedDocuments.map(doc => doc.document?.id || doc.fileId)
+    ]
+  }
+
   const onSubmit = async (data: PostFormData) => {
     setError(null)
 
@@ -129,7 +142,7 @@ export function PostCreationPage({
           type: data.type,
           forumId: forumId,
           tags: tagsArray,
-          documentIds: selectedDocumentIds
+          documentIds: getAllDocumentIds()
         })
       })
 
@@ -147,7 +160,7 @@ export function PostCreationPage({
             type: data.type,
             forumId: forumId,
             tagsCount: tagsArray.length,
-            documentIdsCount: selectedDocumentIds.length
+            documentIdsCount: getAllDocumentIds().length
           }
         })
 
@@ -297,14 +310,24 @@ export function PostCreationPage({
                 name="content"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Content *</FormLabel>
                     <FormControl>
-                      <RichTextEditor
-                        content={field.value || ""}
+                      <EnhancedTextarea
+                        value={field.value || ""}
                         onChange={field.onChange}
                         placeholder="Share your thoughts, ask questions, or provide information..."
                         maxLength={50000}
-                        className="min-h-[300px]"
+                        minHeight={300}
+                        maxHeight={600}
+                        showToolbar={true}
+                        enableEmojis={true}
+                        enableAttachments={true}
+                        enablePreview={true}
+                        attachments={uploadedDocuments}
+                        onAttachmentsChange={setUploadedDocuments}
+                        autoResize={true}
+                        label="Content *"
+                        description="Create your post with rich formatting, emojis, and file attachments. Use the Format button to access text formatting options."
+                        showCharacterCount="near-limit"
                       />
                     </FormControl>
                     <FormMessage />
@@ -332,28 +355,28 @@ export function PostCreationPage({
                 )}
               />
 
-              {/* Document Attachments */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-sm font-medium">Attachments (Optional)</label>
-                    <p className="text-xs text-muted-foreground">
-                      Add relevant documents to support your post
-                    </p>
+              {/* Document Library Browser */}
+              {selectedDocuments.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-sm font-medium">Library Documents</label>
+                      <p className="text-xs text-muted-foreground">
+                        Documents selected from your library
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBrowserOpen(true)}
+                      className="h-9"
+                    >
+                      <Paperclip className="mr-2 h-4 w-4" />
+                      Browse Library
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setBrowserOpen(true)}
-                    className="h-9"
-                  >
-                    <Paperclip className="mr-2 h-4 w-4" />
-                    Add Documents
-                  </Button>
-                </div>
 
-                {selectedDocuments.length > 0 && (
                   <div className="space-y-2">
                     {selectedDocuments.map((doc) => (
                       <div
@@ -383,8 +406,27 @@ export function PostCreationPage({
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* Browse Library Button when no documents selected */}
+              {selectedDocuments.length === 0 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBrowserOpen(true)}
+                    className="h-9"
+                  >
+                    <Paperclip className="mr-2 h-4 w-4" />
+                    Browse Document Library
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Select existing documents or upload new files using the editor above
+                  </span>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex justify-end gap-3 pt-6 border-t">
