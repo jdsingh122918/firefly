@@ -32,6 +32,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { UserTile } from '@/components/users/user-tile'
+import { UserRole } from '@prisma/client'
 
 interface User {
   id: string
@@ -40,7 +41,7 @@ interface User {
   firstName?: string
   lastName?: string
   name: string
-  role: string
+  role: UserRole
   familyId?: string
   family?: {
     id: string

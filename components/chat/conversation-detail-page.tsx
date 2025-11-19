@@ -63,7 +63,7 @@ interface Conversation {
       firstName?: string;
       lastName?: string;
       email: string;
-      role: string;
+      role: UserRole;
       imageUrl?: string;
     };
   }[];
@@ -88,7 +88,7 @@ interface Message {
     firstName?: string;
     lastName?: string;
     email: string;
-    role: string;
+    role: UserRole;
     imageUrl?: string;
   };
   replyTo?: Message;

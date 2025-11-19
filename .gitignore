@@ -46,6 +46,9 @@ scripts/
 
 docs/
 
+# sensitive documentation
+CLAUDE.md
+
 # test suite
 tests/results/
 tests/.vitest/

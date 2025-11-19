@@ -121,7 +121,6 @@ export async function POST(
               lastName: targetUser.lastName,
               email: targetUser.email,
               role: targetUser.role,
-              imageUrl: targetUser.imageUrl,
             },
           },
         },

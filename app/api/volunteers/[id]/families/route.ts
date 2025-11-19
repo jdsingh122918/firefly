@@ -10,7 +10,7 @@ const userRepository = new UserRepository();
 // GET /api/volunteers/[id]/families - Get volunteer's assigned families
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -26,7 +26,7 @@ export async function GET(
     }
 
     // Only ADMIN and the volunteer themselves can view assignments
-    const volunteerId = params.id;
+    const { id: volunteerId } = await params;
     if (user.role !== UserRole.ADMIN && user.id !== volunteerId) {
       return NextResponse.json(
         { error: "You can only view your own family assignments" },

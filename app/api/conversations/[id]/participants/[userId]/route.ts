@@ -86,17 +86,10 @@ export async function DELETE(
     }
 
     // Remove the participant (sets leftAt timestamp)
-    const success = await conversationRepository.removeParticipant(
+    await conversationRepository.removeParticipant(
       conversationId,
       targetUserId
     );
-
-    if (!success) {
-      return NextResponse.json(
-        { success: false, error: "Failed to remove participant" },
-        { status: 500 }
-      );
-    }
 
     // Return success response
     return NextResponse.json(

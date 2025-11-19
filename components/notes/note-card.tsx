@@ -141,28 +141,24 @@ const getNoteCardColors = (note: Note) => {
   // Priority 2: Note type mapping to healthcare categories
   switch (note.type) {
     case 'CARE_PLAN':
-    case 'MEDICAL_RECORD':
       return {
         border: 'border-l-[var(--healthcare-medical)]',
         background: 'bg-pink-50 dark:bg-pink-950/20',
         hover: 'hover:bg-pink-100 dark:hover:bg-pink-950/30'
       };
     case 'JOURNAL':
-    case 'PERSONAL_NOTES':
       return {
         border: 'border-l-[var(--healthcare-mental)]',
         background: 'bg-purple-50 dark:bg-purple-950/20',
         hover: 'hover:bg-purple-100 dark:hover:bg-purple-950/30'
       };
     case 'MEETING':
-    case 'APPOINTMENT':
       return {
         border: 'border-l-[var(--healthcare-education)]',
         background: 'bg-blue-50 dark:bg-blue-950/20',
         hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
       };
     case 'CHECKLIST':
-    case 'TODO':
       return {
         border: 'border-l-[var(--healthcare-basic)]',
         background: 'bg-orange-50 dark:bg-orange-950/20',
