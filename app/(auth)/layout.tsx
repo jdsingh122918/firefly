@@ -33,15 +33,25 @@ export default function AuthLayout({
       {/* Right Column - Auth Form */}
       <div className="flex-1 lg:w-1/2 flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-md space-y-8">
-          {/* Logo for mobile and desktop */}
+          {/* Firefly Logo for mobile and desktop with theme-aware switching */}
           <div className="text-center">
+            {/* Black logo for light mode */}
             <Image
-              src="/firefly.png"
-              alt="Firefly Logo"
-              width={120}
-              height={120}
+              src="/firefly-logo-black.png"
+              alt="Firefly - End of Life Care Platform"
+              width={200}
+              height={80}
               priority
-              className="mx-auto mb-4 w-auto h-auto max-w-[120px] max-h-[120px]"
+              className="mx-auto mb-4 dark:hidden object-contain"
+            />
+            {/* White logo for dark mode */}
+            <Image
+              src="/firefly-logo-white.png"
+              alt="Firefly - End of Life Care Platform"
+              width={200}
+              height={80}
+              priority
+              className="mx-auto mb-4 hidden dark:block object-contain"
             />
             <h1 className="text-2xl font-bold text-foreground lg:hidden">
               Firefly

@@ -52,8 +52,8 @@ export function NotificationBadge({
           className={cn(
             "w-2 h-2 rounded-full transition-all duration-300",
             isConnected
-              ? "bg-green-500 animate-pulse"
-              : "bg-gray-400"
+              ? "bg-[hsl(var(--status-success))] animate-pulse"
+              : "bg-[hsl(var(--status-neutral))]"
           )}
           title={isConnected ? "Connected to notifications" : "Disconnected from notifications"}
           aria-label={isConnected ? "Connected" : "Disconnected"}
@@ -77,7 +77,7 @@ export function NotificationBadgeCompact({
     return (
       <div
         className={cn(
-          "w-2 h-2 bg-green-500 rounded-full animate-pulse",
+          "w-2 h-2 bg-[hsl(var(--status-success))] rounded-full animate-pulse",
           className
         )}
         title="Connected"
@@ -90,7 +90,7 @@ export function NotificationBadgeCompact({
     return (
       <div
         className={cn(
-          "w-2 h-2 bg-gray-400 rounded-full",
+          "w-2 h-2 bg-[hsl(var(--status-neutral))] rounded-full",
           className
         )}
         title="Disconnected"
@@ -120,8 +120,8 @@ export function NotificationBadgeCompact({
         className={cn(
           "absolute -top-1 -right-1 w-2 h-2 rounded-full border border-white",
           isConnected
-            ? "bg-green-500 animate-pulse"
-            : "bg-gray-400"
+            ? "bg-[hsl(var(--status-success))] animate-pulse"
+            : "bg-[hsl(var(--status-neutral))]"
         )}
         title={isConnected ? "Connected" : "Disconnected"}
         aria-label={isConnected ? "Connected" : "Disconnected"}

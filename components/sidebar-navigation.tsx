@@ -24,7 +24,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar'
 
@@ -70,6 +69,12 @@ const navigationItems: NavigationItem[] = [
     title: 'Families',
     href: '/volunteer/families',
     icon: Heart,
+    roles: [UserRole.VOLUNTEER]
+  },
+  {
+    title: 'Members',
+    href: '/volunteer/users',
+    icon: Users,
     roles: [UserRole.VOLUNTEER]
   },
   {
@@ -137,15 +142,25 @@ export function SidebarNavigation({
     <Sidebar className="border-r">
       <SidebarHeader>
         <div className="flex flex-col items-center space-y-3 py-4">
-          <Link href="/" className="flex items-center justify-center hover:opacity-80 transition-opacity">
+          <Link href="/" className="flex items-center justify-center hover:opacity-80 transition-opacity p-6">
             <div className="relative shrink-0">
+              {/* Black logo for light mode - covers majority of sidebar width */}
               <Image
-                src="/firefly.png"
-                alt="Firefly Logo"
-                width={112}
-                height={112}
+                src="/firefly-logo-black.png"
+                alt="Firefly - End of Life Care Platform"
+                width={200}
+                height={80}
                 priority
-                className="object-contain w-24 h-24 sm:w-28 sm:h-28"
+                className="object-contain w-44 h-auto dark:hidden sm:w-48 sm:h-auto"
+              />
+              {/* White logo for dark mode */}
+              <Image
+                src="/firefly-logo-white.png"
+                alt="Firefly - End of Life Care Platform"
+                width={200}
+                height={80}
+                priority
+                className="object-contain w-44 h-auto hidden dark:block sm:w-48 sm:h-auto"
               />
             </div>
           </Link>
@@ -192,7 +207,6 @@ export function SidebarNavigation({
           <UserProfileDropdown user={user} userRole={userRole} />
         </div>
       </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
   )
 }

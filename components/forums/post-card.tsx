@@ -65,11 +65,11 @@ interface PostCardProps {
 }
 
 const postTypeColors = {
-  DISCUSSION: "bg-blue-100 text-blue-800",
-  QUESTION: "bg-purple-100 text-purple-800",
-  ANNOUNCEMENT: "bg-red-100 text-red-800",
-  RESOURCE: "bg-green-100 text-green-800",
-  POLL: "bg-yellow-100 text-yellow-800"
+  DISCUSSION: "bg-[hsl(var(--status-pending)/0.1)] text-[hsl(var(--status-pending))]",
+  QUESTION: "bg-[hsl(var(--healthcare-mental)/0.1)] text-[hsl(var(--healthcare-mental))]",
+  ANNOUNCEMENT: "bg-[hsl(var(--status-error)/0.1)] text-[hsl(var(--status-error))]",
+  RESOURCE: "bg-[hsl(var(--status-success)/0.1)] text-[hsl(var(--status-success))]",
+  POLL: "bg-[hsl(var(--status-warning)/0.1)] text-[hsl(var(--status-warning))]"
 }
 
 const postTypeLabels = {
@@ -78,6 +78,114 @@ const postTypeLabels = {
   ANNOUNCEMENT: "Announcement",
   RESOURCE: "Resource",
   POLL: "Poll"
+}
+
+const getPostCardColors = (post: Post) => {
+  // Priority 1: Healthcare tags (highest priority)
+  if (post.tags && post.tags.length > 0) {
+    const tag = post.tags[0].toLowerCase();
+    if (tag.includes('medical') || tag.includes('health')) {
+      return {
+        border: 'border-l-[var(--healthcare-medical)]',
+        background: 'bg-pink-50 dark:bg-pink-950/20',
+        hover: 'hover:bg-pink-100 dark:hover:bg-pink-950/30'
+      };
+    }
+    if (tag.includes('mental')) {
+      return {
+        border: 'border-l-[var(--healthcare-mental)]',
+        background: 'bg-purple-50 dark:bg-purple-950/20',
+        hover: 'hover:bg-purple-100 dark:hover:bg-purple-950/30'
+      };
+    }
+    if (tag.includes('home') || tag.includes('community')) {
+      return {
+        border: 'border-l-[var(--healthcare-home)]',
+        background: 'bg-teal-50 dark:bg-teal-950/20',
+        hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+      };
+    }
+    if (tag.includes('equipment') || tag.includes('technology') || tag.includes('tool')) {
+      return {
+        border: 'border-l-[var(--healthcare-equipment)]',
+        background: 'bg-blue-50 dark:bg-blue-950/20',
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+      };
+    }
+    if (tag.includes('basic') || tag.includes('resources') || tag.includes('support')) {
+      return {
+        border: 'border-l-[var(--healthcare-basic)]',
+        background: 'bg-orange-50 dark:bg-orange-950/20',
+        hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+      };
+    }
+    if (tag.includes('education') || tag.includes('family') || tag.includes('training')) {
+      return {
+        border: 'border-l-[var(--healthcare-education)]',
+        background: 'bg-blue-50 dark:bg-blue-950/20',
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+      };
+    }
+    if (tag.includes('legal') || tag.includes('advocacy')) {
+      return {
+        border: 'border-l-[var(--healthcare-legal)]',
+        background: 'bg-gray-50 dark:bg-gray-950/20',
+        hover: 'hover:bg-gray-100 dark:hover:bg-gray-950/30'
+      };
+    }
+  }
+
+  // Priority 2: Post type mapping to healthcare categories
+  switch (post.type) {
+    case 'QUESTION':
+      return {
+        border: 'border-l-[var(--healthcare-mental)]',
+        background: 'bg-purple-50 dark:bg-purple-950/20',
+        hover: 'hover:bg-purple-100 dark:hover:bg-purple-950/30'
+      };
+    case 'RESOURCE':
+      return {
+        border: 'border-l-[var(--healthcare-education)]',
+        background: 'bg-blue-50 dark:bg-blue-950/20',
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+      };
+    case 'ANNOUNCEMENT':
+      return {
+        border: 'border-l-[var(--healthcare-basic)]',
+        background: 'bg-orange-50 dark:bg-orange-950/20',
+        hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+      };
+    case 'DISCUSSION':
+      return {
+        border: 'border-l-[var(--healthcare-home)]',
+        background: 'bg-teal-50 dark:bg-teal-950/20',
+        hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+      };
+    case 'POLL':
+      return {
+        border: 'border-l-[var(--healthcare-equipment)]',
+        background: 'bg-blue-50 dark:bg-blue-950/20',
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+      };
+    default:
+      break;
+  }
+
+  // Priority 3: Post states (pinned gets special treatment)
+  if (post.isPinned) {
+    return {
+      border: 'border-l-[var(--ppcc-orange)]',
+      background: 'bg-orange-50 dark:bg-orange-950/20',
+      hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+    };
+  }
+
+  // Default fallback for regular posts
+  return {
+    border: 'border-l-[var(--healthcare-home)]',
+    background: 'bg-teal-50 dark:bg-teal-950/20',
+    hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+  };
 }
 
 export function PostCard({
@@ -89,6 +197,7 @@ export function PostCard({
 }: PostCardProps) {
   const router = useRouter()
   const { sessionClaims } = useAuth()
+  const cardColors = getPostCardColors(post)
 
   const handleClick = () => {
     if (onPostClick) {
@@ -134,8 +243,10 @@ export function PostCard({
   return (
     <Card
       className={cn(
-        "transition-all duration-200 hover:shadow-md hover:bg-muted/50 cursor-pointer",
-        post.isPinned && "border-l-4 border-l-orange-500",
+        "border-l-4 transition-colors cursor-pointer",
+        cardColors.border,
+        cardColors.background,
+        cardColors.hover,
         className
       )}
       onClick={handleClick}

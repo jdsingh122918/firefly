@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Edit, Trash2, Mail, Phone, Calendar, User, Shield, Users } from 'lucide-react'
+import { ArrowLeft, Trash2, Mail, Phone, Calendar, User, Shield, Users } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { FamilyCombobox } from '@/components/ui/family-combobox'
+import { FamilyMultiCombobox } from '@/components/ui/family-multi-combobox'
 
 interface UserDetails {
   id: string
@@ -26,6 +27,18 @@ interface UserDetails {
     id: string
     name: string
   }
+  // For volunteers with multiple family assignments
+  families?: Array<{
+    id: string
+    name: string
+    description?: string
+    assignedAt: string
+    role: string
+    assignedBy?: {
+      id: string
+      name: string
+    }
+  }>
   phoneNumber?: string
   phoneVerified: boolean
   emailVerified: boolean
@@ -48,6 +61,7 @@ export default function UserDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [familyAssignDialog, setFamilyAssignDialog] = useState(false)
   const [selectedFamilyId, setSelectedFamilyId] = useState<string | undefined>()
+  const [selectedFamilyIds, setSelectedFamilyIds] = useState<string[]>([])
   const [assigningFamily, setAssigningFamily] = useState(false)
 
   // Fetch user details
@@ -66,7 +80,26 @@ export default function UserDetailPage() {
       }
 
       const data = await response.json()
-      setUser(data.user)
+      const userData = data.user
+
+      // If user is a volunteer, fetch their family assignments
+      if (userData.role === 'VOLUNTEER') {
+        try {
+          const familiesResponse = await fetch(`/api/volunteers/${userId}/families`)
+          if (familiesResponse.ok) {
+            const familiesData = await familiesResponse.json()
+            userData.families = familiesData.families
+          } else {
+            console.warn('Failed to fetch volunteer families:', familiesResponse.statusText)
+            userData.families = []
+          }
+        } catch (err) {
+          console.warn('Error fetching volunteer families:', err)
+          userData.families = []
+        }
+      }
+
+      setUser(userData)
     } catch (err) {
       console.error('Error fetching user:', err)
       setError(err instanceof Error ? err.message : 'Failed to load user details')
@@ -101,7 +134,7 @@ export default function UserDetailPage() {
     }
   }
 
-  // Handle family assignment
+  // Handle family assignment for non-volunteer users
   const handleAssignFamily = async () => {
     if (!user) return
 
@@ -137,9 +170,75 @@ export default function UserDetailPage() {
     }
   }
 
+  // Handle volunteer family assignments (multiple families)
+  const handleVolunteerFamilyAssignments = async () => {
+    if (!user || user.role !== 'VOLUNTEER') return
+
+    try {
+      setAssigningFamily(true)
+
+      // Get current assignments
+      const currentFamilyIds = user.families?.map(f => f.id) || []
+      const newFamilyIds = selectedFamilyIds
+      const toAdd = newFamilyIds.filter(id => !currentFamilyIds.includes(id))
+      const toRemove = currentFamilyIds.filter(id => !newFamilyIds.includes(id))
+
+      // Add new assignments
+      for (const familyId of toAdd) {
+        const response = await fetch(`/api/families/${familyId}/volunteers`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            volunteerId: userId,
+            role: 'manager',
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          console.error(`Failed to assign volunteer to family ${familyId}:`, errorData.error)
+          throw new Error(`Failed to assign to family: ${errorData.error}`)
+        }
+      }
+
+      // Remove old assignments
+      for (const familyId of toRemove) {
+        const response = await fetch(`/api/families/${familyId}/volunteers/${userId}`, {
+          method: 'DELETE',
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          console.error(`Failed to remove volunteer from family ${familyId}:`, errorData.error)
+          throw new Error(`Failed to remove from family: ${errorData.error}`)
+        }
+      }
+
+      // Refresh user data to show updated assignments
+      await fetchUser()
+      setFamilyAssignDialog(false)
+      setSelectedFamilyIds([])
+
+      console.log(`✅ Volunteer family assignments updated: +${toAdd.length} -${toRemove.length}`)
+    } catch (err) {
+      console.error('Error updating volunteer assignments:', err)
+      alert(err instanceof Error ? err.message : 'Failed to update family assignments')
+    } finally {
+      setAssigningFamily(false)
+    }
+  }
+
   // Open family assignment dialog
   const openFamilyAssignDialog = () => {
-    setSelectedFamilyId(user?.familyId || undefined)
+    if (user?.role === 'VOLUNTEER') {
+      // For volunteers, set up multi-select state
+      setSelectedFamilyIds(user.families?.map(f => f.id) || [])
+    } else {
+      // For non-volunteers, set up single-select state
+      setSelectedFamilyId(user?.familyId || undefined)
+    }
     setFamilyAssignDialog(true)
   }
 
@@ -247,7 +346,7 @@ export default function UserDetailPage() {
   const RoleIcon = getRoleIcon(user.role)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-6">
       {/* Header */}
       <div className="flex flex-col space-y-4 sm:flex-row sm:items-start sm:justify-between sm:space-y-0">
         <div className="flex items-start space-x-3 sm:space-x-4">
@@ -280,12 +379,6 @@ export default function UserDetailPage() {
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:space-x-2">
-          <Button variant="outline" asChild className="w-full sm:w-auto">
-            <Link href={`/admin/users/${user.id}/edit`}>
-              <Edit className="mr-2 h-4 w-4" />
-              <span className="sm:inline">Edit User</span>
-            </Link>
-          </Button>
           <Button
             variant="destructive"
             onClick={handleDeleteUser}
@@ -396,50 +489,112 @@ export default function UserDetailPage() {
         {/* Family Assignment */}
         <Card>
           <CardHeader>
-            <CardTitle>Family Assignment</CardTitle>
+            <CardTitle>
+              {user.role === 'VOLUNTEER' ? 'Family Assignments' : 'Family Assignment'}
+            </CardTitle>
             <CardDescription>
-              Family group membership and care coordination
+              {user.role === 'VOLUNTEER'
+                ? 'Multiple family groups this volunteer manages'
+                : 'Family group membership and care coordination'
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {user.family ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Users className="h-10 w-10 text-muted-foreground" />
-                    <div>
-                      <h3 className="font-medium">{user.family.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Family member since {new Date(user.updatedAt).toLocaleDateString()}
-                      </p>
+            {user.role === 'VOLUNTEER' ? (
+              // Volunteer with multiple families
+              <>
+                {user.families && user.families.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                      {user.families.map((family) => (
+                        <div key={family.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <Users className="h-10 w-10 text-muted-foreground" />
+                            <div>
+                              <h3 className="font-medium">{family.name}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {family.role} since {new Date(family.assignedAt).toLocaleDateString()}
+                                {family.assignedBy && (
+                                  <span className="text-xs block">
+                                    Assigned by {family.assignedBy.name}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/admin/families/${family.id}`}>
+                              View Family
+                            </Link>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex justify-center">
+                      <Button variant="outline" size="sm" onClick={openFamilyAssignDialog}>
+                        Manage Family Assignments
+                      </Button>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/admin/families/${user.family.id}`}>
-                      View Family
-                    </Link>
-                  </Button>
-                </div>
-
-                <div className="flex justify-center">
-                  <Button variant="outline" size="sm" onClick={openFamilyAssignDialog}>
-                    Change Family Assignment
-                  </Button>
-                </div>
-              </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Users className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <h3 className="mt-2 text-sm font-semibold text-muted-foreground">No families assigned</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      This volunteer is not currently assigned to any family groups.
+                    </p>
+                    <div className="mt-6">
+                      <Button size="sm" variant="outline" onClick={openFamilyAssignDialog}>
+                        Assign to Families
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="text-center py-8">
-                <Users className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-2 text-sm font-semibold text-muted-foreground">No family assigned</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  This user is not currently assigned to any family group.
-                </p>
-                <div className="mt-6">
-                  <Button size="sm" variant="outline" onClick={openFamilyAssignDialog}>
-                    Assign to Family
-                  </Button>
-                </div>
-              </div>
+              // Non-volunteer with single family
+              <>
+                {user.family ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <Users className="h-10 w-10 text-muted-foreground" />
+                        <div>
+                          <h3 className="font-medium">{user.family.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Family member since {new Date(user.updatedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/admin/families/${user.family.id}`}>
+                          View Family
+                        </Link>
+                      </Button>
+                    </div>
+
+                    <div className="flex justify-center">
+                      <Button variant="outline" size="sm" onClick={openFamilyAssignDialog}>
+                        Change Family Assignment
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Users className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <h3 className="mt-2 text-sm font-semibold text-muted-foreground">No family assigned</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      This user is not currently assigned to any family group.
+                    </p>
+                    <div className="mt-6">
+                      <Button size="sm" variant="outline" onClick={openFamilyAssignDialog}>
+                        Assign to Family
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -479,26 +634,48 @@ export default function UserDetailPage() {
 
       {/* Family Assignment Dialog */}
       <Dialog open={familyAssignDialog} onOpenChange={setFamilyAssignDialog}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Family Assignment</DialogTitle>
+            <DialogTitle>
+              {user?.role === 'VOLUNTEER' ? 'Family Assignments' : 'Family Assignment'}
+            </DialogTitle>
             <DialogDescription>
-              Assign {user?.name} to a family group for care coordination.
+              {user?.role === 'VOLUNTEER'
+                ? `Assign ${user?.name} to multiple family groups they can manage.`
+                : `Assign ${user?.name} to a family group for care coordination.`
+              }
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Select Family</label>
-                <div className="mt-2">
-                  <FamilyCombobox
-                    value={selectedFamilyId}
-                    onValueChange={setSelectedFamilyId}
-                    placeholder="Search for a family..."
-                    className="w-full"
-                  />
+              {user?.role === 'VOLUNTEER' ? (
+                <div>
+                  <label className="text-sm font-medium">Select Families</label>
+                  <div className="mt-2">
+                    <FamilyMultiCombobox
+                      value={selectedFamilyIds}
+                      onValueChange={setSelectedFamilyIds}
+                      placeholder="Search and select families..."
+                      className="w-full"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    The volunteer will be able to manage all selected families.
+                  </p>
                 </div>
-              </div>
+              ) : (
+                <div>
+                  <label className="text-sm font-medium">Select Family</label>
+                  <div className="mt-2">
+                    <FamilyCombobox
+                      value={selectedFamilyId}
+                      onValueChange={setSelectedFamilyId}
+                      placeholder="Search for a family..."
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -510,10 +687,10 @@ export default function UserDetailPage() {
               Cancel
             </Button>
             <Button
-              onClick={handleAssignFamily}
+              onClick={user?.role === 'VOLUNTEER' ? handleVolunteerFamilyAssignments : handleAssignFamily}
               disabled={assigningFamily}
             >
-              {assigningFamily ? 'Assigning...' : 'Update Assignment'}
+              {assigningFamily ? 'Updating...' : 'Update Assignment'}
             </Button>
           </DialogFooter>
         </DialogContent>

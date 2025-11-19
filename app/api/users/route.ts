@@ -98,10 +98,10 @@ export async function GET(request: NextRequest) {
     // Get users from database
     let users = await userRepository.getAllUsers(repoFilters);
 
-    // VOLUNTEER family-scoped filtering: only show users from families they created
+    // VOLUNTEER family-scoped filtering: only show users from families they're assigned to
     if (user.role === UserRole.VOLUNTEER) {
-      // Get families that this volunteer created
-      const volunteerFamilies = await familyRepository.getFamiliesByCreator(user.id);
+      // Get families that this volunteer is assigned to (supports multiple assignments)
+      const volunteerFamilies = await familyRepository.getFamiliesByVolunteer(user.id);
       const accessibleFamilyIds = volunteerFamilies.map(f => f.id);
 
       console.log("🔒 VOLUNTEER family filtering:", {

@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
       const categories = await tagRepository.getCategories(getCategoriesFilters);
       return NextResponse.json({
         success: true,
-        data: categories,
+        categories: categories,
       });
     }
   } catch (error) {

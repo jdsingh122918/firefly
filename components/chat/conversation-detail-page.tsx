@@ -8,7 +8,6 @@ import {
   Send,
   MoreVertical,
   Users,
-  Settings,
   Phone,
   Video,
   Paperclip,
@@ -24,13 +23,6 @@ import { SlackStyleInput } from "@/components/chat/slack-style-input";
 import { UploadedFile } from "@/hooks/use-file-upload";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatDistanceToNow } from "date-fns";
@@ -45,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AddParticipantDialog } from "./add-participant-dialog";
 
 interface Conversation {
   id: string;
@@ -70,7 +63,7 @@ interface Conversation {
       firstName?: string;
       lastName?: string;
       email: string;
-      role: string;
+      role: UserRole;
       imageUrl?: string;
     };
   }[];
@@ -95,7 +88,7 @@ interface Message {
     firstName?: string;
     lastName?: string;
     email: string;
-    role: string;
+    role: UserRole;
     imageUrl?: string;
   };
   replyTo?: Message;
@@ -140,7 +133,7 @@ export function ConversationDetailPage({
   const [messageAttachments, setMessageAttachments] = useState<UploadedFile[]>([]);
   const [sending, setSending] = useState(false);
   const [showParticipants, setShowParticipants] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showAddParticipant, setShowAddParticipant] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -526,23 +519,28 @@ export function ConversationDetailPage({
     }
   };
 
-  // Handle dropdown menu actions
+  // Handle dialog actions
   const handleShowParticipants = () => {
     setShowParticipants(true);
   };
 
-  const handleShowSettings = () => {
-    setShowSettings(true);
+  const handleShowAddParticipant = () => {
+    setShowAddParticipant(true);
   };
 
-  const handleArchiveConversation = async () => {
-    if (!confirm('Are you sure you want to archive this conversation? This action cannot be undone.')) {
+  const handleParticipantAdded = (participant: any) => {
+    // Refresh conversation data to show new participant
+    fetchConversationData();
+  };
+
+  const handleLeaveConversation = async () => {
+    if (!confirm('Are you sure you want to leave this conversation? You will no longer receive messages.')) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/conversations/${conversationId}/archive`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/conversations/${conversationId}/participants/${userId}`, {
+        method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -550,16 +548,18 @@ export function ConversationDetailPage({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to archive conversation');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to leave conversation');
       }
 
-      // Navigate back to chat list
+      // Navigate back to chat list after leaving
       window.location.href = `/${userRole.toLowerCase()}/chat`;
     } catch (error) {
-      console.error('Error archiving conversation:', error);
-      alert('Failed to archive conversation. Please try again.');
+      console.error('Error leaving conversation:', error);
+      alert('Failed to leave conversation. Please try again.');
     }
   };
+
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -654,9 +654,9 @@ export function ConversationDetailPage({
 
   return (
     <>
-      <div className="flex flex-1 gap-1 min-h-0">
+      <div className="flex flex-1 gap-1 min-h-0 h-full">
         {/* Main Chat Area */}
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex flex-col flex-1 min-w-0 h-full">
           {/* Simplified Header */}
           <Card className="flex-shrink-0 p-3">
             <CardContent className="py-0">
@@ -690,7 +690,7 @@ export function ConversationDetailPage({
           </Card>
 
           {/* Messages Area */}
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-hidden">
             <MessageList
               messages={messagesWithReactions}
               currentUserId={userId}
@@ -840,35 +840,6 @@ export function ConversationDetailPage({
               </CardContent>
             </Card>
 
-            {/* Actions */}
-            {canManage && (
-              <Card className="flex-shrink-0 border-0 border-t rounded-none">
-                <CardContent className="p-4">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="w-full justify-start">
-                        <Settings className="h-4 w-4 mr-2" />
-                        Manage Conversation
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuItem onClick={handleShowSettings}>
-                        <Settings className="h-4 w-4 mr-2" />
-                        Settings
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleShowParticipants}>
-                        <Users className="h-4 w-4 mr-2" />
-                        Manage Participants
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleArchiveConversation} className="text-destructive">
-                        Archive Conversation
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
 
@@ -883,18 +854,19 @@ export function ConversationDetailPage({
 
       {/* Participants Dialog */}
       <Dialog open={showParticipants} onOpenChange={setShowParticipants}>
-        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Participants ({conversation?.participants.length})</DialogTitle>
             <DialogDescription>
               Members of this conversation
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="flex-1 overflow-y-auto space-y-3">
             {conversation?.participants.map((participant) => (
               <div key={participant.id} className="flex items-center justify-between p-3 rounded-lg border">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-8 w-8">
+                    <AvatarImage src={participant.user?.imageUrl} />
                     <AvatarFallback className="text-sm">
                       {participant.user?.firstName?.charAt(0) || participant.user?.email?.charAt(0) || '?'}
                     </AvatarFallback>
@@ -930,54 +902,34 @@ export function ConversationDetailPage({
               </div>
             ))}
           </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Settings Dialog */}
-      <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Conversation Settings</DialogTitle>
-            <DialogDescription>
-              Configure this conversation
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Title</label>
-              <p className="text-sm text-muted-foreground">
-                {conversation?.title || getDisplayTitle()}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Type</label>
-              <Badge variant="outline">
-                {conversation?.type?.replace('_', ' ') || 'DIRECT'}
-              </Badge>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Created</label>
-              <p className="text-sm text-muted-foreground">
-                {conversation?.createdAt ? formatDistanceToNow(new Date(conversation.createdAt), { addSuffix: true }) : 'Unknown'}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Status</label>
-              <Badge variant={conversation?.isActive ? "default" : "secondary"}>
-                {conversation?.isActive ? "Active" : "Archived"}
-              </Badge>
-            </div>
-            {conversation?.family && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Family</label>
-                <p className="text-sm text-muted-foreground">
-                  {conversation.family.name}
-                </p>
-              </div>
-            )}
+          {/* Dialog Actions */}
+          <div className="flex justify-between gap-2 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={handleLeaveConversation}
+              className="text-destructive hover:text-destructive"
+            >
+              Leave Conversation
+            </Button>
+            <Button
+              onClick={handleShowAddParticipant}
+            >
+              Add Members
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Add Participant Dialog */}
+      <AddParticipantDialog
+        open={showAddParticipant}
+        onOpenChange={setShowAddParticipant}
+        conversationId={conversationId}
+        existingParticipants={conversation?.participants || []}
+        onParticipantAdded={handleParticipantAdded}
+      />
+
     </>
   );
 }

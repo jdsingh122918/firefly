@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Eye, Edit, Trash2, Users, MoreHorizontal } from 'lucide-react'
+import { Plus, Search, Eye, Edit, Trash2, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@clerk/nextjs'
 import {
@@ -13,12 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -219,7 +213,7 @@ export default function FamiliesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -302,7 +296,7 @@ export default function FamiliesPage() {
                     <TableHead>Members</TableHead>
                     <TableHead>Created By</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead className="w-[130px]">View</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -342,34 +336,12 @@ export default function FamiliesPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="p-0 min-h-[44px] min-w-[44px]">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/admin/families/${family.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Details
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href={`/admin/families/${family.id}/edit`}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit Family
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-red-600"
-                              onClick={() => handleDeleteFamily(family.id, family.name)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete Family
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/admin/families/${family.id}`}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
+                          </Link>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

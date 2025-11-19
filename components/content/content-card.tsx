@@ -224,12 +224,12 @@ const ContentCard: React.FC<ContentCardProps> = ({
 
     if (isResource && content.status) {
       const statusConfig = {
-        [ResourceStatus.DRAFT]: { color: 'bg-gray-500', label: 'Draft' },
-        [ResourceStatus.PENDING]: { color: 'bg-yellow-500', label: 'Pending' },
-        [ResourceStatus.APPROVED]: { color: 'bg-green-500', label: 'Approved' },
-        [ResourceStatus.FEATURED]: { color: 'bg-blue-500', label: 'Featured' },
-        [ResourceStatus.ARCHIVED]: { color: 'bg-gray-500', label: 'Archived' },
-        [ResourceStatus.REJECTED]: { color: 'bg-red-500', label: 'Rejected' }
+        [ResourceStatus.DRAFT]: { color: 'bg-[var(--ppcc-gray)]', label: 'Draft' },
+        [ResourceStatus.PENDING]: { color: 'bg-[var(--ppcc-orange)]', label: 'Pending' },
+        [ResourceStatus.APPROVED]: { color: 'bg-[var(--ppcc-teal)]', label: 'Approved' },
+        [ResourceStatus.FEATURED]: { color: 'bg-[var(--ppcc-blue)]', label: 'Featured' },
+        [ResourceStatus.ARCHIVED]: { color: 'bg-[var(--ppcc-gray)]', label: 'Archived' },
+        [ResourceStatus.REJECTED]: { color: 'bg-[var(--ppcc-pink)]', label: 'Rejected' }
       };
 
       const config = statusConfig[content.status];
@@ -311,36 +311,117 @@ const ContentCard: React.FC<ContentCardProps> = ({
     if (!showDocuments || !content.documents?.length) return null;
 
     return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Paperclip className="h-4 w-4" />
-          <span>{content.documents.length} attachment{content.documents.length !== 1 ? 's' : ''}</span>
-        </div>
-        <div className="space-y-1 max-h-16 overflow-y-auto">
-          {content.documents.slice(0, 2).map((doc) => {
-            const DocumentIcon = getDocumentIcon((doc.document as any).mimeType || '');
-            return (
-              <div key={doc.id} className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded px-2 py-1">
-                <DocumentIcon className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate flex-1">{doc.document.title}</span>
-                {doc.document.fileSize && (
-                  <span className="text-xs text-gray-400 flex-shrink-0">
-                    {formatFileSize(doc.document.fileSize)}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-          {content.documents.length > 2 && (
-            <div className="text-xs text-gray-500 pl-5">
-              +{content.documents.length - 2} more files
-            </div>
-          )}
-        </div>
+      <div className="flex items-center gap-2 text-sm text-gray-600">
+        <Paperclip className="h-4 w-4" />
+        <span>{content.documents.length} attachment{content.documents.length !== 1 ? 's' : ''}</span>
       </div>
     );
   };
 
+
+  // Get comprehensive card colors based on content type or healthcare category
+  const getCardColors = () => {
+    // Check for healthcare tags first (highest priority)
+    if (content.tags && content.tags.length > 0) {
+      const tag = content.tags[0].toLowerCase();
+      if (tag.includes('medical') || tag.includes('health')) {
+        return {
+          border: 'border-l-[var(--healthcare-medical)]',
+          background: 'bg-pink-50 dark:bg-pink-950/20',
+          hover: 'hover:bg-pink-100 dark:hover:bg-pink-950/30'
+        };
+      }
+      if (tag.includes('mental')) {
+        return {
+          border: 'border-l-[var(--healthcare-mental)]',
+          background: 'bg-purple-50 dark:bg-purple-950/20',
+          hover: 'hover:bg-purple-100 dark:hover:bg-purple-950/30'
+        };
+      }
+      if (tag.includes('home') || tag.includes('community')) {
+        return {
+          border: 'border-l-[var(--healthcare-home)]',
+          background: 'bg-teal-50 dark:bg-teal-950/20',
+          hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+        };
+      }
+      if (tag.includes('equipment') || tag.includes('technology')) {
+        return {
+          border: 'border-l-[var(--healthcare-equipment)]',
+          background: 'bg-blue-50 dark:bg-blue-950/20',
+          hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+        };
+      }
+      if (tag.includes('basic') || tag.includes('resources')) {
+        return {
+          border: 'border-l-[var(--healthcare-basic)]',
+          background: 'bg-orange-50 dark:bg-orange-950/20',
+          hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+        };
+      }
+      if (tag.includes('education') || tag.includes('family')) {
+        return {
+          border: 'border-l-[var(--healthcare-education)]',
+          background: 'bg-blue-50 dark:bg-blue-950/20',
+          hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+        };
+      }
+    }
+
+    // Priority 2: Content status (Resources)
+    if (isResource) {
+      if (content.status === ResourceStatus.FEATURED) {
+        return {
+          border: 'border-l-[var(--ppcc-blue)]',
+          background: 'bg-blue-50 dark:bg-blue-950/20',
+          hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+        };
+      }
+      if (content.status === ResourceStatus.APPROVED) {
+        return {
+          border: 'border-l-[var(--ppcc-teal)]',
+          background: 'bg-teal-50 dark:bg-teal-950/20',
+          hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+        };
+      }
+      if (content.status === ResourceStatus.PENDING) {
+        return {
+          border: 'border-l-[var(--ppcc-orange)]',
+          background: 'bg-orange-50 dark:bg-orange-950/20',
+          hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+        };
+      }
+      // Draft/other resource statuses
+      return {
+        border: 'border-l-[var(--ppcc-purple)]',
+        background: 'bg-purple-50 dark:bg-purple-950/20',
+        hover: 'hover:bg-purple-100 dark:hover:bg-purple-950/30'
+      };
+    }
+
+    // Priority 3: Note types and states
+    if (isNote) {
+      if (content.isPinned) {
+        return {
+          border: 'border-l-[var(--ppcc-orange)]',
+          background: 'bg-orange-50 dark:bg-orange-950/20',
+          hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+        };
+      }
+      return {
+        border: 'border-l-[var(--ppcc-teal)]',
+        background: 'bg-teal-50 dark:bg-teal-950/20',
+        hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+      };
+    }
+
+    // Default fallback
+    return {
+      border: 'border-l-[var(--ppcc-blue)]',
+      background: 'bg-blue-50 dark:bg-blue-950/20',
+      hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+    };
+  };
 
   const renderActions = () => {
     return (
@@ -433,13 +514,15 @@ const ContentCard: React.FC<ContentCardProps> = ({
     );
   };
 
+  const cardColors = getCardColors();
+
   return (
     <Card
-      className="w-full h-full flex flex-col hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
+      className={`w-full h-full flex flex-col transition-colors cursor-pointer overflow-hidden border-l-4 p-3 ${cardColors.border} ${cardColors.background} ${cardColors.hover}`}
       onClick={() => onView?.(content.id)}
     >
-      <CardHeader className="p-3 pb-2 flex-shrink-0">
-        <div className="space-y-2">
+      <CardHeader className="pb-2 flex-shrink-0">
+        <div className="space-y-1">
           {/* Title Row with Icon, Title, Visibility Badge, and Actions */}
           <div className="flex items-start gap-2 w-full">
             <div className="text-gray-500 mt-0.5 flex-shrink-0">
@@ -449,7 +532,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
             <div className="min-w-0 flex-1 overflow-hidden">
               {/* Title and Actions Row */}
               <div className="flex items-start justify-between gap-2 w-full mb-1">
-                <h3 className="font-semibold text-lg leading-tight hover:text-blue-600 transition-colors min-w-0 flex-1">
+                <h3 className="font-semibold text-base leading-tight hover:text-blue-600 transition-colors min-w-0 flex-1">
                   <span className="block truncate">{content.title}</span>
                 </h3>
                 <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -466,15 +549,15 @@ const ContentCard: React.FC<ContentCardProps> = ({
 
           {/* Description */}
           {content.description && (
-            <div className="text-sm text-gray-600 overflow-hidden pl-6">
-              <p className="line-clamp-2 break-words">
+            <div className="text-sm text-gray-600 overflow-hidden pl-4">
+              <p className="line-clamp-1 break-words">
                 {content.description}
               </p>
             </div>
           )}
 
           {/* Status and Assignment Info */}
-          <div className="space-y-2 pl-6">
+          <div className="space-y-1 pl-4">
             {getStatusBadge()}
             {renderAssignmentInfo()}
             {renderRatingInfo()}
@@ -483,20 +566,20 @@ const ContentCard: React.FC<ContentCardProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="px-3 pb-3 pt-0 flex-1 flex flex-col justify-end">
-        <div className="space-y-3">
+      <CardContent className="flex-1 flex flex-col justify-end">
+        <div className="space-y-2">
           {/* Tags */}
           {content.tags && content.tags.length > 0 && (
-            <div className="space-y-1 pl-6">
+            <div className="space-y-1 pl-4">
               <div className="flex flex-wrap gap-1">
-                {content.tags.slice(0, 2).map((tag, index) => (
+                {content.tags.slice(0, 1).map((tag, index) => (
                   <Badge key={index} variant="outline" className="text-xs break-all">
                     {tag}
                   </Badge>
                 ))}
-                {content.tags.length > 2 && (
+                {content.tags.length > 1 && (
                   <Badge variant="outline" className="text-xs text-gray-500">
-                    +{content.tags.length - 2} more
+                    +{content.tags.length - 1} more
                   </Badge>
                 )}
               </div>
@@ -504,7 +587,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
           )}
 
           {/* Creator and Timestamp */}
-          <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t min-h-0 pl-6">
+          <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t min-h-0 pl-4">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               {content.creator && (
                 <>

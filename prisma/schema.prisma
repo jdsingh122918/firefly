@@ -147,6 +147,10 @@ model User {
   contentRatings     ContentRating[] @relation("ContentRatings")
   contentDocumentAttachments ContentDocument[] @relation("ContentDocumentAttacher")
 
+  // Volunteer-Family assignment relations
+  volunteerAssignments    VolunteerFamilyAssignment[] @relation("VolunteerAssignments")
+  createdFamilyAssignments VolunteerFamilyAssignment[] @relation("CreatedFamilyAssignments")
+
   @@index([familyId])
   @@index([role])
   @@map("users")
@@ -185,9 +189,35 @@ model Family {
   // Unified Content relations (Session 022 consolidation)
   content          Content[] @relation("FamilyContent")
 
+  // Volunteer assignment relations
+  volunteerAssignments VolunteerFamilyAssignment[] @relation("FamilyVolunteers")
+
   @@index([createdById])
   @@index([primaryContactId])
   @@map("families")
+}
+
+// Junction table for Volunteer-Family assignments (many-to-many relationship)
+model VolunteerFamilyAssignment {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  volunteerId String   @db.ObjectId
+  familyId    String   @db.ObjectId
+  assignedAt  DateTime @default(now())
+  assignedBy  String   @db.ObjectId  // Admin who made the assignment
+  role        String   @default("manager")  // Future: different assignment types
+  isActive    Boolean  @default(true)  // Allow deactivating assignments
+
+  // Relations
+  volunteer   User     @relation("VolunteerAssignments", fields: [volunteerId], references: [id], onDelete: Cascade)
+  family      Family   @relation("FamilyVolunteers", fields: [familyId], references: [id], onDelete: Cascade)
+  assigner    User     @relation("CreatedFamilyAssignments", fields: [assignedBy], references: [id], onDelete: NoAction)
+
+  @@unique([volunteerId, familyId])
+  @@index([volunteerId])
+  @@index([familyId])
+  @@index([assignedBy])
+  @@index([isActive])
+  @@map("volunteer_family_assignments")
 }
 
 // Conversation model - represents different types of conversations

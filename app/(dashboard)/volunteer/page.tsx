@@ -76,7 +76,7 @@ export default async function VolunteerDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Volunteer Dashboard</h2>
@@ -102,10 +102,10 @@ export default async function VolunteerDashboard() {
 
       {/* Stats Grid */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-3">
+        <Card className="p-3 border-l-4 border-l-[var(--healthcare-home)] bg-[hsl(var(--healthcare-home)/0.05)] hover:bg-[hsl(var(--healthcare-home)/0.08)] transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Families</CardTitle>
-            <Heart className="h-4 w-4 text-muted-foreground" />
+            <Heart className="h-4 w-4 text-[hsl(var(--healthcare-home))]" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{familyCount}</div>
@@ -115,10 +115,10 @@ export default async function VolunteerDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="p-3">
+        <Card className="p-3 border-l-4 border-l-[var(--healthcare-basic)] bg-[hsl(var(--healthcare-basic)/0.05)] hover:bg-[hsl(var(--healthcare-basic)/0.08)] transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Users className="h-4 w-4 text-[hsl(var(--healthcare-basic))]" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{memberCount}</div>
@@ -128,10 +128,10 @@ export default async function VolunteerDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="p-3">
+        <Card className="p-3 border-l-4 border-l-[var(--healthcare-mental)] bg-[hsl(var(--healthcare-mental)/0.05)] hover:bg-[hsl(var(--healthcare-mental)/0.08)] transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Messages</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            <MessageSquare className="h-4 w-4 text-[hsl(var(--healthcare-mental))]" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">0</div>
@@ -141,10 +141,10 @@ export default async function VolunteerDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="p-3">
+        <Card className="p-3 border-l-4 border-l-[var(--ppcc-orange)] bg-[hsl(var(--ppcc-orange)/0.05)] hover:bg-[hsl(var(--ppcc-orange)/0.08)] transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">This Week</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Calendar className="h-4 w-4 text-[hsl(var(--ppcc-orange))]" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">0</div>
@@ -157,7 +157,7 @@ export default async function VolunteerDashboard() {
 
       <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
         {/* Families */}
-        <Card>
+        <Card className="border-l-4 border-l-[var(--healthcare-home)] bg-[hsl(var(--healthcare-home)/0.05)] hover:bg-[hsl(var(--healthcare-home)/0.08)] transition-colors">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Families</CardTitle>
@@ -221,12 +221,12 @@ export default async function VolunteerDashboard() {
         </Card>
 
         {/* Recent Members */}
-        <Card>
+        <Card className="border-l-4 border-l-[var(--healthcare-basic)] bg-[hsl(var(--healthcare-basic)/0.05)] hover:bg-[hsl(var(--healthcare-basic)/0.08)] transition-colors">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Recent Members</CardTitle>
               <Button size="sm" variant="outline" asChild>
-                <Link href="/volunteer/users?role=MEMBER">
+                <Link href="/volunteer/users">
                   <Eye className="mr-2 h-4 w-4" />
                   View All
                 </Link>
@@ -273,7 +273,7 @@ export default async function VolunteerDashboard() {
                 {myMembers.length > 3 && (
                   <div className="text-center pt-2">
                     <Button variant="outline" size="sm" asChild>
-                      <Link href="/volunteer/users?role=MEMBER">
+                      <Link href="/volunteer/users">
                         View {myMembers.length - 3} more members
                       </Link>
                     </Button>

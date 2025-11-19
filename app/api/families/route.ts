@@ -59,8 +59,8 @@ export async function GET(request: NextRequest) {
       // Admins can see all families
       families = await familyRepository.getAllFamilies();
     } else if (user.role === UserRole.VOLUNTEER) {
-      // Volunteers can only see families they created
-      families = await familyRepository.getFamiliesByCreator(user.id);
+      // Volunteers can see families they're assigned to (supports multiple assignments)
+      families = await familyRepository.getFamiliesByVolunteer(user.id);
     } else {
       // Members can only see their own family
       families = user.familyId
@@ -160,6 +160,20 @@ export async function POST(request: NextRequest) {
       description: validatedData.description,
       createdById: user.id,
     });
+
+    // If the creator is a volunteer, automatically assign them to the family
+    if (user.role === UserRole.VOLUNTEER) {
+      await familyRepository.assignVolunteerToFamily(
+        user.id,
+        family.id,
+        user.id, // Self-assigned
+        "manager"
+      );
+      console.log("✅ Volunteer automatically assigned to created family:", {
+        volunteerId: user.id,
+        familyId: family.id,
+      });
+    }
 
     console.log("✅ Family created successfully:", {
       familyId: family.id,

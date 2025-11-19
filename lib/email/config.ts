@@ -72,7 +72,7 @@ export class EmailConfigManager {
       apiKey: process.env.EMAIL_API_KEY || process.env.RESEND_API_KEY,
       domain: process.env.EMAIL_DOMAIN,
       fromEmail: process.env.EMAIL_FROM_ADDRESS || "noreply@firefly.care",
-      fromName: process.env.EMAIL_FROM_NAME || "Firefly Care",
+      fromName: process.env.EMAIL_FROM_NAME || "Firefly Care Team",
       replyToEmail: process.env.EMAIL_REPLY_TO,
       webhookSecret: process.env.EMAIL_WEBHOOK_SECRET,
       baseUrl: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",

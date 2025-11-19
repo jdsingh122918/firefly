@@ -5,13 +5,13 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive shadow-sm hover:shadow-md",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/60 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive shadow-sm hover:shadow-md",
   {
     variants: {
       variant: {
-        default: "border-2 border-primary/20 bg-primary text-primary-foreground hover:bg-primary/90 hover:border-primary/30 backdrop-blur-sm",
+        default: "border-2 border-primary/20 bg-primary text-primary-foreground hover:bg-primary/85 hover:border-primary/40 backdrop-blur-sm",
         destructive:
-          "border-2 border-destructive/30 bg-destructive text-white hover:bg-destructive/90 hover:border-destructive/40 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 backdrop-blur-sm",
+          "border-2 border-destructive/30 bg-destructive text-white hover:bg-destructive/85 hover:border-destructive/50 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 backdrop-blur-sm",
         outline:
           "border-2 border-border hover:border-border/80 bg-background/90 hover:bg-accent hover:text-accent-foreground dark:bg-input/40 dark:border-input/60 dark:hover:bg-input/60 backdrop-blur-sm",
         secondary:

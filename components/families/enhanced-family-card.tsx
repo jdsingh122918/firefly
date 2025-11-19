@@ -42,6 +42,48 @@ interface EnhancedFamilyCardProps {
   className?: string;
 }
 
+const getEnhancedFamilyCardColors = (family: Family) => {
+  const totalMembers = family.members?.length || 0;
+  const hasPrimaryContact = !!family.primaryContactId;
+  const familyAdmins = family.members?.filter(member =>
+    member.familyRole === FamilyRole.FAMILY_ADMIN
+  ) || [];
+
+  // Priority 1: Well-organized families with primary contact and admins
+  if (hasPrimaryContact && familyAdmins.length > 0 && totalMembers > 3) {
+    return {
+      border: 'border-l-[var(--healthcare-education)]',
+      background: 'bg-blue-50 dark:bg-blue-950/20',
+      hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+    };
+  }
+
+  // Priority 2: Families with primary contact but need structure
+  if (hasPrimaryContact && totalMembers > 2) {
+    return {
+      border: 'border-l-[var(--healthcare-basic)]',
+      background: 'bg-orange-50 dark:bg-orange-950/20',
+      hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+    };
+  }
+
+  // Priority 3: Small families or those needing organization
+  if (!hasPrimaryContact || totalMembers <= 2) {
+    return {
+      border: 'border-l-[var(--healthcare-legal)]',
+      background: 'bg-gray-50 dark:bg-gray-950/20',
+      hover: 'hover:bg-gray-100 dark:hover:bg-gray-950/30'
+    };
+  }
+
+  // Default: Community care (healthcare-home)
+  return {
+    border: 'border-l-[var(--healthcare-home)]',
+    background: 'bg-teal-50 dark:bg-teal-950/20',
+    hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+  };
+};
+
 export function EnhancedFamilyCard({
   family,
   onSetPrimaryContact,
@@ -64,9 +106,18 @@ export function EnhancedFamilyCard({
   ) || [];
 
   const totalMembers = family.members?.length || 0;
+  const cardColors = getEnhancedFamilyCardColors(family);
 
   return (
-    <Card className={cn("w-full", className)}>
+    <Card
+      className={cn(
+        "border-l-4 transition-colors w-full",
+        cardColors.border,
+        cardColors.background,
+        cardColors.hover,
+        className
+      )}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="space-y-1">

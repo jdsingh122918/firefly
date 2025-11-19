@@ -129,7 +129,7 @@ export class FamilyRepository {
   }
 
   /**
-   * Get families created by a specific user
+   * Get families created by a specific user (for backward compatibility)
    */
   async getFamiliesByCreator(createdById: string): Promise<Family[]> {
     const families = await prisma.family.findMany({
@@ -164,6 +164,172 @@ export class FamilyRepository {
     });
 
     return families.map(this.transformPrismaFamily);
+  }
+
+  /**
+   * Get families assigned to a volunteer (new assignment-based method)
+   */
+  async getFamiliesByVolunteer(volunteerId: string): Promise<Family[]> {
+    const assignments = await prisma.volunteerFamilyAssignment.findMany({
+      where: {
+        volunteerId,
+        isActive: true,
+      },
+      include: {
+        family: {
+          include: {
+            createdBy: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                role: true,
+              },
+            },
+            members: {
+              select: {
+                id: true,
+                clerkId: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                role: true,
+                familyRole: true,
+                phoneNumber: true,
+                emailVerified: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { assignedAt: "desc" },
+    });
+
+    return assignments.map(assignment => this.transformPrismaFamily(assignment.family));
+  }
+
+  /**
+   * Assign a volunteer to a family
+   */
+  async assignVolunteerToFamily(
+    volunteerId: string,
+    familyId: string,
+    assignedBy: string,
+    role = "manager"
+  ): Promise<void> {
+    await prisma.volunteerFamilyAssignment.create({
+      data: {
+        volunteerId,
+        familyId,
+        assignedBy,
+        role,
+        isActive: true,
+      },
+    });
+  }
+
+  /**
+   * Remove a volunteer assignment from a family
+   */
+  async removeVolunteerFromFamily(
+    volunteerId: string,
+    familyId: string
+  ): Promise<void> {
+    await prisma.volunteerFamilyAssignment.updateMany({
+      where: {
+        volunteerId,
+        familyId,
+      },
+      data: {
+        isActive: false,
+      },
+    });
+  }
+
+  /**
+   * Get all volunteers assigned to a family
+   */
+  async getVolunteersForFamily(familyId: string): Promise<User[]> {
+    const assignments = await prisma.volunteerFamilyAssignment.findMany({
+      where: {
+        familyId,
+        isActive: true,
+      },
+      include: {
+        volunteer: {
+          select: {
+            id: true,
+            clerkId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            familyId: true,
+            familyRole: true,
+            createdById: true,
+            phoneNumber: true,
+            phoneVerified: true,
+            emailVerified: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+      orderBy: { assignedAt: "desc" },
+    });
+
+    return assignments.map(assignment => assignment.volunteer as User);
+  }
+
+  /**
+   * Get all family assignments for a volunteer
+   */
+  async getVolunteerFamilyAssignments(volunteerId: string) {
+    return await prisma.volunteerFamilyAssignment.findMany({
+      where: {
+        volunteerId,
+        isActive: true,
+      },
+      include: {
+        family: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            createdAt: true,
+          },
+        },
+        assigner: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { assignedAt: "desc" },
+    });
+  }
+
+  /**
+   * Check if a volunteer is assigned to a family
+   */
+  async isVolunteerAssignedToFamily(
+    volunteerId: string,
+    familyId: string
+  ): Promise<boolean> {
+    const assignment = await prisma.volunteerFamilyAssignment.findFirst({
+      where: {
+        volunteerId,
+        familyId,
+        isActive: true,
+      },
+    });
+    return !!assignment;
   }
 
   /**

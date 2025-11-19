@@ -8,9 +8,7 @@ import {
   Heart,
   Settings,
   Bug,
-  LogOut,
-  User,
-  ChevronUp
+  LogOut
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -81,7 +79,6 @@ export function UserProfileDropdown({ user, userRole }: UserProfileDropdownProps
             {user?.email}
           </span>
         </div>
-        <ChevronUp className="h-4 w-4 text-muted-foreground" />
       </Button>
     )
   }
@@ -91,7 +88,7 @@ export function UserProfileDropdown({ user, userRole }: UserProfileDropdownProps
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="h-auto p-2 w-full justify-start gap-3 hover:bg-accent"
+          className="h-auto p-2 w-full justify-start gap-3 hover:bg-accent/50 transition-colors min-h-[48px] rounded-lg"
         >
           <Avatar className="h-8 w-8">
             <AvatarImage src={user?.imageUrl || undefined} alt={displayName} />
@@ -107,7 +104,6 @@ export function UserProfileDropdown({ user, userRole }: UserProfileDropdownProps
               {user?.email}
             </span>
           </div>
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -135,14 +131,6 @@ export function UserProfileDropdown({ user, userRole }: UserProfileDropdownProps
         </div>
 
         <DropdownMenuSeparator />
-
-        {/* Account Settings */}
-        <DropdownMenuItem asChild>
-          <Link href="/settings?tab=account">
-            <User className="mr-2 h-4 w-4" />
-            Manage Account
-          </Link>
-        </DropdownMenuItem>
 
         {/* General Settings */}
         <DropdownMenuItem asChild>

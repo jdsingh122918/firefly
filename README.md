@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Firefly Healthcare Platform
+
+A modern healthcare care coordination platform built with Next.js, TypeScript, and MongoDB. Features role-based access control, real-time communication, and comprehensive care management tools.
+
+## Prerequisites
+
+- Node.js 18+
+- npm or yarn
+- Database (MongoDB Local or Cloud)
+- Authentication provider account
 
 ## Getting Started
 
-First, run the development server:
+### 1. Environment Setup
+
+Copy the environment template and configure your settings:
+
+```bash
+cp .env.example .env.local
+```
+
+Configure the following environment variables:
+- Authentication provider keys
+- Database connection string
+- Webhook configuration
+- Any additional service configurations
+
+### 2. Database Setup
+
+Run the interactive database initialization script:
+
+```bash
+npx tsx scripts/initialize-database.ts
+```
+
+Choose between local or cloud database setup and follow the guided configuration.
+
+### 3. Install Dependencies
+
+```bash
+npm install
+```
+
+### 4. Database Schema
+
+Generate and push the database schema:
+
+```bash
+npx prisma generate && npx prisma db push
+```
+
+### 5. Start Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to access the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 6. Initial Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Create your authentication provider account
+2. Use the admin interface to sync your user account
+3. Configure your role and family access as needed
 
-## Learn More
+## Development Commands
 
-To learn more about Next.js, take a look at the following resources:
+- `npm run dev` - Start development server
+- `npm run build` - Build production application
+- `npm run lint` - Run linting checks
+- Database validation and health check scripts available
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Security Notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Never commit environment files with actual credentials
+- Use provided setup scripts for secure configuration
+- Follow authentication and authorization patterns established in the codebase
+- Refer to internal documentation for detailed security guidelines
 
-## Deploy on Vercel
+## Architecture
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Frontend**: Next.js 14+ with TypeScript
+- **Database**: MongoDB with Prisma ORM
+- **Authentication**: Role-based access control (Admin/Provider/Recipient)
+- **Real-time**: Server-sent events for live features
+- **UI**: Modern responsive design with dark mode support
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Support
+
+For development questions and setup assistance, refer to the internal development documentation or contact the development team.

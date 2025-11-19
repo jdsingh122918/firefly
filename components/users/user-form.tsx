@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FamilyCombobox } from "@/components/ui/family-combobox";
+import { FamilyMultiCombobox } from "@/components/ui/family-multi-combobox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,7 +53,8 @@ const userFormSchema = z.object({
     ["ADMIN", "VOLUNTEER", "MEMBER"] as const,
     "Please select a valid role"
   ),
-  familyId: z.string().optional(),
+  familyId: z.string().optional(), // Single family for MEMBER users
+  volunteerFamilyIds: z.array(z.string()).optional(), // Multiple families for VOLUNTEER users
   phoneNumber: z
     .string()
     .max(20, "Phone number must be less than 20 characters")
@@ -79,6 +81,8 @@ export function UserForm({ mode, initialData, onSuccess }: UserFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [volunteerFamilyIds, setVolunteerFamilyIds] = useState<string[]>([]);
+  const [loadingVolunteerFamilies, setLoadingVolunteerFamilies] = useState(false);
 
   const form = useForm<UserFormData>({
     resolver: zodResolver(userFormSchema),
@@ -88,9 +92,36 @@ export function UserForm({ mode, initialData, onSuccess }: UserFormProps) {
       lastName: initialData?.lastName || "",
       role: (initialData?.role || "MEMBER") as "ADMIN" | "VOLUNTEER" | "MEMBER",
       familyId: initialData?.familyId || "",
+      volunteerFamilyIds: [],
       phoneNumber: initialData?.phoneNumber || "",
     },
   });
+
+  // Fetch volunteer family assignments when editing a volunteer
+  useEffect(() => {
+    const fetchVolunteerFamilies = async () => {
+      if (mode === "edit" && initialData?.id && initialData?.role === "VOLUNTEER") {
+        try {
+          setLoadingVolunteerFamilies(true);
+          const response = await fetch(`/api/volunteers/${initialData.id}/families`);
+          if (response.ok) {
+            const data = await response.json();
+            const familyIds = data.families.map((f: any) => f.id);
+            setVolunteerFamilyIds(familyIds);
+            form.setValue("volunteerFamilyIds", familyIds);
+          } else {
+            console.error("Failed to fetch volunteer families:", response.statusText);
+          }
+        } catch (error) {
+          console.error("Error fetching volunteer families:", error);
+        } finally {
+          setLoadingVolunteerFamilies(false);
+        }
+      }
+    };
+
+    fetchVolunteerFamilies();
+  }, [mode, initialData?.id, initialData?.role, form]);
 
 
   const onSubmit = async (data: UserFormData) => {
@@ -98,13 +129,14 @@ export function UserForm({ mode, initialData, onSuccess }: UserFormProps) {
       setIsSubmitting(true);
       setError(null);
 
-      // Clean up the data - remove empty strings
+      // Clean up the basic user data - exclude volunteer family assignments for volunteers
       const cleanData = {
         email: data.email,
         firstName: data.firstName || undefined,
         lastName: data.lastName || undefined,
         role: data.role,
-        familyId: data.familyId || undefined,
+        // Only include familyId for non-volunteer users
+        familyId: data.role !== "VOLUNTEER" ? (data.familyId || undefined) : undefined,
         phoneNumber: data.phoneNumber || undefined,
       };
 
@@ -149,6 +181,12 @@ export function UserForm({ mode, initialData, onSuccess }: UserFormProps) {
         return;
       }
 
+      // Handle volunteer family assignments separately
+      if (data.role === "VOLUNTEER" && data.volunteerFamilyIds) {
+        const userId = mode === "create" ? result.user.id : initialData?.id;
+        await handleVolunteerFamilyAssignments(userId, data.volunteerFamilyIds);
+      }
+
       // Success! Show toast and handle navigation
       const successMessage =
         mode === "create"
@@ -177,6 +215,58 @@ export function UserForm({ mode, initialData, onSuccess }: UserFormProps) {
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Handle volunteer family assignments
+  const handleVolunteerFamilyAssignments = async (
+    userId: string,
+    newFamilyIds: string[]
+  ) => {
+    try {
+      const currentFamilyIds = volunteerFamilyIds;
+      const toAdd = newFamilyIds.filter(id => !currentFamilyIds.includes(id));
+      const toRemove = currentFamilyIds.filter(id => !newFamilyIds.includes(id));
+
+      // Add new assignments
+      for (const familyId of toAdd) {
+        const response = await fetch(`/api/families/${familyId}/volunteers`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            volunteerId: userId,
+            role: "manager",
+          }),
+        });
+
+        if (!response.ok) {
+          const result = await response.json();
+          console.error(`Failed to assign volunteer to family ${familyId}:`, result.error);
+          toast.error(`Failed to assign volunteer to family: ${result.error}`);
+        }
+      }
+
+      // Remove old assignments
+      for (const familyId of toRemove) {
+        const response = await fetch(`/api/families/${familyId}/volunteers/${userId}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          const result = await response.json();
+          console.error(`Failed to remove volunteer from family ${familyId}:`, result.error);
+          toast.error(`Failed to remove volunteer from family: ${result.error}`);
+        }
+      }
+
+      if (toAdd.length > 0 || toRemove.length > 0) {
+        console.log(`Updated volunteer family assignments: +${toAdd.length} -${toRemove.length}`);
+      }
+    } catch (error) {
+      console.error("Error managing volunteer family assignments:", error);
+      toast.error("Failed to update family assignments");
     }
   };
 
@@ -313,27 +403,55 @@ export function UserForm({ mode, initialData, onSuccess }: UserFormProps) {
             />
 
             {/* Family Assignment */}
-            <FormField
-              control={form.control}
-              name="familyId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Family Assignment</FormLabel>
-                  <FormControl>
-                    <FamilyCombobox
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder="Search families..."
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Assign the user to a family group. This can be changed
-                    later.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {selectedRole !== "VOLUNTEER" ? (
+              <FormField
+                control={form.control}
+                name="familyId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Family Assignment</FormLabel>
+                    <FormControl>
+                      <FamilyCombobox
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder="Search families..."
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Assign the user to a family group. This can be changed
+                      later.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <FormField
+                control={form.control}
+                name="volunteerFamilyIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Family Assignments</FormLabel>
+                    <FormControl>
+                      <FamilyMultiCombobox
+                        value={field.value || []}
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setVolunteerFamilyIds(value);
+                        }}
+                        placeholder="Search and select families..."
+                        disabled={loadingVolunteerFamilies}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Assign the volunteer to multiple family groups. They can
+                      manage all assigned families and their members.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* Phone Number */}
             <FormField
