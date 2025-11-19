@@ -45,6 +45,72 @@ interface AssignmentCardProps {
   className?: string;
 }
 
+const getAssignmentCardColors = (assignment: NoteAssignment, isOverdue: boolean) => {
+  // Priority 1: Overdue assignments (critical attention needed)
+  if (isOverdue) {
+    return {
+      border: 'border-l-[var(--healthcare-medical)]',
+      background: 'bg-pink-50 dark:bg-pink-950/20',
+      hover: 'hover:bg-pink-100 dark:hover:bg-pink-950/30'
+    };
+  }
+
+  // Priority 2: Assignment status
+  switch (assignment.status) {
+    case NoteAssignmentStatus.COMPLETED:
+      return {
+        border: 'border-l-[var(--healthcare-home)]',
+        background: 'bg-teal-50 dark:bg-teal-950/20',
+        hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+      };
+    case NoteAssignmentStatus.IN_PROGRESS:
+      return {
+        border: 'border-l-[var(--healthcare-basic)]',
+        background: 'bg-orange-50 dark:bg-orange-950/20',
+        hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+      };
+    case NoteAssignmentStatus.ASSIGNED:
+      return {
+        border: 'border-l-[var(--healthcare-education)]',
+        background: 'bg-blue-50 dark:bg-blue-950/20',
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+      };
+    case NoteAssignmentStatus.CANCELLED:
+      return {
+        border: 'border-l-[var(--healthcare-legal)]',
+        background: 'bg-gray-50 dark:bg-gray-950/20',
+        hover: 'hover:bg-gray-100 dark:hover:bg-gray-950/30'
+      };
+    default:
+      break;
+  }
+
+  // Priority 3: Assignment priority
+  switch (assignment.priority) {
+    case "URGENT":
+      return {
+        border: 'border-l-[var(--healthcare-mental)]',
+        background: 'bg-purple-50 dark:bg-purple-950/20',
+        hover: 'hover:bg-purple-100 dark:hover:bg-purple-950/30'
+      };
+    case "HIGH":
+      return {
+        border: 'border-l-[var(--healthcare-equipment)]',
+        background: 'bg-blue-50 dark:bg-blue-950/20',
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+      };
+    default:
+      break;
+  }
+
+  // Default fallback for MEDIUM priority
+  return {
+    border: 'border-l-[var(--healthcare-education)]',
+    background: 'bg-blue-50 dark:bg-blue-950/20',
+    hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+  };
+};
+
 export function AssignmentCard({
   assignment,
   onEdit,
@@ -105,12 +171,15 @@ export function AssignmentCard({
     }
   };
 
+  const cardColors = getAssignmentCardColors(assignment, !!isOverdue);
+
   return (
     <Card
       className={cn(
-        "transition-all duration-200 hover:shadow-md",
-        isOverdue && "border-l-4 border-l-red-500 bg-red-50/50",
-        assignment.priority === "URGENT" && !isOverdue && "border-l-4 border-l-orange-500",
+        "border-l-4 transition-colors",
+        cardColors.border,
+        cardColors.background,
+        cardColors.hover,
         assignment.status === NoteAssignmentStatus.COMPLETED && "opacity-75",
         className
       )}

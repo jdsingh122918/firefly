@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +20,6 @@ import {
   CheckCircle,
   MoreHorizontal,
   Eye,
-  Edit,
   Trash2,
 } from 'lucide-react';
 
@@ -40,7 +40,8 @@ interface UserTileProps {
       name: string;
     } | null;
   };
-  onDelete: (id: string, name: string) => void;
+  basePath?: string;
+  onDelete?: (id: string, name: string) => void;
 }
 
 function getRoleColor(role: 'ADMIN' | 'VOLUNTEER' | 'MEMBER') {
@@ -56,7 +57,36 @@ function getRoleColor(role: 'ADMIN' | 'VOLUNTEER' | 'MEMBER') {
   }
 }
 
-export function UserTile({ user, onDelete }: UserTileProps) {
+const getUserTileColors = (role: 'ADMIN' | 'VOLUNTEER' | 'MEMBER') => {
+  switch (role) {
+    case 'ADMIN':
+      return {
+        border: 'border-l-[var(--healthcare-legal)]',
+        background: 'bg-gray-50 dark:bg-gray-950/20',
+        hover: 'hover:bg-gray-100 dark:hover:bg-gray-950/30'
+      };
+    case 'VOLUNTEER':
+      return {
+        border: 'border-l-[var(--healthcare-basic)]',
+        background: 'bg-orange-50 dark:bg-orange-950/20',
+        hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+      };
+    case 'MEMBER':
+      return {
+        border: 'border-l-[var(--healthcare-home)]',
+        background: 'bg-teal-50 dark:bg-teal-950/20',
+        hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+      };
+    default:
+      return {
+        border: 'border-l-[var(--healthcare-home)]',
+        background: 'bg-teal-50 dark:bg-teal-950/20',
+        hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+      };
+  }
+}
+
+export function UserTile({ user, basePath = '/admin/users', onDelete }: UserTileProps) {
   const handleClick = (e: React.MouseEvent) => {
     // Prevent navigation when clicking on dropdown trigger
     const target = e.target as HTMLElement;
@@ -66,12 +96,19 @@ export function UserTile({ user, onDelete }: UserTileProps) {
     }
   };
 
+  const cardColors = getUserTileColors(user.role);
+
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-all border-2 border-primary/20 backdrop-blur-sm shadow-sm"
+      className={cn(
+        "border-l-4 transition-colors cursor-pointer",
+        cardColors.border,
+        cardColors.background,
+        cardColors.hover
+      )}
       onClick={handleClick}
     >
-      <Link href={`/admin/users/${user.id}`} className="block">
+      <Link href={`${basePath}/${user.id}`} className="block">
         <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
           {/* Top Section: Avatar + Name + Role */}
           <div className="flex items-start justify-between">
@@ -156,24 +193,20 @@ export function UserTile({ user, onDelete }: UserTileProps) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
-                  <Link href={`/admin/users/${user.id}`}>
+                  <Link href={`${basePath}/${user.id}`}>
                     <Eye className="mr-2 h-4 w-4" />
                     View Details
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={`/admin/users/${user.id}/edit`}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit User
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-red-600"
-                  onClick={() => onDelete(user.id, user.name)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete User
-                </DropdownMenuItem>
+                {onDelete && (
+                  <DropdownMenuItem
+                    className="text-red-600"
+                    onClick={() => onDelete(user.id, user.name)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete User
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

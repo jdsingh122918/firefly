@@ -79,7 +79,7 @@ export default async function MemberDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-6">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">
           Welcome{user?.firstName ? `, ${user.firstName}` : ''}
@@ -91,10 +91,10 @@ export default async function MemberDashboard() {
 
       {/* Quick Info */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="border-l-4 border-l-[var(--healthcare-home)] bg-[hsl(var(--healthcare-home)/0.05)] hover:bg-[hsl(var(--healthcare-home)/0.08)] transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">My Family</CardTitle>
-            <Heart className="h-4 w-4 text-muted-foreground" />
+            <Heart className="h-4 w-4 text-[hsl(var(--healthcare-home))]" />
           </CardHeader>
           <CardContent>
             {user?.family ? (
@@ -115,10 +115,10 @@ export default async function MemberDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-[var(--healthcare-mental)] bg-[hsl(var(--healthcare-mental)/0.05)] hover:bg-[hsl(var(--healthcare-mental)/0.08)] transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Messages</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            <MessageSquare className="h-4 w-4 text-[hsl(var(--healthcare-mental))]" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{userStats.conversations}</div>
@@ -128,10 +128,10 @@ export default async function MemberDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-[var(--healthcare-education)] bg-[hsl(var(--healthcare-education)/0.05)] hover:bg-[hsl(var(--healthcare-education)/0.08)] transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Content</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <FileText className="h-4 w-4 text-[hsl(var(--healthcare-education))]" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{userStats.content}</div>
@@ -141,10 +141,10 @@ export default async function MemberDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-[var(--ppcc-orange)] bg-[hsl(var(--ppcc-orange)/0.05)] hover:bg-[hsl(var(--ppcc-orange)/0.08)] transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Notifications</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Calendar className="h-4 w-4 text-[hsl(var(--ppcc-orange))]" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{userStats.unreadNotifications}</div>
@@ -157,10 +157,10 @@ export default async function MemberDashboard() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Family Information */}
-        <Card>
+        <Card className="border-l-4 border-l-[var(--healthcare-home)] bg-[hsl(var(--healthcare-home)/0.05)] hover:bg-[hsl(var(--healthcare-home)/0.08)] transition-colors">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <Heart className="h-5 w-5" />
+              <Heart className="h-5 w-5 text-[hsl(var(--healthcare-home))]" />
               <span>My Family</span>
             </CardTitle>
           </CardHeader>
@@ -225,10 +225,10 @@ export default async function MemberDashboard() {
         </Card>
 
         {/* Quick Actions */}
-        <Card>
+        <Card className="border-l-4 border-l-[var(--healthcare-education)] bg-[hsl(var(--healthcare-education)/0.05)] hover:bg-[hsl(var(--healthcare-education)/0.08)] transition-colors">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <BookOpen className="h-5 w-5" />
+              <BookOpen className="h-5 w-5 text-[hsl(var(--healthcare-education))]" />
               <span>Quick Access</span>
             </CardTitle>
           </CardHeader>
@@ -307,11 +307,11 @@ export default async function MemberDashboard() {
       {/* Recent Activity & Info */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Recent Activity */}
-        <Card>
+        <Card className="border-l-4 border-l-[var(--ppcc-orange)] bg-[hsl(var(--ppcc-orange)/0.05)] hover:bg-[hsl(var(--ppcc-orange)/0.08)] transition-colors">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center space-x-2">
-                <FileText className="h-5 w-5" />
+                <FileText className="h-5 w-5 text-[hsl(var(--ppcc-orange))]" />
                 <span>Recent Activity</span>
               </CardTitle>
               <Button size="sm" variant="outline" asChild>
@@ -374,10 +374,10 @@ export default async function MemberDashboard() {
 
         {/* Personal Information */}
         {user && (
-          <Card>
+          <Card className="border-l-4 border-l-[var(--ppcc-gray)] bg-[hsl(var(--ppcc-gray)/0.05)] hover:bg-[hsl(var(--ppcc-gray)/0.08)] transition-colors">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <User className="h-5 w-5" />
+                <User className="h-5 w-5 text-[hsl(var(--ppcc-gray))]" />
                 <span>My Information</span>
               </CardTitle>
             </CardHeader>

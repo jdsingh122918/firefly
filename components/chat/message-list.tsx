@@ -52,16 +52,16 @@ const getSenderDisplayName = (sender: Message['sender']) => {
   return sender.email;
 };
 
-const getRoleColor = (role: string) => {
+const getRoleVariant = (role: string): "default" | "destructive" | "secondary" => {
   switch (role) {
     case 'ADMIN':
-      return 'bg-red-100 text-red-800 border-red-200';
+      return 'destructive';
     case 'VOLUNTEER':
-      return 'bg-blue-100 text-blue-800 border-blue-200';
+      return 'default';
     case 'MEMBER':
-      return 'bg-green-100 text-green-800 border-green-200';
+      return 'secondary';
     default:
-      return 'bg-gray-100 text-gray-800 border-gray-200';
+      return 'secondary';
   }
 };
 
@@ -102,9 +102,9 @@ export function MessageList({
 
   if (messages.length === 0) {
     return (
-      <ScrollArea className="h-full p-4">
-        <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-          <MessageCircle className="h-12 w-12 mb-4 opacity-50" />
+      <ScrollArea className="h-full">
+        <div className="flex flex-col items-center justify-center min-h-full p-8 text-center text-muted-foreground">
+          <MessageCircle className="h-12 w-12 mb-4 opacity-60" />
           <h3 className="text-lg font-medium mb-2">No messages yet</h3>
           <p className="text-sm">Start the conversation by sending the first message!</p>
         </div>
@@ -113,7 +113,7 @@ export function MessageList({
   }
 
   return (
-    <ScrollArea className="h-full">
+    <ScrollArea className="h-full chat-message-container">
       <div className="p-4 space-y-4">
         {messages.map((message, index) => {
           const previousMessage = index > 0 ? messages[index - 1] : undefined;
@@ -131,7 +131,7 @@ export function MessageList({
           }
 
           return (
-            <div key={message.id} className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+            <div key={message.id} className={`flex gap-3 chat-message-group ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
               {/* Avatar - only show when sender info is shown */}
               {showSenderInfo && (
                 <div className="flex-shrink-0">
@@ -155,7 +155,7 @@ export function MessageList({
                     <span className="text-sm font-medium">
                       {isOwnMessage ? 'You' : getSenderDisplayName(message.sender)}
                     </span>
-                    <Badge variant="secondary" className={`text-xs ${getRoleColor(message.sender.role)}`}>
+                    <Badge variant={getRoleVariant(message.sender.role)} className="text-xs">
                       {message.sender.role}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
@@ -165,25 +165,17 @@ export function MessageList({
                 )}
 
                 {/* Message Bubble */}
-                <div className={`group relative ${isOwnMessage ? 'flex justify-end' : ''}`}>
+                <div className={`group relative mb-8 message-bubble-container ${isOwnMessage ? 'flex justify-end' : ''}`}>
                   <div
-                    className={`inline-block max-w-[70%] rounded-lg px-3 py-2 shadow-lg ${
-                      isOwnMessage
-                        ? 'bg-black text-white border-2 border-gray-600'
-                        : 'bg-zinc-900 text-white border-2 border-gray-500'
-                    }`}
-                    style={{
-                      backgroundColor: isOwnMessage ? '#000000' : '#18181b',
-                      color: '#ffffff'
-                    }}
+                    className={`inline-block max-w-[70%] rounded-lg px-3 py-2 shadow-lg bg-muted text-foreground border-2 border-border`}
                   >
                     {/* Reply Context */}
                     {message.replyTo && (
-                      <div className="mb-2 p-2 rounded border-l-2 border-gray-400 bg-gray-700/50">
-                        <div className="text-xs text-gray-300 mb-1">
+                      <div className="mb-2 p-2 rounded border-l-2 border-primary/40 bg-accent/50">
+                        <div className="text-xs text-muted-foreground mb-1">
                           Replying to {getSenderDisplayName(message.replyTo.sender)}
                         </div>
-                        <div className="text-xs opacity-75 line-clamp-2 text-gray-200">
+                        <div className="text-xs opacity-75 line-clamp-2 text-foreground">
                           <MessageContentRenderer content={message.replyTo.content} />
                         </div>
                       </div>
@@ -194,7 +186,7 @@ export function MessageList({
 
                     {/* Edited Indicator */}
                     {message.isEdited && (
-                      <div className="text-xs mt-1 opacity-75 text-gray-300">
+                      <div className="text-xs mt-1 opacity-75 text-muted-foreground">
                         edited {formatDistanceToNow(new Date(message.editedAt!), { addSuffix: true })}
                       </div>
                     )}
@@ -203,7 +195,7 @@ export function MessageList({
                     {message.attachments.length > 0 && (
                       <div className="mt-2 space-y-1">
                         {message.attachments.map((attachment, index) => (
-                          <div key={`${message.id}-attachment-${index}`} className="text-xs opacity-75 text-gray-300">
+                          <div key={`${message.id}-attachment-${index}`} className="text-xs opacity-75 text-muted-foreground">
                             📎 {attachment}
                           </div>
                         ))}
@@ -211,26 +203,28 @@ export function MessageList({
                     )}
                   </div>
 
-                  {/* Reaction Controls - Always visible with proper z-index */}
-                  <div className="absolute top-0 right-0 opacity-60 hover:opacity-100 transition-opacity duration-200 -mt-2 -mr-1 z-10">
+                  {/* Reaction Controls - Positioned below bubble */}
+                  <div className={`absolute -bottom-6 ${isOwnMessage ? 'right-0' : 'left-0'} opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20 md:opacity-60 md:hover:opacity-100`}>
                     <EmojiPicker
                       onEmojiSelect={(emoji) => onAddReaction?.(message.id, emoji)}
                       size="sm"
+                      align={isOwnMessage ? "end" : "start"}
                     />
                   </div>
+                  {/* Message Reactions - Positioned just outside bottom edge */}
+                  {message.metadata && (
+                    <div className="absolute -bottom-6 left-0 z-30">
+                      <MessageReactions
+                        messageId={message.id}
+                        reactions={(message.metadata as MessageMetadata).reactions}
+                        currentUserId={currentUserId}
+                        onAddReaction={onAddReaction}
+                        onRemoveReaction={onRemoveReaction}
+                        className=""
+                      />
+                    </div>
+                  )}
                 </div>
-
-                {/* Message Reactions */}
-                {message.metadata && (
-                  <MessageReactions
-                    messageId={message.id}
-                    reactions={(message.metadata as MessageMetadata).reactions}
-                    currentUserId={currentUserId}
-                    onAddReaction={onAddReaction}
-                    onRemoveReaction={onRemoveReaction}
-                    className={isOwnMessage ? "justify-end" : ""}
-                  />
-                )}
 
                 {/* Time stamp for messages without sender info */}
                 {!showSenderInfo && (

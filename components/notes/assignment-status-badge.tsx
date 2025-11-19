@@ -25,22 +25,22 @@ const statusConfig = {
   [NoteAssignmentStatus.ASSIGNED]: {
     label: "Assigned",
     icon: Clock,
-    className: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200",
+    className: "bg-[hsl(var(--status-pending)/0.1)] text-[hsl(var(--status-pending))] border-[hsl(var(--status-pending)/0.3)] hover:bg-[hsl(var(--status-pending)/0.15)]",
   },
   [NoteAssignmentStatus.IN_PROGRESS]: {
     label: "In Progress",
     icon: Play,
-    className: "bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200",
+    className: "bg-[hsl(var(--status-active)/0.1)] text-[hsl(var(--status-active))] border-[hsl(var(--status-active)/0.3)] hover:bg-[hsl(var(--status-active)/0.15)]",
   },
   [NoteAssignmentStatus.COMPLETED]: {
     label: "Completed",
     icon: CheckCircle,
-    className: "bg-green-100 text-green-800 border-green-200 hover:bg-green-200",
+    className: "bg-[hsl(var(--status-success)/0.1)] text-[hsl(var(--status-success))] border-[hsl(var(--status-success)/0.3)] hover:bg-[hsl(var(--status-success)/0.15)]",
   },
   [NoteAssignmentStatus.CANCELLED]: {
     label: "Cancelled",
     icon: XCircle,
-    className: "bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200",
+    className: "bg-[hsl(var(--status-neutral)/0.1)] text-[hsl(var(--status-neutral))] border-[hsl(var(--status-neutral)/0.3)] hover:bg-[hsl(var(--status-neutral)/0.15)]",
   },
 };
 
@@ -48,22 +48,22 @@ const priorityConfig = {
   [AssignmentPriority.LOW]: {
     label: "Low",
     icon: TrendingUp,
-    className: "bg-gray-100 text-gray-600 border-gray-200",
+    className: "bg-[hsl(var(--status-neutral)/0.1)] text-[hsl(var(--status-neutral))] border-[hsl(var(--status-neutral)/0.3)]",
   },
   [AssignmentPriority.MEDIUM]: {
     label: "Medium",
     icon: TrendingUp,
-    className: "bg-blue-100 text-blue-600 border-blue-200",
+    className: "bg-[hsl(var(--status-pending)/0.1)] text-[hsl(var(--status-pending))] border-[hsl(var(--status-pending)/0.3)]",
   },
   [AssignmentPriority.HIGH]: {
     label: "High",
     icon: AlertTriangle,
-    className: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    className: "bg-[hsl(var(--status-warning)/0.1)] text-[hsl(var(--status-warning))] border-[hsl(var(--status-warning)/0.3)]",
   },
   [AssignmentPriority.URGENT]: {
     label: "Urgent",
     icon: Flame,
-    className: "bg-red-100 text-red-700 border-red-200",
+    className: "bg-[hsl(var(--status-error)/0.1)] text-[hsl(var(--status-error))] border-[hsl(var(--status-error)/0.3)]",
   },
 };
 
@@ -79,7 +79,7 @@ export function AssignmentStatusBadge({
 
   // Override styling for overdue items
   const finalClassName = isOverdue && status !== NoteAssignmentStatus.COMPLETED && status !== NoteAssignmentStatus.CANCELLED
-    ? "bg-red-100 text-red-800 border-red-300 hover:bg-red-200"
+    ? "bg-[hsl(var(--status-error)/0.1)] text-[hsl(var(--status-error))] border-[hsl(var(--status-error)/0.3)] hover:bg-[hsl(var(--status-error)/0.15)]"
     : config.className;
 
   const displayLabel = isOverdue && status !== NoteAssignmentStatus.COMPLETED && status !== NoteAssignmentStatus.CANCELLED

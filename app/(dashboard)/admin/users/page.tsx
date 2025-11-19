@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Eye, Edit, Trash2, Users, MoreHorizontal, CheckCircle, Calendar, Phone, Mail } from 'lucide-react'
+import { Plus, Search, Eye, Users, CheckCircle, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Table,
@@ -12,12 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {
   Select,
   SelectContent,
@@ -285,7 +279,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -398,9 +392,8 @@ export default function UsersPage() {
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Family</TableHead>
-                    <TableHead>Contact</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead className="w-[100px]">View</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -447,23 +440,6 @@ export default function UsersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {user.phoneNumber && (
-                            <div className="text-muted-foreground">
-                              {user.phoneNumber}
-                              {user.phoneVerified && (
-                                <span className="ml-2 text-green-600">✓</span>
-                              )}
-                            </div>
-                          )}
-                          {user.emailVerified && (
-                            <div className="text-green-600 text-xs">
-                              Email verified
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
                           <div className="text-muted-foreground">
                             {new Date(user.createdAt).toLocaleDateString()}
                           </div>
@@ -475,34 +451,12 @@ export default function UsersPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="p-0 min-h-[44px] min-w-[44px]">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/admin/users/${user.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Details
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href={`/admin/users/${user.id}/edit`}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit User
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-red-600"
-                              onClick={() => handleDeleteUser(user.id, user.name)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete User
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/admin/users/${user.id}`}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
+                          </Link>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -109,18 +109,130 @@ const getResourceTypeIcon = (type: string) => {
 };
 
 const getStatusColor = (status: string, isFeatured: boolean) => {
-  if (isFeatured) return "bg-yellow-100 text-yellow-800 border-yellow-200";
+  if (isFeatured) return "bg-[hsl(var(--ppcc-blue)/0.1)] text-[hsl(var(--ppcc-blue))] border-[hsl(var(--ppcc-blue)/0.3)]";
   switch (status) {
     case 'APPROVED':
-      return "bg-green-100 text-green-800 border-green-200";
+      return "bg-[hsl(var(--ppcc-teal)/0.1)] text-[hsl(var(--ppcc-teal))] border-[hsl(var(--ppcc-teal)/0.3)]";
     case 'PENDING':
-      return "bg-orange-100 text-orange-800 border-orange-200";
+      return "bg-[hsl(var(--ppcc-orange)/0.1)] text-[hsl(var(--ppcc-orange))] border-[hsl(var(--ppcc-orange)/0.3)]";
     case 'DRAFT':
-      return "bg-gray-100 text-gray-800 border-gray-200";
+      return "bg-[hsl(var(--ppcc-gray)/0.1)] text-[hsl(var(--ppcc-gray))] border-[hsl(var(--ppcc-gray)/0.3)]";
     case 'REJECTED':
-      return "bg-red-100 text-red-800 border-red-200";
+      return "bg-[hsl(var(--ppcc-pink)/0.1)] text-[hsl(var(--ppcc-pink))] border-[hsl(var(--ppcc-pink)/0.3)]";
     default:
-      return "bg-gray-100 text-gray-800 border-gray-200";
+      return "bg-[hsl(var(--ppcc-gray)/0.1)] text-[hsl(var(--ppcc-gray))] border-[hsl(var(--ppcc-gray)/0.3)]";
+  }
+};
+
+const getResourceCardColors = (resource: Resource) => {
+  // Priority 1: Healthcare tags (highest priority)
+  if (resource.tags && resource.tags.length > 0) {
+    const tag = resource.tags[0].toLowerCase();
+    if (tag.includes('medical') || tag.includes('health')) {
+      return {
+        border: 'border-l-[var(--healthcare-medical)]',
+        background: 'bg-pink-50 dark:bg-pink-950/20',
+        hover: 'hover:bg-pink-100 dark:hover:bg-pink-950/30'
+      };
+    }
+    if (tag.includes('mental')) {
+      return {
+        border: 'border-l-[var(--healthcare-mental)]',
+        background: 'bg-purple-50 dark:bg-purple-950/20',
+        hover: 'hover:bg-purple-100 dark:hover:bg-purple-950/30'
+      };
+    }
+    if (tag.includes('home') || tag.includes('community')) {
+      return {
+        border: 'border-l-[var(--healthcare-home)]',
+        background: 'bg-teal-50 dark:bg-teal-950/20',
+        hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+      };
+    }
+    if (tag.includes('equipment') || tag.includes('technology') || tag.includes('tool')) {
+      return {
+        border: 'border-l-[var(--healthcare-equipment)]',
+        background: 'bg-blue-50 dark:bg-blue-950/20',
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+      };
+    }
+    if (tag.includes('basic') || tag.includes('resources') || tag.includes('support')) {
+      return {
+        border: 'border-l-[var(--healthcare-basic)]',
+        background: 'bg-orange-50 dark:bg-orange-950/20',
+        hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+      };
+    }
+    if (tag.includes('education') || tag.includes('family') || tag.includes('training')) {
+      return {
+        border: 'border-l-[var(--healthcare-education)]',
+        background: 'bg-blue-50 dark:bg-blue-950/20',
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+      };
+    }
+    if (tag.includes('legal') || tag.includes('advocacy')) {
+      return {
+        border: 'border-l-[var(--healthcare-legal)]',
+        background: 'bg-gray-50 dark:bg-gray-950/20',
+        hover: 'hover:bg-gray-100 dark:hover:bg-gray-950/30'
+      };
+    }
+  }
+
+  // Priority 2: Resource status (Featured > Approved > Pending > Others)
+  if (resource.isFeatured) {
+    return {
+      border: 'border-l-[var(--ppcc-blue)]',
+      background: 'bg-blue-50 dark:bg-blue-950/20',
+      hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+    };
+  }
+  if (resource.status === 'APPROVED') {
+    return {
+      border: 'border-l-[var(--ppcc-teal)]',
+      background: 'bg-teal-50 dark:bg-teal-950/20',
+      hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+    };
+  }
+  if (resource.status === 'PENDING') {
+    return {
+      border: 'border-l-[var(--ppcc-orange)]',
+      background: 'bg-orange-50 dark:bg-orange-950/20',
+      hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+    };
+  }
+
+  // Priority 3: Resource type mapping to healthcare categories
+  switch (resource.type) {
+    case 'VIDEO':
+    case 'AUDIO':
+    case 'IMAGE':
+      return {
+        border: 'border-l-[var(--healthcare-education)]',
+        background: 'bg-blue-50 dark:bg-blue-950/20',
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+      };
+    case 'TOOL':
+    case 'SERVICE':
+      return {
+        border: 'border-l-[var(--healthcare-equipment)]',
+        background: 'bg-blue-50 dark:bg-blue-950/20',
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+      };
+    case 'CONTACT':
+      return {
+        border: 'border-l-[var(--healthcare-basic)]',
+        background: 'bg-orange-50 dark:bg-orange-950/20',
+        hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+      };
+    case 'DOCUMENT':
+    case 'LINK':
+    default:
+      return {
+        border: 'border-l-[var(--healthcare-home)]',
+        background: 'bg-teal-50 dark:bg-teal-950/20',
+        hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+      };
   }
 };
 
@@ -130,6 +242,7 @@ export function ResourceCard({ resource, userRole, showActions = false }: Resour
 
   const TypeIcon = getResourceTypeIcon(resource.type);
   const statusColor = getStatusColor(resource.status, resource.isFeatured);
+  const cardColors = getResourceCardColors(resource);
 
   const handleBookmark = async () => {
     try {
@@ -166,7 +279,7 @@ export function ResourceCard({ resource, userRole, showActions = false }: Resour
   };
 
   return (
-    <Card className="p-3 hover:shadow-md transition-shadow">
+    <Card className={`p-3 border-l-4 transition-colors ${cardColors.border} ${cardColors.background} ${cardColors.hover}`}>
       <CardHeader className="space-y-2">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2 flex-1 min-w-0">

@@ -128,26 +128,26 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
       {/* Panel */}
       <div
         className={cn(
-          "fixed right-0 top-0 h-full w-full md:w-96 bg-white shadow-xl z-50",
+          "fixed right-0 top-0 h-full w-full md:w-96 bg-background shadow-xl z-50",
           "transform transition-transform duration-300 ease-in-out",
           isOpen ? "translate-x-0" : "translate-x-full",
           className
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+        <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
           <div className="flex items-center gap-3">
-            <Bell className="h-5 w-5 text-gray-600" />
+            <Bell className="h-5 w-5 text-muted-foreground" />
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
+              <h2 className="text-lg font-semibold text-foreground">Notifications</h2>
               {unreadCount > 0 && (
-                <p className="text-sm text-gray-600">{unreadCount} unread</p>
+                <p className="text-sm text-muted-foreground">{unreadCount} unread</p>
               )}
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+            className="p-2 hover:bg-accent rounded-full transition-colors"
             aria-label="Close notifications"
           >
             <X className="h-5 w-5" />
@@ -155,7 +155,7 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
         </div>
 
         {/* Filters and Actions */}
-        <div className="p-4 border-b bg-gray-50 space-y-3">
+        <div className="p-4 border-b border-border bg-muted/20 space-y-3">
           {/* Filter tabs */}
           <div className="flex flex-wrap gap-2">
             <button
@@ -163,8 +163,8 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
               className={cn(
                 "px-3 py-1 text-sm rounded-full transition-colors",
                 filter === "all"
-                  ? "bg-blue-100 text-blue-700 font-medium"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-primary/20 text-primary font-medium"
+                  : "bg-accent text-accent-foreground hover:bg-accent/80"
               )}
             >
               All
@@ -174,8 +174,8 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
               className={cn(
                 "px-3 py-1 text-sm rounded-full transition-colors",
                 filter === "unread"
-                  ? "bg-blue-100 text-blue-700 font-medium"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-primary/20 text-primary font-medium"
+                  : "bg-accent text-accent-foreground hover:bg-accent/80"
               )}
             >
               Unread ({unreadCount})
@@ -193,8 +193,8 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
                   className={cn(
                     "flex items-center gap-1 px-3 py-1 text-sm rounded-full transition-colors",
                     filter === type
-                      ? "bg-blue-100 text-blue-700 font-medium"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      ? "bg-primary/20 text-primary font-medium"
+                      : "bg-accent text-accent-foreground hover:bg-accent/80"
                   )}
                 >
                   <Icon className="h-3 w-3" />
@@ -209,7 +209,7 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
             <div className="flex items-center justify-between">
               <button
                 onClick={handleMarkAllAsRead}
-                className="flex items-center gap-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                className="flex items-center gap-2 px-3 py-1 text-sm text-primary hover:text-primary/80 hover:bg-primary/10 rounded-md transition-colors"
               >
                 <CheckCheck className="h-4 w-4" />
                 Mark all as read
@@ -222,23 +222,23 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
         <div className="flex-1 overflow-y-auto">
           {isLoading && (
             <div className="flex items-center justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
           )}
 
           {error && (
-            <div className="p-4 text-center text-red-600">
+            <div className="p-4 text-center text-destructive">
               <p className="text-sm">{error}</p>
             </div>
           )}
 
           {!isLoading && !error && filteredNotifications.length === 0 && (
             <div className="flex flex-col items-center justify-center p-8 text-center">
-              <Bell className="h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <Bell className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">
                 {filter === "unread" ? "No unread notifications" : "No notifications"}
               </h3>
-              <p className="text-gray-600 text-sm">
+              <p className="text-muted-foreground text-sm">
                 {filter === "unread"
                   ? "You're all caught up!"
                   : "When you receive notifications, they'll appear here."}
@@ -256,10 +256,10 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
                   <div
                     key={notification.id}
                     className={cn(
-                      "p-3 rounded-lg border transition-colors group cursor-pointer",
+                      "p-3 rounded-lg border border-border transition-colors group cursor-pointer",
                       notification.isRead
-                        ? "bg-white border-gray-200 hover:bg-gray-50"
-                        : "bg-blue-50 border-blue-200 hover:bg-blue-100"
+                        ? "bg-card hover:bg-accent/50"
+                        : "bg-accent/20 hover:bg-accent/30"
                     )}
                     onClick={() => handleAction(notification)}
                   >
@@ -273,7 +273,7 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
                           <h3
                             className={cn(
                               "font-medium text-sm",
-                              notification.isRead ? "text-gray-900" : "text-gray-900 font-semibold"
+                              notification.isRead ? "text-card-foreground" : "text-card-foreground font-semibold"
                             )}
                           >
                             {notification.title}
@@ -285,10 +285,10 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
                                   e.stopPropagation();
                                   handleMarkAsRead(notification.id);
                                 }}
-                                className="p-1 hover:bg-blue-200 rounded transition-colors"
+                                className="p-1 hover:bg-primary/20 rounded transition-colors"
                                 title="Mark as read"
                               >
-                                <Check className="h-3 w-3 text-blue-600" />
+                                <Check className="h-3 w-3 text-primary" />
                               </button>
                             )}
                             <button
@@ -297,24 +297,24 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
                                 handleDelete(notification.id);
                               }}
                               disabled={isDeleting === notification.id}
-                              className="p-1 hover:bg-red-100 rounded transition-colors"
+                              className="p-1 hover:bg-destructive/20 rounded transition-colors"
                               title="Delete"
                             >
                               {isDeleting === notification.id ? (
-                                <div className="animate-spin rounded-full h-3 w-3 border-b border-red-600" />
+                                <div className="animate-spin rounded-full h-3 w-3 border-b border-destructive" />
                               ) : (
-                                <Trash2 className="h-3 w-3 text-red-600" />
+                                <Trash2 className="h-3 w-3 text-destructive" />
                               )}
                             </button>
                           </div>
                         </div>
 
-                        <p className="text-sm text-gray-700 mb-2 line-clamp-2">
+                        <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
                           {notification.message}
                         </p>
 
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-muted-foreground">
                             {formatTimestamp(notification.createdAt)}
                           </span>
 
@@ -323,7 +323,7 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
                               {notificationTypeLabels[notification.type]}
                             </span>
                             {!notification.isRead && (
-                              <div className="w-2 h-2 rounded-full bg-blue-500" />
+                              <div className="w-2 h-2 rounded-full bg-primary" />
                             )}
                           </div>
                         </div>
@@ -337,13 +337,13 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
         </div>
 
         {/* Footer */}
-        <div className="border-t p-4 bg-gray-50">
+        <div className="border-t border-border p-4 bg-muted/20">
           <button
             onClick={() => {
               // Navigate to notification settings
               console.log("Navigate to notification settings");
             }}
-            className="flex items-center gap-2 w-full p-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+            className="flex items-center gap-2 w-full p-2 text-sm text-foreground hover:bg-accent rounded-md transition-colors"
           >
             <Settings className="h-4 w-4" />
             Notification Settings

@@ -60,7 +60,7 @@ export default async function AdminDashboard() {
   ])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-6">
       <div>
         <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Dashboard</h2>
         <p className="text-sm sm:text-base text-muted-foreground">
@@ -76,10 +76,10 @@ export default async function AdminDashboard() {
         </div>
 
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="p-3">
+          <Card className="p-3 border-l-4 border-l-[var(--healthcare-basic)] bg-[hsl(var(--healthcare-basic)/0.05)] hover:bg-[hsl(var(--healthcare-basic)/0.08)] transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <Users className="h-4 w-4 text-[hsl(var(--healthcare-basic))]" />
             </CardHeader>
             <CardContent className="space-y-1">
               <div className="text-2xl font-bold">{userStats.total}</div>
@@ -89,10 +89,10 @@ export default async function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="p-3">
+          <Card className="p-3 border-l-4 border-l-[var(--healthcare-basic)] bg-[hsl(var(--healthcare-basic)/0.05)] hover:bg-[hsl(var(--healthcare-basic)/0.08)] transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Volunteers</CardTitle>
-              <UserPlus className="h-4 w-4 text-muted-foreground" />
+              <UserPlus className="h-4 w-4 text-[hsl(var(--healthcare-basic))]" />
             </CardHeader>
             <CardContent className="space-y-1">
               <div className="text-2xl font-bold">{userStats.volunteers}</div>
@@ -102,10 +102,10 @@ export default async function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="p-3">
+          <Card className="p-3 border-l-4 border-l-[var(--healthcare-medical)] bg-[hsl(var(--healthcare-medical)/0.05)] hover:bg-[hsl(var(--healthcare-medical)/0.08)] transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Families</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
+              <Building className="h-4 w-4 text-[hsl(var(--healthcare-medical))]" />
             </CardHeader>
             <CardContent className="space-y-1">
               <div className="text-2xl font-bold">{familyStats.total}</div>
@@ -115,10 +115,10 @@ export default async function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="p-3">
+          <Card className="p-3 border-l-4 border-l-[var(--healthcare-basic)] bg-[hsl(var(--healthcare-basic)/0.05)] hover:bg-[hsl(var(--healthcare-basic)/0.08)] transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Members</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Calendar className="h-4 w-4 text-[hsl(var(--healthcare-basic))]" />
             </CardHeader>
             <CardContent className="space-y-1">
               <div className="text-2xl font-bold">{userStats.members}</div>
@@ -138,10 +138,10 @@ export default async function AdminDashboard() {
         </div>
 
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="p-3">
+          <Card className="p-3 border-l-4 border-l-[var(--healthcare-home)] bg-[hsl(var(--healthcare-home)/0.05)] hover:bg-[hsl(var(--healthcare-home)/0.08)] transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Notes</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <FileText className="h-4 w-4 text-[hsl(var(--healthcare-home))]" />
             </CardHeader>
             <CardContent className="space-y-1">
               <div className="text-2xl font-bold">{noteStats.totalNotes}</div>
@@ -151,10 +151,10 @@ export default async function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="p-3">
+          <Card className="p-3 border-l-4 border-l-[var(--healthcare-medical)] bg-[hsl(var(--healthcare-medical)/0.05)] hover:bg-[hsl(var(--healthcare-medical)/0.08)] transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Care Plans</CardTitle>
-              <Heart className="h-4 w-4 text-muted-foreground" />
+              <Heart className="h-4 w-4 text-[hsl(var(--healthcare-medical))]" />
             </CardHeader>
             <CardContent className="space-y-1">
               <div className="text-2xl font-bold">{noteStats.carePlanNotes}</div>
@@ -164,10 +164,10 @@ export default async function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="p-3">
+          <Card className="p-3 border-l-4 border-l-[var(--healthcare-home)] bg-[hsl(var(--healthcare-home)/0.05)] hover:bg-[hsl(var(--healthcare-home)/0.08)] transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Documents</CardTitle>
-              <FileImage className="h-4 w-4 text-muted-foreground" />
+              <FileImage className="h-4 w-4 text-[hsl(var(--healthcare-home))]" />
             </CardHeader>
             <CardContent className="space-y-1">
               <div className="text-2xl font-bold">{documentStats.totalDocuments}</div>
@@ -177,10 +177,10 @@ export default async function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="p-3">
+          <Card className="p-3 border-l-4 border-l-[var(--healthcare-equipment)] bg-[hsl(var(--healthcare-equipment)/0.05)] hover:bg-[hsl(var(--healthcare-equipment)/0.08)] transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Assignments</CardTitle>
-              <CheckSquare className="h-4 w-4 text-muted-foreground" />
+              <CheckSquare className="h-4 w-4 text-[hsl(var(--healthcare-equipment))]" />
             </CardHeader>
             <CardContent className="space-y-1">
               <div className="text-2xl font-bold">{noteStats.notesWithAssignments}</div>
@@ -200,10 +200,10 @@ export default async function AdminDashboard() {
         </div>
 
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="p-3">
+          <Card className="p-3 border-l-4 border-l-[var(--healthcare-mental)] bg-[hsl(var(--healthcare-mental)/0.05)] hover:bg-[hsl(var(--healthcare-mental)/0.08)] transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Forums</CardTitle>
-              <MessagesSquare className="h-4 w-4 text-muted-foreground" />
+              <MessagesSquare className="h-4 w-4 text-[hsl(var(--healthcare-mental))]" />
             </CardHeader>
             <CardContent className="space-y-1">
               <div className="text-2xl font-bold">{forumStats.totalForums}</div>
@@ -213,10 +213,10 @@ export default async function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="p-3">
+          <Card className="p-3 border-l-4 border-l-[var(--healthcare-mental)] bg-[hsl(var(--healthcare-mental)/0.05)] hover:bg-[hsl(var(--healthcare-mental)/0.08)] transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Posts</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <MessageSquare className="h-4 w-4 text-[hsl(var(--healthcare-mental))]" />
             </CardHeader>
             <CardContent className="space-y-1">
               <div className="text-2xl font-bold">{forumStats.totalPosts}</div>
@@ -226,10 +226,10 @@ export default async function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="p-3">
+          <Card className="p-3 border-l-4 border-l-[var(--healthcare-mental)] bg-[hsl(var(--healthcare-mental)/0.05)] hover:bg-[hsl(var(--healthcare-mental)/0.08)] transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Replies</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
+              <Activity className="h-4 w-4 text-[hsl(var(--healthcare-mental))]" />
             </CardHeader>
             <CardContent className="space-y-1">
               <div className="text-2xl font-bold">{forumStats.totalReplies}</div>
@@ -239,10 +239,10 @@ export default async function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="p-3">
+          <Card className="p-3 border-l-4 border-l-[var(--healthcare-mental)] bg-[hsl(var(--healthcare-mental)/0.05)] hover:bg-[hsl(var(--healthcare-mental)/0.08)] transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <TrendingUp className="h-4 w-4 text-[hsl(var(--healthcare-mental))]" />
             </CardHeader>
             <CardContent className="space-y-1">
               <div className="text-2xl font-bold">{forumStats.postsThisMonth}</div>

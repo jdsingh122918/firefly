@@ -16,6 +16,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +49,31 @@ interface FamilyTileProps {
   basePath?: string; // e.g., "/admin/families" or "/volunteer/families"
 }
 
+const getFamilyTileColors = (family: Family) => {
+  // Priority 1: Family member count (larger families get different color emphasis)
+  if (family.memberCount > 5) {
+    return {
+      border: 'border-l-[var(--healthcare-education)]',
+      background: 'bg-blue-50 dark:bg-blue-950/20',
+      hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+    };
+  }
+  if (family.memberCount > 2) {
+    return {
+      border: 'border-l-[var(--healthcare-basic)]',
+      background: 'bg-orange-50 dark:bg-orange-950/20',
+      hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+    };
+  }
+
+  // Default: Healthcare home (community care)
+  return {
+    border: 'border-l-[var(--healthcare-home)]',
+    background: 'bg-teal-50 dark:bg-teal-950/20',
+    hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+  };
+};
+
 export function FamilyTile({ family, onDelete, basePath = "/admin/families" }: FamilyTileProps) {
   const handleClick = (e: React.MouseEvent) => {
     // Allow click through to navigation unless clicking on dropdown trigger
@@ -57,9 +83,16 @@ export function FamilyTile({ family, onDelete, basePath = "/admin/families" }: F
     }
   };
 
+  const cardColors = getFamilyTileColors(family);
+
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-all border-2 border-primary/20 backdrop-blur-sm shadow-sm"
+      className={cn(
+        "border-l-4 transition-colors cursor-pointer",
+        cardColors.border,
+        cardColors.background,
+        cardColors.hover
+      )}
       onClick={handleClick}
     >
       <Link href={`${basePath}/${family.id}`} className="block">

@@ -18,7 +18,7 @@ export const HEALTHCARE_CATEGORIES: HealthcareCategory[] = [
   {
     name: "Medical & Healthcare Services",
     description: "Core medical services and healthcare professionals",
-    color: "#dc2626", // red-600
+    color: "#DF4661", // PPCC Pink
     icon: "🏥",
     tags: [
       "Doctors/Physicians",
@@ -38,7 +38,7 @@ export const HEALTHCARE_CATEGORIES: HealthcareCategory[] = [
   {
     name: "Mental Health & Supportive Programs",
     description: "Mental health, behavioral support, and therapeutic programs",
-    color: "#7c3aed", // violet-600
+    color: "#C964CF", // PPCC Purple
     icon: "🧠",
     tags: [
       "Mental Health & Wellness",
@@ -55,7 +55,7 @@ export const HEALTHCARE_CATEGORIES: HealthcareCategory[] = [
   {
     name: "Home & Community-Based Care",
     description: "Home healthcare services and community-based support",
-    color: "#059669", // emerald-600
+    color: "#00B2A9", // PPCC Teal
     icon: "🏠",
     tags: [
       "Home Healthcare",
@@ -68,7 +68,7 @@ export const HEALTHCARE_CATEGORIES: HealthcareCategory[] = [
   {
     name: "Medical Supplies & Equipment",
     description: "Medical devices, adaptive equipment, and technology",
-    color: "#2563eb", // blue-600
+    color: "#418FDE", // PPCC Blue
     icon: "🔧",
     tags: [
       "Medical Supplies & Equipment",
@@ -79,7 +79,7 @@ export const HEALTHCARE_CATEGORIES: HealthcareCategory[] = [
   {
     name: "Basic Needs & Daily Living",
     description: "Essential daily living support and basic needs",
-    color: "#ea580c", // orange-600
+    color: "#FF8200", // PPCC Orange (Primary)
     icon: "🛡️",
     tags: [
       "Basic Human Needs (Food, Clothing, Housing, Goods)",
@@ -90,7 +90,7 @@ export const HEALTHCARE_CATEGORIES: HealthcareCategory[] = [
   {
     name: "Finances & Insurance",
     description: "Financial assistance, insurance, and billing support",
-    color: "#16a34a", // green-600
+    color: "#00B2A9", // PPCC Teal (alternative shade)
     icon: "💰",
     tags: [
       "Finances & Insurance"
@@ -99,7 +99,7 @@ export const HEALTHCARE_CATEGORIES: HealthcareCategory[] = [
   {
     name: "Legal & Advocacy",
     description: "Legal services, advocacy, and protective services",
-    color: "#0891b2", // cyan-600
+    color: "#333333", // PPCC Gray
     icon: "⚖️",
     tags: [
       "Advocacy",
@@ -110,7 +110,7 @@ export const HEALTHCARE_CATEGORIES: HealthcareCategory[] = [
   {
     name: "Education & Employment",
     description: "Educational services and employment support",
-    color: "#7c2d12", // amber-800
+    color: "#418FDE", // PPCC Blue (alternative usage)
     icon: "📚",
     tags: [
       "Education",
@@ -133,17 +133,17 @@ export const ALL_HEALTHCARE_TAGS = HEALTHCARE_CATEGORIES.flatMap(category =>
 );
 
 /**
- * Color palette for healthcare categories
+ * Color palette for healthcare categories - PPCC Brand Colors
  */
 export const HEALTHCARE_COLORS = {
-  MEDICAL: "#dc2626",        // red-600
-  MENTAL_HEALTH: "#7c3aed",  // violet-600
-  HOME_CARE: "#059669",      // emerald-600
-  EQUIPMENT: "#2563eb",      // blue-600
-  BASIC_NEEDS: "#ea580c",    // orange-600
-  FINANCIAL: "#16a34a",      // green-600
-  LEGAL: "#0891b2",          // cyan-600
-  EDUCATION: "#7c2d12"       // amber-800
+  MEDICAL: "#DF4661",        // PPCC Pink
+  MENTAL_HEALTH: "#C964CF",  // PPCC Purple
+  HOME_CARE: "#00B2A9",      // PPCC Teal
+  EQUIPMENT: "#418FDE",      // PPCC Blue
+  BASIC_NEEDS: "#FF8200",    // PPCC Orange (Primary)
+  FINANCIAL: "#00B2A9",      // PPCC Teal (alternative)
+  LEGAL: "#333333",          // PPCC Gray
+  EDUCATION: "#418FDE"       // PPCC Blue (alternative)
 } as const;
 
 /**

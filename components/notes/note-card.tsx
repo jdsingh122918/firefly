@@ -83,6 +83,137 @@ const noteVisibilityConfig = {
   }
 }
 
+const getNoteCardColors = (note: Note) => {
+  // Priority 1: Healthcare tags (highest priority)
+  if (note.tags && note.tags.length > 0) {
+    const tag = note.tags[0].toLowerCase();
+    if (tag.includes('medical') || tag.includes('health')) {
+      return {
+        border: 'border-l-[var(--healthcare-medical)]',
+        background: 'bg-pink-50 dark:bg-pink-950/20',
+        hover: 'hover:bg-pink-100 dark:hover:bg-pink-950/30'
+      };
+    }
+    if (tag.includes('mental')) {
+      return {
+        border: 'border-l-[var(--healthcare-mental)]',
+        background: 'bg-purple-50 dark:bg-purple-950/20',
+        hover: 'hover:bg-purple-100 dark:hover:bg-purple-950/30'
+      };
+    }
+    if (tag.includes('home') || tag.includes('community')) {
+      return {
+        border: 'border-l-[var(--healthcare-home)]',
+        background: 'bg-teal-50 dark:bg-teal-950/20',
+        hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+      };
+    }
+    if (tag.includes('equipment') || tag.includes('technology') || tag.includes('tool')) {
+      return {
+        border: 'border-l-[var(--healthcare-equipment)]',
+        background: 'bg-blue-50 dark:bg-blue-950/20',
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+      };
+    }
+    if (tag.includes('basic') || tag.includes('resources') || tag.includes('support')) {
+      return {
+        border: 'border-l-[var(--healthcare-basic)]',
+        background: 'bg-orange-50 dark:bg-orange-950/20',
+        hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+      };
+    }
+    if (tag.includes('education') || tag.includes('family') || tag.includes('training')) {
+      return {
+        border: 'border-l-[var(--healthcare-education)]',
+        background: 'bg-blue-50 dark:bg-blue-950/20',
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+      };
+    }
+    if (tag.includes('legal') || tag.includes('advocacy')) {
+      return {
+        border: 'border-l-[var(--healthcare-legal)]',
+        background: 'bg-gray-50 dark:bg-gray-950/20',
+        hover: 'hover:bg-gray-100 dark:hover:bg-gray-950/30'
+      };
+    }
+  }
+
+  // Priority 2: Note type mapping to healthcare categories
+  switch (note.type) {
+    case 'CARE_PLAN':
+    case 'MEDICAL_RECORD':
+      return {
+        border: 'border-l-[var(--healthcare-medical)]',
+        background: 'bg-pink-50 dark:bg-pink-950/20',
+        hover: 'hover:bg-pink-100 dark:hover:bg-pink-950/30'
+      };
+    case 'JOURNAL':
+    case 'PERSONAL_NOTES':
+      return {
+        border: 'border-l-[var(--healthcare-mental)]',
+        background: 'bg-purple-50 dark:bg-purple-950/20',
+        hover: 'hover:bg-purple-100 dark:hover:bg-purple-950/30'
+      };
+    case 'MEETING':
+    case 'APPOINTMENT':
+      return {
+        border: 'border-l-[var(--healthcare-education)]',
+        background: 'bg-blue-50 dark:bg-blue-950/20',
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+      };
+    case 'CHECKLIST':
+    case 'TODO':
+      return {
+        border: 'border-l-[var(--healthcare-basic)]',
+        background: 'bg-orange-50 dark:bg-orange-950/20',
+        hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+      };
+    default:
+      break;
+  }
+
+  // Priority 3: Note states (pinned gets special treatment)
+  if (note.isPinned) {
+    return {
+      border: 'border-l-[var(--ppcc-orange)]',
+      background: 'bg-orange-50 dark:bg-orange-950/20',
+      hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
+    };
+  }
+
+  // Priority 4: Note visibility
+  switch (note.visibility) {
+    case 'PRIVATE':
+      return {
+        border: 'border-l-[var(--healthcare-legal)]',
+        background: 'bg-gray-50 dark:bg-gray-950/20',
+        hover: 'hover:bg-gray-100 dark:hover:bg-gray-950/30'
+      };
+    case 'FAMILY':
+      return {
+        border: 'border-l-[var(--healthcare-home)]',
+        background: 'bg-teal-50 dark:bg-teal-950/20',
+        hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+      };
+    case 'SHARED':
+    case 'PUBLIC':
+      return {
+        border: 'border-l-[var(--healthcare-education)]',
+        background: 'bg-blue-50 dark:bg-blue-950/20',
+        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
+      };
+    default:
+      break;
+  }
+
+  // Default fallback
+  return {
+    border: 'border-l-[var(--ppcc-teal)]',
+    background: 'bg-teal-50 dark:bg-teal-950/20',
+    hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
+  };
+}
+
 export function NoteCard({
   note,
   onNoteClick,
@@ -109,6 +240,7 @@ export function NoteCard({
   const visibilityConfig = noteVisibilityConfig[note.visibility]
   const VisibilityIcon = visibilityConfig.icon
   const { name: authorName, initials } = getAuthorDisplay(note.creator)
+  const cardColors = getNoteCardColors(note)
 
   // Determine if note was recently edited
   const isEdited = note.lastEditedAt &&
@@ -120,8 +252,10 @@ export function NoteCard({
   return (
     <Card
       className={cn(
-        "transition-all duration-200 hover:shadow-md hover:bg-muted/50 cursor-pointer",
-        note.isPinned && "border-l-4 border-l-orange-500",
+        "border-l-4 transition-colors cursor-pointer",
+        cardColors.border,
+        cardColors.background,
+        cardColors.hover,
         note.isArchived && "opacity-60",
         className
       )}

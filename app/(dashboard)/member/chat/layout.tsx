@@ -4,7 +4,7 @@ export default function MemberChatLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="h-full flex flex-col">
       {children}
     </div>
   );

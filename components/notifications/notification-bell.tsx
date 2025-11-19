@@ -37,9 +37,9 @@ export function NotificationBell({
   };
 
   const variantClasses = {
-    default: "bg-blue-600 text-white hover:bg-blue-700",
-    outline: "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50",
-    ghost: "text-gray-700 hover:bg-gray-100",
+    default: "bg-primary text-primary-foreground hover:bg-primary/90",
+    outline: "border border-input bg-background text-foreground hover:bg-accent",
+    ghost: "text-foreground hover:bg-accent",
   };
 
   const displayCount = unreadCount > maxDisplayCount ? `${maxDisplayCount}+` : unreadCount.toString();
@@ -49,7 +49,7 @@ export function NotificationBell({
       <button
         onClick={() => setIsOpen(true)}
         className={cn(
-          "relative flex items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
+          "relative flex items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
           sizeClasses[size],
           variantClasses[variant],
           className
@@ -110,7 +110,7 @@ export function NotificationBellCompact({
     <button
       onClick={onClick}
       className={cn(
-        "relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200 touch-manipulation",
+        "relative p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all duration-200 touch-manipulation",
         "min-h-[44px] min-w-[44px] flex items-center justify-center", // Touch-friendly size
         className
       )}

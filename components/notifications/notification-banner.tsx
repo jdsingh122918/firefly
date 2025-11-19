@@ -245,7 +245,7 @@ export function NotificationBanner({
   return (
     <div
       className={cn(
-        "w-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow-sm transition-all duration-300 ease-in-out",
+        "w-full bg-card border border-border shadow-sm transition-all duration-300 ease-in-out",
         position === "top" ? "border-t-0" : "border-b-0",
         "animate-in slide-in-from-top-2",
         className
@@ -256,8 +256,8 @@ export function NotificationBanner({
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 min-w-0">
-              <Bell className="h-4 w-4 text-blue-600 flex-shrink-0" />
-              <span className="text-sm font-medium text-gray-900 truncate">
+              <Bell className="h-4 w-4 text-primary flex-shrink-0" />
+              <span className="text-sm font-medium text-card-foreground truncate">
                 {unreadCount === 1 ? "1 new notification" : `${unreadCount} new notifications`}
               </span>
               <div
@@ -308,10 +308,10 @@ export function NotificationBanner({
                 <div
                   key={notification.id}
                   className={cn(
-                    "flex flex-col sm:flex-row items-start gap-3 p-3 sm:p-4 rounded-lg border bg-white shadow-sm transition-all duration-200 hover:shadow-md",
+                    "flex flex-col sm:flex-row items-start gap-3 p-3 sm:p-4 rounded-lg border border-border bg-card shadow-sm transition-all duration-200 hover:shadow-md",
                     "animate-in slide-in-from-left-2 fade-in",
-                    !notification.isRead && "border-l-4 border-l-blue-500",
-                    notification.type === NotificationType.EMERGENCY_ALERT && "border-l-red-500 bg-red-50"
+                    !notification.isRead && "border-l-4 border-l-primary",
+                    notification.type === NotificationType.EMERGENCY_ALERT && "border-l-destructive bg-destructive/10"
                   )}
                 >
                   {/* Mobile: Icon + Content Row */}
@@ -327,24 +327,24 @@ export function NotificationBanner({
                         <IconComponent className="h-4 w-4" />
                       </div>
                       {!notification.isRead && (
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white" />
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border border-card" />
                       )}
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
-                        <h4 className="text-sm font-medium text-gray-900 truncate">
+                        <h4 className="text-sm font-medium text-card-foreground truncate">
                           {notification.title}
                         </h4>
                         <Badge variant="secondary" className="text-xs w-fit">
                           {notification.type.toLowerCase().replace('_', ' ')}
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-600 line-clamp-2 sm:line-clamp-1">
+                      <p className="text-sm text-muted-foreground line-clamp-2 sm:line-clamp-1">
                         {notification.message}
                       </p>
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-muted-foreground mt-1">
                         {new Date(notification.createdAt).toLocaleString(undefined, {
                           month: 'short',
                           day: 'numeric',
@@ -392,7 +392,7 @@ export function NotificationBanner({
                 size="sm"
                 onClick={() => setIsExpanded(true)}
                 className={cn(
-                  "text-xs text-gray-500 hover:text-gray-700 touch-manipulation min-h-[36px]",
+                  "text-xs text-muted-foreground hover:text-foreground touch-manipulation min-h-[36px]",
                   "hover:scale-105 active:scale-95 transition-all",
                   "focus:ring-2 focus:ring-offset-1 focus:outline-none"
                 )}
@@ -425,14 +425,14 @@ export function NotificationBannerCompact({
     <button
       onClick={onClick}
       className={cn(
-        "w-full px-4 py-2 bg-blue-50 border-b border-blue-200 text-left hover:bg-blue-100 transition-colors",
+        "w-full px-4 py-2 bg-accent border-b border-border text-left hover:bg-accent/80 transition-colors",
         className
       )}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Bell className="h-4 w-4 text-blue-600" />
-          <span className="text-sm text-blue-800">
+          <Bell className="h-4 w-4 text-primary" />
+          <span className="text-sm text-foreground">
             {unreadCount} new notification{unreadCount > 1 ? "s" : ""}
           </span>
         </div>
@@ -443,7 +443,7 @@ export function NotificationBannerCompact({
               isConnected ? "bg-green-500" : "bg-gray-400"
             )}
           />
-          <ChevronDown className="h-3 w-3 text-blue-600" />
+          <ChevronDown className="h-3 w-3 text-primary" />
         </div>
       </div>
     </button>

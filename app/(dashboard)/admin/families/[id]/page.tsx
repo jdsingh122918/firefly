@@ -25,6 +25,18 @@ interface FamilyMember {
   joinedAt: string
 }
 
+interface AssignedVolunteer {
+  id: string
+  name: string
+  email: string
+  assignedAt: string
+  role: string
+  assignedBy?: {
+    id: string
+    name: string
+  }
+}
+
 interface FamilyDetails {
   id: string
   name: string
@@ -60,6 +72,11 @@ export default function FamilyDetailPage() {
   const [family, setFamily] = useState<FamilyDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Volunteer management state
+  const [assignedVolunteers, setAssignedVolunteers] = useState<AssignedVolunteer[]>([])
+  const [loadingVolunteers, setLoadingVolunteers] = useState(false)
+  const [volunteerError, setVolunteerError] = useState<string | null>(null)
 
   // Add Member Modal State
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false)
@@ -101,6 +118,27 @@ export default function FamilyDetailPage() {
       setError(err instanceof Error ? err.message : 'Failed to load family details')
     } finally {
       setLoading(false)
+    }
+  }, [familyId])
+
+  // Fetch assigned volunteers
+  const fetchAssignedVolunteers = useCallback(async () => {
+    try {
+      setLoadingVolunteers(true)
+      setVolunteerError(null)
+
+      const response = await fetch(`/api/families/${familyId}/volunteers`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch assigned volunteers')
+      }
+
+      const data = await response.json()
+      setAssignedVolunteers(data.volunteers || [])
+    } catch (err) {
+      console.error('Error fetching assigned volunteers:', err)
+      setVolunteerError(err instanceof Error ? err.message : 'Failed to load assigned volunteers')
+    } finally {
+      setLoadingVolunteers(false)
     }
   }, [familyId])
 
@@ -257,10 +295,11 @@ export default function FamilyDetailPage() {
     member.email.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Fetch family on component mount
+  // Fetch family and volunteers on component mount
   useEffect(() => {
     fetchFamily()
-  }, [fetchFamily])
+    fetchAssignedVolunteers()
+  }, [fetchFamily, fetchAssignedVolunteers])
 
   if (loading) {
     return (
@@ -722,6 +761,98 @@ export default function FamilyDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Assigned Volunteers */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Assigned Volunteers</CardTitle>
+              <CardDescription>
+                Volunteers who can manage this family ({assignedVolunteers.length})
+              </CardDescription>
+            </div>
+            <Button size="sm" variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Manage Volunteers
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {volunteerError && (
+            <div className="text-sm text-destructive p-3 bg-destructive/10 rounded-md mb-4">
+              {volunteerError}
+            </div>
+          )}
+
+          {loadingVolunteers ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center space-x-3 p-4 border rounded-lg">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                  <Skeleton className="h-6 w-16" />
+                </div>
+              ))}
+            </div>
+          ) : assignedVolunteers.length === 0 ? (
+            <div className="text-center py-8">
+              <UserPlus className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-2 text-sm font-semibold text-muted-foreground">No volunteers assigned</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                This family doesn't have any volunteers assigned to manage it yet.
+              </p>
+              <Button variant="outline" className="mt-4">
+                <Plus className="h-4 w-4 mr-2" />
+                Assign First Volunteer
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {assignedVolunteers.map((volunteer) => (
+                <div key={volunteer.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback>
+                        {volunteer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{volunteer.name}</p>
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                        <Mail className="h-3 w-3" />
+                        <span>{volunteer.email}</span>
+                      </div>
+                      <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
+                        <Calendar className="h-3 w-3" />
+                        <span>
+                          {volunteer.role} since {new Date(volunteer.assignedAt).toLocaleDateString()}
+                          {volunteer.assignedBy && (
+                            <span className="ml-1">by {volunteer.assignedBy.name}</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant="default">VOLUNTEER</Badge>
+                    <div className="mt-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/admin/users/${volunteer.id}`}>
+                          View Profile
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

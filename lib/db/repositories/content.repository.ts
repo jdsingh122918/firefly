@@ -855,7 +855,9 @@ class ContentRepository {
     // RESOURCE content creation permissions
     if (data.contentType === ContentType.RESOURCE) {
       if (userRole === UserRole.MEMBER) {
-        throw new Error('Members cannot submit resources');
+        // Members can create resources, but they require curation by default
+        data.hasCuration = true;
+        return;
       }
       return;
     }

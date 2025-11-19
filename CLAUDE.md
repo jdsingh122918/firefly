@@ -12,6 +12,7 @@
 
 **Key Commands**:
 - `npm run dev` - Start server
+- `npx tsx scripts/initialize-database.ts` - Interactive database setup (Local/Atlas)
 - `npx prisma generate && npx prisma db push` - Update database
 - `npx tsx scripts/validate-database.ts --repair` - Database health checks
 
@@ -32,12 +33,29 @@
 **Required Env**: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `DATABASE_URL`, `CLERK_WEBHOOK_SECRET`
 
 **MongoDB Setup**:
+
+**Interactive Setup (Recommended)**:
+```bash
+npx tsx scripts/initialize-database.ts
+```
+Choose between Local MongoDB or MongoDB Atlas with guided configuration.
+
+**Manual Local MongoDB**:
 ```bash
 docker run --name mongodb -d -p 27017:27017 mongodb/mongodb-community-server:latest --replSet rs0
 docker exec mongodb mongosh --eval "rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'localhost:27017'}]})"
 ```
 
-**Workflow**: `npm run dev` → Create Clerk account → `/admin/debug` → "Sync Current User"
+**Manual Atlas Setup**:
+Update `.env.local` with Atlas connection string:
+```
+DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/firefly?retryWrites=true&w=majority"
+```
+
+**Workflow**:
+1. **Database Setup**: `npx tsx scripts/initialize-database.ts` (choose Local MongoDB or Atlas)
+2. **Start Server**: `npm run dev`
+3. **Account Setup**: Create Clerk account → `/admin/debug` → "Sync Current User"
 
 ## Current Status: Enterprise-Grade End of Life Care Platform ✅
 - **Complete Communication System**: Real-time SSE-based chat with typing indicators, reactions, emoji support
@@ -54,6 +72,7 @@ docker exec mongodb mongosh --eval "rs.initiate({_id: 'rs0', members: [{_id: 0, 
 - **Mobile-Responsive**: Professional UI with optimized spacing, layout consistency, and touch-friendly interfaces
 
 ## Development Tools
+- **Database Initialization**: `npx tsx scripts/initialize-database.ts` - Interactive setup for Local/Atlas databases
 - **Debug Dashboard**: `/admin/debug` - User sync, database monitoring, chat history reset
 - **Health Checks**: `npx tsx scripts/validate-database.ts --repair`
 - **Editor Testing**: `npx tsx scripts/test-editor.ts` - Comprehensive Editor.js functionality validation
