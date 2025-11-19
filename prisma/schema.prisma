@@ -146,6 +146,7 @@ model User {
   completedContentAssignments ContentAssignment[] @relation("ContentAssignmentCompleter")
   contentRatings     ContentRating[] @relation("ContentRatings")
   contentDocumentAttachments ContentDocument[] @relation("ContentDocumentAttacher")
+  contentFormResponses ContentFormResponse[] @relation("ContentFormResponses")
 
   // Volunteer-Family assignment relations
   volunteerAssignments    VolunteerFamilyAssignment[] @relation("VolunteerAssignments")
@@ -1268,6 +1269,7 @@ model Content {
 
   // RESOURCE-specific relations (preserved)
   ratings         ContentRating[]     // Renamed from ResourceRating
+  formResponses   ContentFormResponse[] // Interactive form responses
 
   // Optional relations for legacy users during migration
   submitter       User?        @relation("ContentSubmitter", fields: [submittedBy], references: [id], onDelete: SetNull)
@@ -1423,4 +1425,25 @@ model ContentRating {
   @@index([contentId, rating]) // For calculating averages
   @@index([userId])            // For user's rating history
   @@map("content_ratings")
+}
+
+// Form responses for interactive content (advance directives, assessments)
+model ContentFormResponse {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  contentId   String    @db.ObjectId
+  userId      String    @db.ObjectId
+  formData    Json      // Stores form field responses as structured JSON
+  completedAt DateTime? // When form was fully completed
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  content     Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user        User      @relation("ContentFormResponses", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([contentId, userId]) // One form response per user per content
+  @@index([contentId])
+  @@index([userId])
+  @@index([completedAt])       // For tracking completion status
+  @@map("content_form_responses")
 }

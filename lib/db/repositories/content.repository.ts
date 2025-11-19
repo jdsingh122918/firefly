@@ -12,9 +12,10 @@ import {
   ContentShare,
   ContentTag,
   ContentRating,
+  ContentFormResponse,
   AssignmentPriority,
-  AssignmentStatus
-} from '@prisma/client';
+  AssignmentStatus,
+} from "@prisma/client";
 
 /**
  * Unified Content Repository - Consolidates Notes and Resources
@@ -50,8 +51,8 @@ export interface ContentFilters {
   minRating?: number;
   page?: number;
   limit?: number;
-  sortBy?: 'createdAt' | 'updatedAt' | 'title' | 'viewCount' | 'rating';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "createdAt" | "updatedAt" | "title" | "viewCount" | "rating";
+  sortOrder?: "asc" | "desc";
 }
 
 export interface CreateContentInput {
@@ -128,7 +129,7 @@ class ContentRepository {
   async create(
     data: CreateContentInput,
     userId: string,
-    userRole: UserRole
+    userRole: UserRole,
   ): Promise<Content> {
     // Validate user permissions
     await this.validateCreatePermissions(data, userId, userRole);
@@ -143,29 +144,36 @@ class ContentRepository {
           data: contentData,
           include: {
             creator: {
-              select: { id: true, firstName: true, lastName: true, email: true }
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
             },
             family: {
-              select: { id: true, name: true }
+              select: { id: true, name: true },
             },
             category: {
-              select: { id: true, name: true, color: true }
-            }
-          }
+              select: { id: true, name: true, color: true },
+            },
+          },
         });
 
         // Link documents if provided
         if (data.documentIds && data.documentIds.length > 0) {
-          const documentAttachments = data.documentIds.map((documentId, index) => ({
-            contentId: content.id,
-            documentId,
-            source: 'UPLOAD' as const,
-            order: index,
-            createdBy: userId
-          }));
+          const documentAttachments = data.documentIds.map(
+            (documentId, index) => ({
+              contentId: content.id,
+              documentId,
+              source: "UPLOAD" as const,
+              order: index,
+              createdBy: userId,
+            }),
+          );
 
           await prisma.contentDocument.createMany({
-            data: documentAttachments
+            data: documentAttachments,
           });
 
           // Fetch content with documents included
@@ -173,13 +181,18 @@ class ContentRepository {
             where: { id: content.id },
             include: {
               creator: {
-                select: { id: true, firstName: true, lastName: true, email: true }
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                },
               },
               family: {
-                select: { id: true, name: true }
+                select: { id: true, name: true },
               },
               category: {
-                select: { id: true, name: true, color: true }
+                select: { id: true, name: true, color: true },
               },
               documents: {
                 include: {
@@ -191,13 +204,13 @@ class ContentRepository {
                       fileSize: true,
                       mimeType: true,
                       type: true,
-                      filePath: true
-                    }
-                  }
+                      filePath: true,
+                    },
+                  },
                 },
-                orderBy: { order: 'asc' }
-              }
-            }
+                orderBy: { order: "asc" },
+              },
+            },
           });
         }
 
@@ -215,13 +228,13 @@ class ContentRepository {
     id: string,
     userId: string,
     userRole: UserRole,
-    options: ContentOptions = {}
+    options: ContentOptions = {},
   ): Promise<Content | null> {
     const include = this.buildIncludeClause(options);
 
     const content = await this.prisma.content.findUnique({
       where: { id },
-      include
+      include,
     });
 
     if (!content) {
@@ -244,7 +257,7 @@ class ContentRepository {
     filters: ContentFilters,
     userId: string,
     userRole: UserRole,
-    options: ContentOptions = {}
+    options: ContentOptions = {},
   ): Promise<PaginatedContent> {
     const page = filters.page || 1;
     const limit = Math.min(filters.limit || 20, 100);
@@ -260,9 +273,9 @@ class ContentRepository {
         include,
         orderBy,
         skip: offset,
-        take: limit
+        take: limit,
       }),
-      this.prisma.content.count({ where })
+      this.prisma.content.count({ where }),
     ]);
 
     return {
@@ -270,7 +283,7 @@ class ContentRepository {
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     };
   }
 
@@ -281,12 +294,12 @@ class ContentRepository {
     id: string,
     data: UpdateContentInput,
     userId: string,
-    userRole: UserRole
+    userRole: UserRole,
   ): Promise<Content> {
     // Check if content exists and user has permission
     const existingContent = await this.findById(id, userId, userRole);
     if (!existingContent) {
-      throw new Error('Content not found or access denied');
+      throw new Error("Content not found or access denied");
     }
 
     // Validate update permissions
@@ -304,12 +317,12 @@ class ContentRepository {
         data: updateData,
         include: {
           creator: {
-            select: { id: true, firstName: true, lastName: true, email: true }
+            select: { id: true, firstName: true, lastName: true, email: true },
           },
           family: {
-            select: { id: true, name: true }
-          }
-        }
+            select: { id: true, name: true },
+          },
+        },
       });
     } catch (error) {
       throw new Error(`Failed to update content: ${error}`);
@@ -319,14 +332,10 @@ class ContentRepository {
   /**
    * Soft delete content
    */
-  async delete(
-    id: string,
-    userId: string,
-    userRole: UserRole
-  ): Promise<void> {
+  async delete(id: string, userId: string, userRole: UserRole): Promise<void> {
     const content = await this.findById(id, userId, userRole);
     if (!content) {
-      throw new Error('Content not found or access denied');
+      throw new Error("Content not found or access denied");
     }
 
     await this.validateDeletePermissions(content, userId, userRole);
@@ -335,8 +344,8 @@ class ContentRepository {
       where: { id },
       data: {
         isDeleted: true,
-        deletedAt: new Date()
-      }
+        deletedAt: new Date(),
+      },
     });
   }
 
@@ -347,8 +356,8 @@ class ContentRepository {
     await this.prisma.content.update({
       where: { id },
       data: {
-        viewCount: { increment: 1 }
-      }
+        viewCount: { increment: 1 },
+      },
     });
   }
 
@@ -363,18 +372,18 @@ class ContentRepository {
     contentId: string,
     assignmentData: AssignmentInput,
     assignerId: string,
-    assignerRole: UserRole
+    assignerRole: UserRole,
   ): Promise<ContentAssignment> {
     const content = await this.findById(contentId, assignerId, assignerRole);
     if (!content || content.contentType !== ContentType.NOTE) {
-      throw new Error('Content not found or not a NOTE');
+      throw new Error("Content not found or not a NOTE");
     }
 
     // Validate assignment permissions (VOLUNTEER family-scoped restriction)
     await this.validateAssignmentPermissions(
       assignmentData.assignedTo,
       assignerId,
-      assignerRole
+      assignerRole,
     );
 
     try {
@@ -383,22 +392,22 @@ class ContentRepository {
           ...assignmentData,
           contentId,
           assignedBy: assignerId,
-          status: AssignmentStatus.ASSIGNED
+          status: AssignmentStatus.ASSIGNED,
         },
         include: {
           assignee: {
-            select: { id: true, firstName: true, lastName: true, email: true }
+            select: { id: true, firstName: true, lastName: true, email: true },
           },
           assigner: {
-            select: { id: true, firstName: true, lastName: true, email: true }
-          }
-        }
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
+        },
       });
 
       // Update content to enable assignments flag
       await this.prisma.content.update({
         where: { id: contentId },
-        data: { hasAssignments: true }
+        data: { hasAssignments: true },
       });
 
       return assignment;
@@ -414,23 +423,23 @@ class ContentRepository {
     assignmentId: string,
     status: AssignmentStatus,
     userId: string,
-    completionNotes?: string
+    completionNotes?: string,
   ): Promise<ContentAssignment> {
     const assignment = await this.prisma.contentAssignment.findUnique({
       where: { id: assignmentId },
-      include: { content: true }
+      include: { content: true },
     });
 
     if (!assignment) {
-      throw new Error('Assignment not found');
+      throw new Error("Assignment not found");
     }
 
     // Validate user can update this assignment
-    const canUpdate = assignment.assignedTo === userId ||
-                     assignment.assignedBy === userId;
+    const canUpdate =
+      assignment.assignedTo === userId || assignment.assignedBy === userId;
 
     if (!canUpdate) {
-      throw new Error('Permission denied to update assignment');
+      throw new Error("Permission denied to update assignment");
     }
 
     const updateData: any = { status };
@@ -448,12 +457,12 @@ class ContentRepository {
       data: updateData,
       include: {
         assignee: {
-          select: { id: true, firstName: true, lastName: true, email: true }
+          select: { id: true, firstName: true, lastName: true, email: true },
         },
         content: {
-          select: { id: true, title: true }
-        }
-      }
+          select: { id: true, title: true },
+        },
+      },
     });
   }
 
@@ -462,7 +471,7 @@ class ContentRepository {
    */
   async getAssignedTasks(
     userId: string,
-    status?: AssignmentStatus[]
+    status?: AssignmentStatus[],
   ): Promise<ContentAssignment[]> {
     const where: any = { assignedTo: userId };
 
@@ -479,19 +488,19 @@ class ContentRepository {
             title: true,
             contentType: true,
             family: {
-              select: { id: true, name: true }
-            }
-          }
+              select: { id: true, name: true },
+            },
+          },
         },
         assigner: {
-          select: { id: true, firstName: true, lastName: true, email: true }
-        }
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
       },
       orderBy: [
-        { priority: 'desc' },
-        { dueDate: 'asc' },
-        { createdAt: 'desc' }
-      ]
+        { priority: "desc" },
+        { dueDate: "asc" },
+        { createdAt: "desc" },
+      ],
     });
   }
 
@@ -504,27 +513,27 @@ class ContentRepository {
    */
   async getCurationQueue(
     adminId: string,
-    adminRole: UserRole
+    adminRole: UserRole,
   ): Promise<Content[]> {
     if (adminRole !== UserRole.ADMIN) {
-      throw new Error('Only admins can access curation queue');
+      throw new Error("Only admins can access curation queue");
     }
 
     return await this.prisma.content.findMany({
       where: {
         contentType: ContentType.RESOURCE,
         status: ResourceStatus.PENDING,
-        hasCuration: true
+        hasCuration: true,
       },
       include: {
         creator: {
-          select: { id: true, firstName: true, lastName: true, email: true }
+          select: { id: true, firstName: true, lastName: true, email: true },
         },
         family: {
-          select: { id: true, name: true }
-        }
+          select: { id: true, name: true },
+        },
       },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: "asc" },
     });
   }
 
@@ -534,15 +543,15 @@ class ContentRepository {
   async approveContent(
     contentId: string,
     approverId: string,
-    approverRole: UserRole
+    approverRole: UserRole,
   ): Promise<Content> {
     if (approverRole !== UserRole.ADMIN) {
-      throw new Error('Only admins can approve content');
+      throw new Error("Only admins can approve content");
     }
 
     const content = await this.findById(contentId, approverId, approverRole);
     if (!content || content.contentType !== ContentType.RESOURCE) {
-      throw new Error('Content not found or not a RESOURCE');
+      throw new Error("Content not found or not a RESOURCE");
     }
 
     return await this.prisma.content.update({
@@ -550,8 +559,8 @@ class ContentRepository {
       data: {
         status: ResourceStatus.APPROVED,
         approvedBy: approverId,
-        approvedAt: new Date()
-      }
+        approvedAt: new Date(),
+      },
     });
   }
 
@@ -561,15 +570,15 @@ class ContentRepository {
   async featureContent(
     contentId: string,
     featurerId: string,
-    featurerRole: UserRole
+    featurerRole: UserRole,
   ): Promise<Content> {
     if (featurerRole !== UserRole.ADMIN) {
-      throw new Error('Only admins can feature content');
+      throw new Error("Only admins can feature content");
     }
 
     const content = await this.findById(contentId, featurerId, featurerRole);
     if (!content || content.contentType !== ContentType.RESOURCE) {
-      throw new Error('Content not found or not a RESOURCE');
+      throw new Error("Content not found or not a RESOURCE");
     }
 
     return await this.prisma.content.update({
@@ -577,8 +586,8 @@ class ContentRepository {
       data: {
         status: ResourceStatus.FEATURED,
         featuredBy: featurerId,
-        featuredAt: new Date()
-      }
+        featuredAt: new Date(),
+      },
     });
   }
 
@@ -594,19 +603,19 @@ class ContentRepository {
     userId: string,
     rating: number,
     review?: string,
-    isHelpful?: boolean
+    isHelpful?: boolean,
   ): Promise<ContentRating> {
     const content = await this.prisma.content.findUnique({
-      where: { id: contentId }
+      where: { id: contentId },
     });
 
     if (!content || content.contentType !== ContentType.RESOURCE) {
-      throw new Error('Content not found or not ratable');
+      throw new Error("Content not found or not ratable");
     }
 
     // Validate rating range
     if (rating < 1 || rating > 5) {
-      throw new Error('Rating must be between 1 and 5');
+      throw new Error("Rating must be between 1 and 5");
     }
 
     try {
@@ -617,22 +626,22 @@ class ContentRepository {
           where: {
             contentId_userId: {
               contentId,
-              userId
-            }
+              userId,
+            },
           },
           create: {
             contentId,
             userId,
             rating,
             review,
-            isHelpful
+            isHelpful,
           },
           update: {
             rating,
             review,
             isHelpful,
-            updatedAt: new Date()
-          }
+            updatedAt: new Date(),
+          },
         });
 
         // Recalculate average rating within the same transaction
@@ -652,7 +661,7 @@ class ContentRepository {
     const client = tx || this.prisma;
 
     const ratings = await client.contentRating.findMany({
-      where: { contentId }
+      where: { contentId },
     });
 
     if (ratings.length === 0) {
@@ -660,13 +669,16 @@ class ContentRepository {
         where: { id: contentId },
         data: {
           rating: null,
-          ratingCount: 0
-        }
+          ratingCount: 0,
+        },
       });
       return;
     }
 
-    const totalRating = ratings.reduce((sum: number, r: any) => sum + r.rating, 0);
+    const totalRating = ratings.reduce(
+      (sum: number, r: any) => sum + r.rating,
+      0,
+    );
     const averageRating = totalRating / ratings.length;
 
     await client.content.update({
@@ -674,8 +686,8 @@ class ContentRepository {
       data: {
         rating: Math.round(averageRating * 100) / 100, // Round to 2 decimal places
         ratingCount: ratings.length,
-        hasRatings: true
-      }
+        hasRatings: true,
+      },
     });
   }
 
@@ -691,7 +703,7 @@ class ContentRepository {
     documentId: string,
     attachedBy: string,
     order: number = 0,
-    isMain: boolean = false
+    isMain: boolean = false,
   ): Promise<ContentDocument> {
     return await this.prisma.contentDocument.create({
       data: {
@@ -699,7 +711,7 @@ class ContentRepository {
         documentId,
         createdBy: attachedBy,
         order,
-        isMain
+        isMain,
       },
       include: {
         document: {
@@ -709,10 +721,10 @@ class ContentRepository {
             fileName: true,
             fileSize: true,
             mimeType: true,
-            type: true
-          }
-        }
-      }
+            type: true,
+          },
+        },
+      },
     });
   }
 
@@ -723,18 +735,18 @@ class ContentRepository {
     contentId: string,
     documentId: string,
     userId: string,
-    userRole: UserRole
+    userRole: UserRole,
   ): Promise<void> {
     const content = await this.findById(contentId, userId, userRole);
     if (!content) {
-      throw new Error('Content not found or access denied');
+      throw new Error("Content not found or access denied");
     }
 
     await this.prisma.contentDocument.deleteMany({
       where: {
         contentId,
-        documentId
-      }
+        documentId,
+      },
     });
   }
 
@@ -753,20 +765,20 @@ class ContentRepository {
       canEdit?: boolean;
       canComment?: boolean;
       canShare?: boolean;
-    } = {}
+    } = {},
   ): Promise<ContentShare> {
     const content = await this.prisma.content.findUnique({
-      where: { id: contentId }
+      where: { id: contentId },
     });
 
     if (!content) {
-      throw new Error('Content not found');
+      throw new Error("Content not found");
     }
 
     const shareData: any = {
       contentId,
       sharedBy,
-      userId
+      userId,
     };
 
     // Add NOTE-style permissions if it's a NOTE
@@ -780,9 +792,9 @@ class ContentRepository {
       data: shareData,
       include: {
         user: {
-          select: { id: true, firstName: true, lastName: true, email: true }
-        }
-      }
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
     });
   }
 
@@ -793,7 +805,7 @@ class ContentRepository {
   private prepareContentData(
     data: CreateContentInput,
     userId: string,
-    userRole: UserRole
+    userRole: UserRole,
   ) {
     const baseData = {
       title: data.title,
@@ -806,7 +818,7 @@ class ContentRepository {
       tags: data.tags || [],
       createdBy: userId,
       hasAssignments: data.hasAssignments || false,
-      hasSharing: data.hasSharing || false
+      hasSharing: data.hasSharing || false,
     };
 
     // NOTE-specific setup
@@ -816,7 +828,7 @@ class ContentRepository {
         noteType: data.noteType || NoteType.TEXT,
         isPinned: data.isPinned || false,
         allowComments: data.allowComments || false,
-        allowEditing: data.allowEditing || false
+        allowEditing: data.allowEditing || false,
       };
     }
 
@@ -833,9 +845,11 @@ class ContentRepository {
         submittedBy: userId,
         hasCuration: !isAutoApproved, // Auto-approve for ADMIN
         hasRatings: data.hasRatings || true,
-        status: isAutoApproved ? ResourceStatus.APPROVED : ResourceStatus.PENDING,
+        status: isAutoApproved
+          ? ResourceStatus.APPROVED
+          : ResourceStatus.PENDING,
         approvedBy: isAutoApproved ? userId : undefined,
-        approvedAt: isAutoApproved ? new Date() : undefined
+        approvedAt: isAutoApproved ? new Date() : undefined,
       };
     }
 
@@ -845,7 +859,7 @@ class ContentRepository {
   private async validateCreatePermissions(
     data: CreateContentInput,
     userId: string,
-    userRole: UserRole
+    userRole: UserRole,
   ): Promise<void> {
     // All users can create NOTE content
     if (data.contentType === ContentType.NOTE) {
@@ -862,13 +876,13 @@ class ContentRepository {
       return;
     }
 
-    throw new Error('Invalid content type');
+    throw new Error("Invalid content type");
   }
 
   private async validateUpdatePermissions(
     content: Content,
     userId: string,
-    userRole: UserRole
+    userRole: UserRole,
   ): Promise<void> {
     // ADMIN can update anything
     if (userRole === UserRole.ADMIN) {
@@ -886,21 +900,21 @@ class ContentRepository {
         where: {
           contentId: content.id,
           userId,
-          canEdit: true
-        }
+          canEdit: true,
+        },
       });
       if (share) {
         return;
       }
     }
 
-    throw new Error('Permission denied to update content');
+    throw new Error("Permission denied to update content");
   }
 
   private async validateDeletePermissions(
     content: Content,
     userId: string,
-    userRole: UserRole
+    userRole: UserRole,
   ): Promise<void> {
     // ADMIN can delete anything
     if (userRole === UserRole.ADMIN) {
@@ -912,13 +926,13 @@ class ContentRepository {
       return;
     }
 
-    throw new Error('Permission denied to delete content');
+    throw new Error("Permission denied to delete content");
   }
 
   private async validateAssignmentPermissions(
     assigneeId: string,
     assignerId: string,
-    assignerRole: UserRole
+    assignerRole: UserRole,
   ): Promise<void> {
     // ADMIN can assign to anyone
     if (assignerRole === UserRole.ADMIN) {
@@ -930,36 +944,38 @@ class ContentRepository {
       const [assigner, assignee] = await Promise.all([
         this.prisma.user.findUnique({
           where: { id: assignerId },
-          include: { createdFamilies: true }
+          include: { createdFamilies: true },
         }),
         this.prisma.user.findUnique({
-          where: { id: assigneeId }
-        })
+          where: { id: assigneeId },
+        }),
       ]);
 
       if (!assigner || !assignee) {
-        throw new Error('User not found');
+        throw new Error("User not found");
       }
 
       // Check if assignee is in a family created by this volunteer
       const canAssign = assigner.createdFamilies.some(
-        family => family.id === assignee.familyId
+        (family) => family.id === assignee.familyId,
       );
 
       if (!canAssign) {
-        throw new Error('VOLUNTEER can only assign tasks to users in families they created');
+        throw new Error(
+          "VOLUNTEER can only assign tasks to users in families they created",
+        );
       }
       return;
     }
 
     // MEMBER cannot assign tasks
-    throw new Error('Permission denied to create assignments');
+    throw new Error("Permission denied to create assignments");
   }
 
   private async checkContentAccess(
     content: Content,
     userId: string,
-    userRole: UserRole
+    userRole: UserRole,
   ): Promise<boolean> {
     // ADMIN has access to everything
     if (userRole === UserRole.ADMIN) {
@@ -978,7 +994,7 @@ class ContentRepository {
 
     if (content.visibility === NoteVisibility.FAMILY && content.familyId) {
       const user = await this.prisma.user.findUnique({
-        where: { id: userId }
+        where: { id: userId },
       });
       if (user?.familyId === content.familyId) {
         return true;
@@ -989,8 +1005,8 @@ class ContentRepository {
       const share = await this.prisma.contentShare.findFirst({
         where: {
           contentId: content.id,
-          userId
-        }
+          userId,
+        },
       });
       if (share) {
         return true;
@@ -1003,10 +1019,10 @@ class ContentRepository {
   private async buildWhereClause(
     filters: ContentFilters,
     userId: string,
-    userRole: UserRole
+    userRole: UserRole,
   ) {
     const where: any = {
-      isDeleted: false
+      isDeleted: false,
     };
 
     // Content type filter
@@ -1046,14 +1062,21 @@ class ContentRepository {
     }
 
     // Healthcare-specific filtering (using regular tags field)
-    if (filters.healthcareCategories && filters.healthcareCategories.length > 0) {
+    if (
+      filters.healthcareCategories &&
+      filters.healthcareCategories.length > 0
+    ) {
       // Import healthcare categories to get their associated tags
-      const { HEALTHCARE_CATEGORIES } = await import('@/lib/data/healthcare-tags');
+      const { HEALTHCARE_CATEGORIES } = await import(
+        "@/lib/data/healthcare-tags"
+      );
 
       // Expand healthcare categories into their constituent tags
       const categoryTags: string[] = [];
       for (const categoryName of filters.healthcareCategories) {
-        const category = HEALTHCARE_CATEGORIES.find(cat => cat.name === categoryName);
+        const category = HEALTHCARE_CATEGORIES.find(
+          (cat) => cat.name === categoryName,
+        );
         if (category) {
           categoryTags.push(...category.tags);
         }
@@ -1063,7 +1086,7 @@ class ContentRepository {
       if (categoryTags.length > 0) {
         where.tags = {
           ...where.tags,
-          hasSome: [...(where.tags?.hasSome || []), ...categoryTags]
+          hasSome: [...(where.tags?.hasSome || []), ...categoryTags],
         };
       }
     }
@@ -1072,7 +1095,7 @@ class ContentRepository {
       // Healthcare tags are also stored as regular tags
       where.tags = {
         ...where.tags,
-        hasSome: [...(where.tags?.hasSome || []), ...filters.healthcareTags]
+        hasSome: [...(where.tags?.hasSome || []), ...filters.healthcareTags],
       };
     }
 
@@ -1105,10 +1128,10 @@ class ContentRepository {
     // Search
     if (filters.search) {
       where.OR = [
-        { title: { contains: filters.search, mode: 'insensitive' } },
-        { description: { contains: filters.search, mode: 'insensitive' } },
-        { body: { contains: filters.search, mode: 'insensitive' } },
-        { tags: { hasSome: [filters.search] } }
+        { title: { contains: filters.search, mode: "insensitive" } },
+        { description: { contains: filters.search, mode: "insensitive" } },
+        { body: { contains: filters.search, mode: "insensitive" } },
+        { tags: { hasSome: [filters.search] } },
       ];
     }
 
@@ -1123,22 +1146,22 @@ class ContentRepository {
             {
               family: {
                 members: {
-                  some: { id: userId }
-                }
-              }
-            }
-          ]
+                  some: { id: userId },
+                },
+              },
+            },
+          ],
         }, // Family content
         {
           AND: [
             { visibility: NoteVisibility.SHARED },
             {
               shares: {
-                some: { userId }
-              }
-            }
-          ]
-        } // Shared content
+                some: { userId },
+              },
+            },
+          ],
+        }, // Shared content
       ];
     }
 
@@ -1146,8 +1169,8 @@ class ContentRepository {
   }
 
   private buildOrderByClause(filters: ContentFilters) {
-    const sortBy = filters.sortBy || 'createdAt';
-    const sortOrder = filters.sortOrder || 'desc';
+    const sortBy = filters.sortBy || "createdAt";
+    const sortOrder = filters.sortOrder || "desc";
 
     return { [sortBy]: sortOrder };
   }
@@ -1157,19 +1180,19 @@ class ContentRepository {
 
     if (options.includeCreator) {
       include.creator = {
-        select: { id: true, firstName: true, lastName: true, email: true }
+        select: { id: true, firstName: true, lastName: true, email: true },
       };
     }
 
     if (options.includeFamily) {
       include.family = {
-        select: { id: true, name: true }
+        select: { id: true, name: true },
       };
     }
 
     if (options.includeCategory) {
       include.category = {
-        select: { id: true, name: true, color: true, icon: true }
+        select: { id: true, name: true, color: true, icon: true },
       };
     }
 
@@ -1184,11 +1207,11 @@ class ContentRepository {
               fileSize: true,
               mimeType: true,
               type: true,
-              filePath: true
-            }
-          }
+              filePath: true,
+            },
+          },
         },
-        orderBy: { order: 'asc' }
+        orderBy: { order: "asc" },
       };
     }
 
@@ -1196,9 +1219,9 @@ class ContentRepository {
       include.shares = {
         include: {
           user: {
-            select: { id: true, firstName: true, lastName: true, email: true }
-          }
-        }
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
+        },
       };
     }
 
@@ -1206,13 +1229,13 @@ class ContentRepository {
       include.assignments = {
         include: {
           assignee: {
-            select: { id: true, firstName: true, lastName: true, email: true }
+            select: { id: true, firstName: true, lastName: true, email: true },
           },
           assigner: {
-            select: { id: true, firstName: true, lastName: true, email: true }
-          }
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: "desc" },
       };
     }
 
@@ -1225,10 +1248,10 @@ class ContentRepository {
               name: true,
               description: true,
               color: true,
-              categoryId: true
-            }
-          }
-        }
+              categoryId: true,
+            },
+          },
+        },
       };
     }
 
@@ -1236,14 +1259,386 @@ class ContentRepository {
       include.ratings = {
         include: {
           user: {
-            select: { id: true, firstName: true, lastName: true }
-          }
+            select: { id: true, firstName: true, lastName: true },
+          },
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: "desc" },
       };
     }
 
     return include;
+  }
+
+  /**
+   * Form Response Management Methods
+   * Handles interactive form data for advance directive and assessment content
+   */
+
+  /**
+   * Save or update form response for content
+   */
+  async saveFormResponse(
+    contentId: string,
+    userId: string,
+    formData: any,
+    isComplete: boolean = false,
+  ) {
+    try {
+      const data = {
+        contentId,
+        userId,
+        formData,
+        completedAt: isComplete ? new Date() : null,
+        updatedAt: new Date(),
+      };
+
+      // Use upsert to handle both create and update
+      const response = await this.prisma.contentFormResponse.upsert({
+        where: {
+          contentId_userId: {
+            contentId,
+            userId,
+          },
+        },
+        create: data,
+        update: data,
+        include: {
+          content: {
+            select: {
+              id: true,
+              title: true,
+              hasAssignments: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      // Update assignment completion if form is complete and content has assignments
+      if (isComplete && response.content.hasAssignments) {
+        await this.updateAssignmentCompletionFromForm(contentId, userId);
+      }
+
+      return response;
+    } catch (error) {
+      console.error("Error saving form response:", error);
+      throw new Error(
+        `Failed to save form response: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  /**
+   * Get form response for specific user and content
+   */
+  async getFormResponse(contentId: string, userId: string) {
+    try {
+      return await this.prisma.contentFormResponse.findUnique({
+        where: {
+          contentId_userId: {
+            contentId,
+            userId,
+          },
+        },
+        include: {
+          content: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              hasAssignments: true,
+            },
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching form response:", error);
+      throw new Error(
+        `Failed to fetch form response: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  /**
+   * Get all form responses for a specific content (admin/volunteer view)
+   */
+  async getContentFormResponses(
+    contentId: string,
+    userRole: UserRole,
+    requesterId: string,
+    options: {
+      completed?: boolean;
+      includeUser?: boolean;
+    } = {},
+  ) {
+    try {
+      // Build where clause with role-based filtering
+      const where: any = { contentId };
+
+      if (options.completed !== undefined) {
+        where.completedAt = options.completed ? { not: null } : null;
+      }
+
+      // VOLUNTEER role restriction: only see responses from families they created
+      if (userRole === UserRole.VOLUNTEER) {
+        const familyIds = await this.getUserCreatedFamilyIds(requesterId);
+        where.user = {
+          familyId: { in: familyIds },
+        };
+      }
+
+      return await this.prisma.contentFormResponse.findMany({
+        where,
+        include: {
+          user: options.includeUser
+            ? {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  familyId: true,
+                },
+              }
+            : false,
+          content: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+            },
+          },
+        },
+        orderBy: { updatedAt: "desc" },
+      });
+    } catch (error) {
+      console.error("Error fetching content form responses:", error);
+      throw new Error(
+        `Failed to fetch content form responses: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  /**
+   * Get user's form responses (member view)
+   */
+  async getUserFormResponses(
+    userId: string,
+    options: {
+      completed?: boolean;
+      contentType?: ContentType[];
+      tags?: string[];
+    } = {},
+  ) {
+    try {
+      const where: any = { userId };
+
+      if (options.completed !== undefined) {
+        where.completedAt = options.completed ? { not: null } : null;
+      }
+
+      // Filter by content type or tags if specified
+      if (options.contentType?.length || options.tags?.length) {
+        where.content = {};
+
+        if (options.contentType?.length) {
+          where.content.contentType = { in: options.contentType };
+        }
+
+        if (options.tags?.length) {
+          where.content.tags = { hasSome: options.tags };
+        }
+      }
+
+      return await this.prisma.contentFormResponse.findMany({
+        where,
+        include: {
+          content: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              contentType: true,
+              resourceType: true,
+              tags: true,
+            },
+          },
+        },
+        orderBy: { updatedAt: "desc" },
+      });
+    } catch (error) {
+      console.error("Error fetching user form responses:", error);
+      throw new Error(
+        `Failed to fetch user form responses: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  /**
+   * Delete form response
+   */
+  async deleteFormResponse(contentId: string, userId: string) {
+    try {
+      return await this.prisma.contentFormResponse.delete({
+        where: {
+          contentId_userId: {
+            contentId,
+            userId,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Error deleting form response:", error);
+      throw new Error(
+        `Failed to delete form response: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  /**
+   * Get form completion statistics for content
+   */
+  async getFormCompletionStats(
+    contentId: string,
+    userRole: UserRole,
+    requesterId: string,
+  ) {
+    try {
+      let whereClause: any = { contentId };
+
+      // VOLUNTEER role restriction
+      if (userRole === UserRole.VOLUNTEER) {
+        const familyIds = await this.getUserCreatedFamilyIds(requesterId);
+        whereClause.user = {
+          familyId: { in: familyIds },
+        };
+      }
+
+      const [total, completed, inProgress] = await Promise.all([
+        this.prisma.contentFormResponse.count({ where: whereClause }),
+        this.prisma.contentFormResponse.count({
+          where: { ...whereClause, completedAt: { not: null } },
+        }),
+        this.prisma.contentFormResponse.count({
+          where: { ...whereClause, completedAt: null },
+        }),
+      ]);
+
+      return {
+        total,
+        completed,
+        inProgress,
+        completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+      };
+    } catch (error) {
+      console.error("Error fetching form completion stats:", error);
+      throw new Error(
+        `Failed to fetch form completion stats: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  /**
+   * Get family IDs created by a volunteer user
+   * Private helper method for volunteer family-scoped restrictions
+   */
+  private async getUserCreatedFamilyIds(userId: string): Promise<string[]> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        createdFamilies: {
+          select: { id: true },
+        },
+      },
+    });
+
+    return user?.createdFamilies.map((family) => family.id) || [];
+  }
+
+  /**
+   * Auto-complete assignment when form is completed
+   * Private helper method
+   */
+  private async updateAssignmentCompletionFromForm(
+    contentId: string,
+    userId: string,
+  ) {
+    try {
+      // Find active assignment for this content and user
+      const assignment = await this.prisma.contentAssignment.findFirst({
+        where: {
+          contentId,
+          assignedTo: userId,
+          status: {
+            in: [AssignmentStatus.ASSIGNED, AssignmentStatus.IN_PROGRESS],
+          },
+        },
+      });
+
+      if (assignment) {
+        await this.prisma.contentAssignment.update({
+          where: { id: assignment.id },
+          data: {
+            status: AssignmentStatus.COMPLETED,
+            completedAt: new Date(),
+            completedBy: userId,
+            completionNotes: "Form completed automatically",
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Error updating assignment completion:", error);
+      // Don't throw error here - form save should succeed even if assignment update fails
+    }
+  }
+
+  /**
+   * Get content with form completion status for user
+   */
+  async getContentWithFormStatus(
+    contentId: string,
+    userId: string,
+    userRole: UserRole,
+    requesterId?: string,
+  ) {
+    try {
+      // Get content with basic info
+      const content = await this.findById(contentId, userId, userRole);
+
+      if (!content) {
+        throw new Error("Content not found");
+      }
+
+      // Get form response if exists
+      const formResponse = await this.getFormResponse(contentId, userId);
+
+      return {
+        ...content,
+        formResponse: formResponse
+          ? {
+              id: formResponse.id,
+              formData: formResponse.formData,
+              completedAt: formResponse.completedAt,
+              updatedAt: formResponse.updatedAt,
+              isComplete: Boolean(formResponse.completedAt),
+            }
+          : null,
+        hasFormResponse: Boolean(formResponse),
+        isFormComplete: Boolean(formResponse?.completedAt),
+      };
+    } catch (error) {
+      console.error("Error fetching content with form status:", error);
+      throw new Error(
+        `Failed to fetch content with form status: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
   }
 }
 
