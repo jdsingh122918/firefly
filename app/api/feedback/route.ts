@@ -17,12 +17,13 @@ const feedbackSchema = z.object({
     .min(10, "Description must be at least 10 characters")
     .max(2000, "Description must be 2000 characters or less"),
   attachments: z.array(z.string()).optional(),
+  isAnonymous: z.boolean(),
   userInfo: z.object({
     name: z.string(),
     email: z.string().email(),
     role: z.string(),
     userId: z.string().optional(),
-  }),
+  }).optional(),
 });
 
 type FeedbackData = z.infer<typeof feedbackSchema>;
@@ -48,9 +49,10 @@ export async function POST(request: NextRequest) {
 
     console.log("📧 Processing feedback submission:", {
       title: validatedData.title,
-      userName: validatedData.userInfo.name,
-      userEmail: validatedData.userInfo.email,
-      userRole: validatedData.userInfo.role,
+      isAnonymous: validatedData.isAnonymous,
+      userName: validatedData.userInfo?.name || "Anonymous",
+      userEmail: validatedData.userInfo?.email || "Anonymous",
+      userRole: validatedData.userInfo?.role || "Anonymous",
       attachmentCount: validatedData.attachments?.length || 0,
     });
 
@@ -121,25 +123,37 @@ export async function POST(request: NextRequest) {
           </div>
 
           <div style="border-top: 1px solid #e2e8f0; padding-top: 25px;">
-            <h3 style="margin: 0 0 15px 0; color: #1e293b; font-size: 16px;">📋 User Information</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="padding: 8px 0; color: #64748b; font-weight: 500; width: 100px;">Name:</td>
-                <td style="padding: 8px 0; color: #1e293b;">${validatedData.userInfo.name}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Email:</td>
-                <td style="padding: 8px 0; color: #1e293b;">${validatedData.userInfo.email}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Role:</td>
-                <td style="padding: 8px 0;">
-                  <span style="background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">
-                    ${validatedData.userInfo.role}
-                  </span>
-                </td>
-              </tr>
-            </table>
+            ${
+              validatedData.isAnonymous || !validatedData.userInfo
+                ? `
+              <h3 style="margin: 0 0 15px 0; color: #1e293b; font-size: 16px;">🔒 Submission Type</h3>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; text-align: center;">
+                <div style="color: #64748b; font-size: 14px; margin-bottom: 5px;">Anonymous Feedback</div>
+                <div style="color: #1e293b; font-weight: 500;">User identity protected</div>
+              </div>
+            `
+                : `
+              <h3 style="margin: 0 0 15px 0; color: #1e293b; font-size: 16px;">📋 User Information</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: 500; width: 100px;">Name:</td>
+                  <td style="padding: 8px 0; color: #1e293b;">${validatedData.userInfo.name}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Email:</td>
+                  <td style="padding: 8px 0; color: #1e293b;">${validatedData.userInfo.email}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Role:</td>
+                  <td style="padding: 8px 0;">
+                    <span style="background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">
+                      ${validatedData.userInfo.role}
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            `
+            }
           </div>
 
           ${
@@ -177,10 +191,15 @@ Title: ${validatedData.title}
 Description:
 ${validatedData.description}
 
-User Information:
+${
+  validatedData.isAnonymous || !validatedData.userInfo
+    ? `Submission Type:
+Anonymous Feedback - User identity protected`
+    : `User Information:
 - Name: ${validatedData.userInfo.name}
 - Email: ${validatedData.userInfo.email}
-- Role: ${validatedData.userInfo.role}
+- Role: ${validatedData.userInfo.role}`
+}
 
 ${
   emailAttachments.length > 0
@@ -224,7 +243,7 @@ Generated on ${new Date().toLocaleString()}
       tags: [
         "feedback",
         "user-feedback",
-        validatedData.userInfo.role.toLowerCase(),
+        validatedData.isAnonymous ? "anonymous" : validatedData.userInfo?.role?.toLowerCase() || "unknown",
       ],
     });
 

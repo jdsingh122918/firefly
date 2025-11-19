@@ -9,6 +9,7 @@ import { Loader2, Paperclip, X, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,7 @@ import { toast } from "sonner"
 const feedbackSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Title must be 100 characters or less"),
   description: z.string().min(10, "Description must be at least 10 characters").max(2000, "Description must be 2000 characters or less"),
+  isAnonymous: z.boolean(),
 })
 
 type FeedbackFormData = z.infer<typeof feedbackSchema>
@@ -52,6 +54,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
     defaultValues: {
       title: "",
       description: "",
+      isAnonymous: false,
     }
   })
 
@@ -120,7 +123,8 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
         title: data.title,
         description: data.description,
         attachments: uploadedFiles.map(f => f.fileId),
-        userInfo: {
+        isAnonymous: data.isAnonymous,
+        userInfo: data.isAnonymous ? undefined : {
           name: user?.fullName || user?.firstName || "Unknown",
           email: user?.emailAddresses?.[0]?.emailAddress || "unknown@example.com",
           role: sessionClaims?.role || "UNKNOWN",
@@ -217,6 +221,29 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
               )}
             />
 
+            {/* Anonymous Toggle */}
+            <FormField
+              control={form.control}
+              name="isAnonymous"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 space-y-0">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Submit anonymously</FormLabel>
+                    <p className="text-sm text-muted-foreground">
+                      Your contact information won't be included in the feedback
+                    </p>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
             {/* File Upload Section */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -272,15 +299,31 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 
             {/* User Info Display */}
             <div className="bg-muted/50 rounded-lg p-3 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">
-                This feedback will be sent from:
-              </p>
-              <p className="text-sm">
-                <strong>{user?.fullName || user?.firstName || "Unknown User"}</strong>
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {user?.emailAddresses?.[0]?.emailAddress}
-              </p>
+              {form.watch("isAnonymous") ? (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Submission type:
+                  </p>
+                  <p className="text-sm font-medium">
+                    Anonymous feedback
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Your identity will not be shared
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    This feedback will be sent from:
+                  </p>
+                  <p className="text-sm">
+                    <strong>{user?.fullName || user?.firstName || "Unknown User"}</strong>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {user?.emailAddresses?.[0]?.emailAddress}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Form Actions */}
