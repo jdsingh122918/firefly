@@ -6,6 +6,7 @@ import { NotificationBanner } from '@/components/notifications/notification-bann
 import { DatabaseErrorWrapper } from '@/components/errors/database-error-boundary'
 import { BreadcrumbNavigation } from '@/components/breadcrumb-navigation'
 import { CookieBanner } from '@/components/cookie-banner'
+import { FeedbackButton } from '@/components/feedback'
 
 export default async function DashboardLayout({
   children,
@@ -98,6 +99,9 @@ export default async function DashboardLayout({
 
       {/* Cookie Banner - positioned fixed at bottom */}
       <CookieBanner />
+
+      {/* Feedback Button - positioned fixed at bottom right */}
+      <FeedbackButton />
     </DatabaseErrorWrapper>
   )
 }

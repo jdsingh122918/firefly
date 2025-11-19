@@ -56,3 +56,6 @@ tests/dashboard/.next/
 tests/dashboard/out/
 tests/node_modules/
 tests/dashboard/node_modules/
+
+# clerk configuration (can include secrets)
+/.clerk/
