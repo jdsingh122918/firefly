@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PostCard } from "./post-card"
+import { SimplePostForm } from "./simple-post-form"
 
 interface Forum {
   id: string
@@ -44,9 +45,12 @@ interface Forum {
   memberCount: number
   lastActivityAt?: string
   creator?: {
+    id: string
     name: string
   }
   createdAt: string
+  isMember?: boolean
+  isCreator?: boolean
 }
 
 interface Post {
@@ -110,6 +114,8 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [sortBy, setSortBy] = useState<string>("pinned")
+  const [joiningForum, setJoiningForum] = useState(false)
+  const [leavingForum, setLeavingForum] = useState(false)
 
   // Filter and sort posts
   const filteredPosts = posts.filter((post) => {
@@ -201,6 +207,82 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
     }
   }, [isLoaded, isSignedIn, fetchForumAndPosts])
 
+  const handleJoinForum = async () => {
+    if (!isSignedIn || !forum || joiningForum) return
+
+    setJoiningForum(true)
+
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/forums/${forum.id}/join`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to join forum')
+      }
+
+      const data = await response.json()
+
+      // Update forum in local state
+      setForum(prev => prev ? {
+        ...prev,
+        isMember: true,
+        memberCount: data.forum.memberCount
+      } : null)
+
+      console.log("✅ Successfully joined forum:", data.forum.title)
+    } catch (err) {
+      console.error("❌ Failed to join forum:", err)
+      setError(err instanceof Error ? err.message : 'Failed to join forum')
+    } finally {
+      setJoiningForum(false)
+    }
+  }
+
+  const handleLeaveForum = async () => {
+    if (!isSignedIn || !forum || leavingForum) return
+
+    setLeavingForum(true)
+
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/forums/${forum.id}/join`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to leave forum')
+      }
+
+      const data = await response.json()
+
+      // Update forum in local state
+      setForum(prev => prev ? {
+        ...prev,
+        isMember: false,
+        memberCount: data.forum.memberCount
+      } : null)
+
+      console.log("✅ Successfully left forum:", data.forum.title)
+    } catch (err) {
+      console.error("❌ Failed to leave forum:", err)
+      setError(err instanceof Error ? err.message : 'Failed to leave forum')
+    } finally {
+      setLeavingForum(false)
+    }
+  }
+
   const formatTimeAgo = (date: string): string => {
     const now = new Date()
     const diffMs = now.getTime() - new Date(date).getTime()
@@ -275,11 +357,25 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
                 <MessageSquare className="h-8 w-8 text-primary" />
                 <div>
                   <h1 className="text-2xl font-bold tracking-tight">{forum.title}</h1>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <Badge variant="outline" className="flex items-center gap-1">
                       <VisibilityIcon className="h-3 w-3" />
                       {visibilityLabels[forum.visibility]}
                     </Badge>
+
+                    {/* Membership Status Badge */}
+                    {forum.isMember && (
+                      <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
+                        Member
+                      </Badge>
+                    )}
+
+                    {/* Creator Badge */}
+                    {forum.isCreator && (
+                      <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
+                        Creator
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
@@ -291,12 +387,48 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
               )}
             </div>
 
-            <Button asChild>
-              <Link href={`/${rolePrefix}/forums/${forum.slug}/posts/new`}>
-                <Plus className="mr-2 h-4 w-4" />
-                New Post
-              </Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Join/Leave Button */}
+              {!forum.isCreator && (
+                forum.isMember ? (
+                  <Button
+                    variant="outline"
+                    disabled={leavingForum}
+                    onClick={handleLeaveForum}
+                  >
+                    {leavingForum ? "Leaving..." : "Leave Forum"}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="default"
+                    disabled={joiningForum}
+                    onClick={handleJoinForum}
+                  >
+                    {joiningForum ? "Joining..." : "Join Forum"}
+                  </Button>
+                )
+              )}
+
+              {/* New Post Buttons - only show if member or creator */}
+              {(forum.isMember || forum.isCreator) && (
+                <>
+                  <SimplePostForm
+                    forumId={forum.id}
+                    forumSlug={forum.slug}
+                    onSuccess={() => {
+                      // Refresh the posts list after successful post creation
+                      window.location.reload()
+                    }}
+                  />
+                  <Button asChild>
+                    <Link href={`/${rolePrefix}/forums/${forum.slug}/posts/new`}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      New Post
+                    </Link>
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground pt-1">
@@ -396,6 +528,7 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
               post={post}
               forumSlug={forum.slug}
               showContent={false}
+              onUpdate={fetchForumAndPosts}
             />
           ))
         )}

@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { UserRole } from '@prisma/client'
-import { AssignmentDashboard } from '@/components/notes/assignment-dashboard'
+import { AssignmentDashboard } from '@/components/resources/assignment-dashboard'
 import { prisma } from '@/lib/db/prisma'
 
 export default async function MemberAssignmentsPage() {

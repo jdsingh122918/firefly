@@ -52,12 +52,12 @@ export const FEATURE_ROUTES: FeatureRoute[] = [
     // Badge functionality can be added later for real-time updates
   },
   {
-    key: 'content',
-    title: 'Content',
-    href: (role: UserRole) => `/${role.toLowerCase()}/content`,
+    key: 'resources',
+    title: 'Resources',
+    href: (role: UserRole) => `/${role.toLowerCase()}/resources`,
     icon: FolderOpen,
     roles: [UserRole.ADMIN, UserRole.VOLUNTEER, UserRole.MEMBER]
-    // Badge functionality can be added later for content counts
+    // Badge functionality can be added later for resource counts
   },
   {
     key: 'assignments',

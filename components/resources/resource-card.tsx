@@ -1,16 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { UserRole } from "@prisma/client";
+import { useRouter } from "next/navigation";
 import {
   BookOpen,
   ExternalLink,
   Star,
-  Eye,
-  Share2,
-  Bookmark,
-  MoreVertical,
-  Download,
   Calendar,
   User,
   Tag,
@@ -22,19 +17,13 @@ import {
   Wrench,
   Phone,
   Briefcase,
+  ScrollText,
 } from "lucide-react";
-import Link from "next/link";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
+import { getResourceTypeIcon, isTemplate } from "@/lib/utils/resource-utils";
 
 interface Resource {
   id: string;
@@ -66,11 +55,13 @@ interface Resource {
   totalViews: number;
   totalShares: number;
   totalBookmarks: number;
+  externalMeta?: any; // For template metadata
   createdAt: string;
   updatedAt: string;
   creator?: {
     id: string;
-    name: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     role: string;
   };
@@ -85,28 +76,6 @@ interface ResourceCardProps {
   showActions?: boolean;
 }
 
-const getResourceTypeIcon = (type: string) => {
-  switch (type) {
-    case 'DOCUMENT':
-      return FileText;
-    case 'LINK':
-      return LinkIcon;
-    case 'VIDEO':
-      return Video;
-    case 'AUDIO':
-      return Headphones;
-    case 'IMAGE':
-      return ImageIcon;
-    case 'TOOL':
-      return Wrench;
-    case 'CONTACT':
-      return Phone;
-    case 'SERVICE':
-      return Briefcase;
-    default:
-      return BookOpen;
-  }
-};
 
 const getStatusColor = (status: string, isFeatured: boolean) => {
   if (isFeatured) return "bg-[hsl(var(--ppcc-blue)/0.1)] text-[hsl(var(--ppcc-blue))] border-[hsl(var(--ppcc-blue)/0.3)]";
@@ -237,112 +206,60 @@ const getResourceCardColors = (resource: Resource) => {
 };
 
 export function ResourceCard({ resource, userRole, showActions = false }: ResourceCardProps) {
-  const [isBookmarked, setIsBookmarked] = useState(resource.userBookmark);
-  const [bookmarkLoading, setBookmarkLoading] = useState(false);
+  const router = useRouter();
 
-  const TypeIcon = getResourceTypeIcon(resource.type);
+  const isTemplateResource = isTemplate(resource);
+  const TypeIcon = getResourceTypeIcon(resource.type, isTemplateResource);
   const statusColor = getStatusColor(resource.status, resource.isFeatured);
   const cardColors = getResourceCardColors(resource);
 
-  const handleBookmark = async () => {
-    try {
-      setBookmarkLoading(true);
-      const response = await fetch(`/api/resources/${resource.id}/bookmark`, {
-        method: isBookmarked ? 'DELETE' : 'POST',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update bookmark');
-      }
-
-      setIsBookmarked(!isBookmarked);
-    } catch (error) {
-      console.error('Error updating bookmark:', error);
-    } finally {
-      setBookmarkLoading(false);
-    }
-  };
-
-  const handleShare = async () => {
-    try {
-      await navigator.share({
-        title: resource.title,
-        text: resource.description,
-        url: `${window.location.origin}/${userRole.toLowerCase()}/resources/${resource.id}`,
-      });
-    } catch (error) {
-      // Fallback to clipboard
-      navigator.clipboard.writeText(
-        `${window.location.origin}/${userRole.toLowerCase()}/resources/${resource.id}`
-      );
-    }
+  const handleCardClick = () => {
+    router.push(`/${userRole.toLowerCase()}/resources/${resource.id}`);
   };
 
   return (
-    <Card className={`p-3 border-l-4 transition-colors ${cardColors.border} ${cardColors.background} ${cardColors.hover}`}>
-      <CardHeader className="space-y-2">
+    <Card
+      className={`h-[280px] flex flex-col p-3 border-l-4 transition-colors cursor-pointer ${cardColors.border} ${cardColors.background} ${cardColors.hover}`}
+      onClick={handleCardClick}
+    >
+      <CardHeader className="space-y-2 flex-shrink-0">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <TypeIcon className="h-4 w-4 text-primary shrink-0" />
             <div className="min-w-0 flex-1">
-              <Link
-                href={`/${userRole.toLowerCase()}/resources/${resource.id}`}
-                className="font-medium text-sm hover:text-primary transition-colors line-clamp-2"
-              >
+              <h3 className="font-medium text-sm hover:text-primary transition-colors line-clamp-2 min-h-[2.5rem]">
                 {resource.title}
-              </Link>
+              </h3>
             </div>
           </div>
 
-          {showActions && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="p-0 min-h-[44px] min-w-[44px]">
-                  <MoreVertical className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href={`/${userRole.toLowerCase()}/resources/${resource.id}`}>
-                    View Details
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={`/${userRole.toLowerCase()}/resources/${resource.id}/edit`}>
-                    Edit Resource
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive">
-                  Delete Resource
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
         </div>
 
-        {/* Status and Featured Badges */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {resource.isFeatured && (
+        {/* Single Priority Badge */}
+        <div className="flex items-center gap-2">
+          {isTemplateResource ? (
+            <Badge variant="secondary" className="bg-[hsl(var(--ppcc-purple)/0.1)] text-[hsl(var(--ppcc-purple))] border-[hsl(var(--ppcc-purple)/0.3)]">
+              <ScrollText className="h-3 w-3 mr-1" />
+              Template
+            </Badge>
+          ) : resource.isFeatured ? (
             <Badge variant="secondary" className={statusColor}>
               <Star className="h-3 w-3 mr-1" />
               Featured
             </Badge>
-          )}
-          {!resource.isFeatured && resource.status !== 'APPROVED' && (
+          ) : resource.status !== 'APPROVED' ? (
             <Badge variant="secondary" className={statusColor}>
               {resource.status}
             </Badge>
-          )}
-          {resource.category && (
+          ) : resource.category ? (
             <Badge variant="outline" className="text-xs">
               {resource.category.name}
             </Badge>
-          )}
+          ) : null}
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 flex-1 overflow-y-auto">
         {/* Description */}
         {resource.description && (
           <p className="text-xs text-muted-foreground line-clamp-2">
@@ -376,10 +293,6 @@ export function ResourceCard({ resource, userRole, showActions = false }: Resour
               <span>({resource.totalRatings})</span>
             </div>
           )}
-          <div className="flex items-center gap-1">
-            <Eye className="h-3 w-3" />
-            <span>{resource.totalViews}</span>
-          </div>
           {resource.externalUrl && (
             <div className="flex items-center gap-1">
               <ExternalLink className="h-3 w-3" />
@@ -392,7 +305,13 @@ export function ResourceCard({ resource, userRole, showActions = false }: Resour
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
             <User className="h-3 w-3" />
-            <span>{resource.creator?.name || 'Unknown'}</span>
+            <span>
+              {resource.creator
+                ? (resource.creator.firstName || resource.creator.lastName
+                    ? `${resource.creator.firstName || ''} ${resource.creator.lastName || ''}`.trim()
+                    : resource.creator.email.split('@')[0])
+                : 'Unknown'}
+            </span>
           </div>
           <div className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
@@ -401,27 +320,8 @@ export function ResourceCard({ resource, userRole, showActions = false }: Resour
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 pt-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBookmark}
-            disabled={bookmarkLoading}
-            className="h-8 px-2 text-xs"
-          >
-            <Bookmark className={`h-3 w-3 mr-1 ${isBookmarked ? 'fill-current' : ''}`} />
-            {isBookmarked ? 'Saved' : 'Save'}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleShare}
-            className="h-8 px-2 text-xs"
-          >
-            <Share2 className="h-3 w-3 mr-1" />
-            Share
-          </Button>
-          {resource.externalUrl && (
+        {resource.externalUrl && (
+          <div className="flex items-center gap-2 pt-1">
             <Button
               variant="ghost"
               size="sm"
@@ -433,8 +333,8 @@ export function ResourceCard({ resource, userRole, showActions = false }: Resour
                 Open
               </a>
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

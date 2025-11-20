@@ -16,8 +16,6 @@ export {
   ForumVisibility,
   PostType,
   VoteType,
-  NoteVisibility,
-  NoteType,
-  ResourceContentType,
+  ResourceType,
   ResourceStatus,
 } from "./types/index";

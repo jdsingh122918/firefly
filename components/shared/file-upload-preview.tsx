@@ -332,10 +332,30 @@ export const FileUploadPreview: React.FC<FileUploadPreviewProps> = ({
   const renderFileList = () => {
     if (!hasAnyFiles) return renderEmptyState()
 
+    // Filter out uploads that are already completed and present in attachments
+    // to prevent duplicate display
+    const filteredUploads = uploads.filter((upload) => {
+      // Keep uploads that are still in progress or failed
+      if (upload.status === 'uploading' || upload.status === 'pending' || upload.status === 'error') {
+        return true
+      }
+
+      // For successful uploads, check if they're already in attachments
+      if (upload.status === 'success') {
+        const isDuplicate = attachments.some((attachment) =>
+          attachment.originalName === upload.file.name &&
+          attachment.size === upload.file.size
+        )
+        return !isDuplicate // Only show if not already in attachments
+      }
+
+      return true
+    })
+
     return (
       <div className={getLayoutClasses()}>
-        {/* Upload Progress Items */}
-        {uploads.map((upload) => (
+        {/* Upload Progress Items (filtered to prevent duplicates) */}
+        {filteredUploads.map((upload) => (
           <FileItem
             key={upload.file.name + upload.file.lastModified}
             file={upload}

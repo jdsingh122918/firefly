@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useUser } from '@clerk/nextjs'
+import { useUser, useReverification } from '@clerk/nextjs'
+import { isClerkRuntimeError } from '@clerk/clerk-react/errors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -9,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Upload, Check, X, Loader2, User, Mail, Plus, Shield, Trash2 } from 'lucide-react'
+import { Upload, Check, X, Loader2, User, Mail, Plus, Shield, Trash2, Edit } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -32,6 +33,17 @@ export function ProfileSection() {
   const [isAddingEmail, setIsAddingEmail] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [loadingAction, setLoadingAction] = useState<string | null>(null)
+
+  // Email editing state
+  const [editingEmailId, setEditingEmailId] = useState<string | null>(null)
+  const [editEmail, setEditEmail] = useState('')
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editStep, setEditStep] = useState<'input' | 'adding' | 'verifying' | 'setting-primary' | 'deleting-old' | 'completed'>('input')
+
+  // Reverification wrapper for email operations
+  const createEmailWithVerification = useReverification(
+    (email: string) => user?.createEmailAddress({ email })
+  )
 
   const handleSave = async () => {
     if (!user) return
@@ -81,12 +93,19 @@ export function ProfileSection() {
 
     setIsAddingEmail(true)
     try {
-      await user.createEmailAddress({ email: newEmail.trim() })
+      await createEmailWithVerification(newEmail.trim())
       toast.success('Email address added successfully! Please check your inbox to verify it.')
       setNewEmail('')
       setIsDialogOpen(false)
     } catch (error: any) {
       console.error('Add email error:', error)
+
+      // Handle reverification cancellation gracefully
+      if (isClerkRuntimeError(error) && error.code === 'reverification_cancelled') {
+        toast.info('Email addition cancelled')
+        return
+      }
+
       toast.error(error.errors?.[0]?.message || 'Failed to add email address. Please try again.')
     } finally {
       setIsAddingEmail(false)
@@ -138,6 +157,56 @@ export function ProfileSection() {
       toast.error(error.errors?.[0]?.message || 'Failed to remove email address.')
     } finally {
       setLoadingAction(null)
+    }
+  }
+
+  // Email editing functions
+  const handleStartEdit = (emailId: string, currentEmail: string) => {
+    setEditingEmailId(emailId)
+    setEditEmail(currentEmail)
+    setEditStep('input')
+    setIsEditDialogOpen(true)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingEmailId(null)
+    setEditEmail('')
+    setEditStep('input')
+    setIsEditDialogOpen(false)
+  }
+
+  const handleEditEmail = async () => {
+    if (!user || !editingEmailId || !editEmail.trim()) return
+
+    try {
+      // Step 1: Add new email address with reverification
+      setEditStep('adding')
+      const newEmailAddress = await createEmailWithVerification(editEmail.trim())
+
+      // Step 2: Prepare verification
+      setEditStep('verifying')
+      if (newEmailAddress) {
+        await newEmailAddress.prepareVerification({ strategy: 'email_code' })
+      }
+      toast.success(`Verification email sent to ${editEmail}. Please check your inbox.`)
+
+      // Step 3: Wait for verification (user will need to verify manually)
+      // For now, we'll show instructions and let user continue manually
+      setEditStep('completed')
+      toast.info('Please verify your new email address, then set it as primary and delete the old one if desired.')
+
+    } catch (error: any) {
+      console.error('Edit email error:', error)
+
+      // Handle reverification cancellation gracefully
+      if (isClerkRuntimeError(error) && error.code === 'reverification_cancelled') {
+        toast.info('Email edit cancelled')
+        setEditStep('input')
+        return
+      }
+
+      toast.error(error.errors?.[0]?.message || 'Failed to update email address.')
+      setEditStep('input')
     }
   }
 
@@ -385,6 +454,72 @@ export function ProfileSection() {
                 </div>
               </DialogContent>
             </Dialog>
+
+            {/* Edit Email Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit Email Address</DialogTitle>
+                  <DialogDescription>
+                    {editStep === 'input' && 'Enter a new email address. This will add the new email and send a verification code.'}
+                    {editStep === 'adding' && 'Adding new email address...'}
+                    {editStep === 'verifying' && 'Sending verification email...'}
+                    {editStep === 'completed' && 'New email address added! Please check your inbox to verify it, then set it as primary if desired.'}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-email">New Email Address</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      placeholder="Enter new email address"
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      disabled={editStep !== 'input'}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      onClick={handleEditEmail}
+                      disabled={editStep !== 'input' || !editEmail.trim()}
+                      className="flex-1"
+                    >
+                      {editStep === 'adding' || editStep === 'verifying' ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          {editStep === 'adding' ? 'Adding...' : 'Sending...'}
+                        </>
+                      ) : editStep === 'completed' ? (
+                        'Close'
+                      ) : (
+                        'Change Email'
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={editStep === 'completed' ? handleCancelEdit : handleCancelEdit}
+                      disabled={editStep === 'adding' || editStep === 'verifying'}
+                    >
+                      {editStep === 'completed' ? 'Close' : 'Cancel'}
+                    </Button>
+                  </div>
+                  {editStep === 'completed' && (
+                    <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
+                      <p className="text-sm text-blue-800">
+                        <strong>Next steps:</strong>
+                        <br />
+                        1. Check your inbox and verify the new email
+                        <br />
+                        2. Set the new email as primary if desired
+                        <br />
+                        3. Delete the old email address
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <p className="text-sm text-muted-foreground">
@@ -425,6 +560,16 @@ export function ProfileSection() {
                 </div>
 
                 <div className="flex items-center space-x-1.5 flex-shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleStartEdit(emailAddress.id, emailAddress.emailAddress)}
+                    disabled={loadingAction !== null}
+                    className="min-h-[44px]"
+                  >
+                    <Edit className="h-3 w-3" />
+                  </Button>
+
                   {emailAddress.verification?.status !== 'verified' && (
                     <Button
                       variant="outline"

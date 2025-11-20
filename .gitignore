@@ -49,6 +49,9 @@ docs/
 # sensitive documentation
 CLAUDE.md
 
+# future development plans
+future-dev/
+
 # test suite
 tests/results/
 tests/.vitest/

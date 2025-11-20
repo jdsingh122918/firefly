@@ -153,11 +153,11 @@ export function useMessageAccess(message?: {
   });
 
   return {
-    canView: access.canRead(ResourceType.MESSAGE),
-    canEdit: access.canWrite(ResourceType.MESSAGE),
-    canDelete: access.canDelete(ResourceType.MESSAGE),
-    canModerate: access.canAdmin(ResourceType.MESSAGE),
-    accessLevel: access.getAccessLevel(ResourceType.MESSAGE),
+    canView: access.canRead(ResourceType.DOCUMENT),
+    canEdit: access.canWrite(ResourceType.DOCUMENT),
+    canDelete: access.canDelete(ResourceType.DOCUMENT),
+    canModerate: access.canAdmin(ResourceType.DOCUMENT),
+    accessLevel: access.getAccessLevel(ResourceType.DOCUMENT),
   };
 }
 
@@ -169,13 +169,13 @@ export function useFamilyAccess(family?: { id: string; createdBy: string }) {
   });
 
   return {
-    canView: access.canRead(ResourceType.FAMILY),
-    canEdit: access.canWrite(ResourceType.FAMILY),
-    canDelete: access.canDelete(ResourceType.FAMILY),
-    canManage: access.canAdmin(ResourceType.FAMILY),
-    canInviteMembers: access.canWrite(ResourceType.FAMILY),
-    canManageRoles: access.canAdmin(ResourceType.FAMILY),
-    accessLevel: access.getAccessLevel(ResourceType.FAMILY),
+    canView: access.canRead(ResourceType.DOCUMENT),
+    canEdit: access.canWrite(ResourceType.DOCUMENT),
+    canDelete: access.canDelete(ResourceType.DOCUMENT),
+    canManage: access.canAdmin(ResourceType.DOCUMENT),
+    canInviteMembers: access.canWrite(ResourceType.DOCUMENT),
+    canManageRoles: access.canAdmin(ResourceType.DOCUMENT),
+    accessLevel: access.getAccessLevel(ResourceType.DOCUMENT),
   };
 }
 
@@ -187,11 +187,11 @@ export function useUserAccess(targetUser?: { id: string; familyId?: string }) {
   });
 
   return {
-    canView: access.canRead(ResourceType.USER),
-    canEdit: access.canWrite(ResourceType.USER),
-    canDelete: access.canDelete(ResourceType.USER),
-    canManage: access.canAdmin(ResourceType.USER),
-    accessLevel: access.getAccessLevel(ResourceType.USER),
+    canView: access.canRead(ResourceType.CONTACT),
+    canEdit: access.canWrite(ResourceType.CONTACT),
+    canDelete: access.canDelete(ResourceType.CONTACT),
+    canManage: access.canAdmin(ResourceType.CONTACT),
+    accessLevel: access.getAccessLevel(ResourceType.CONTACT),
   };
 }
 
@@ -205,11 +205,11 @@ export function useNotificationAccess(notification?: {
   });
 
   return {
-    canView: access.canRead(ResourceType.NOTIFICATION),
-    canEdit: access.canWrite(ResourceType.NOTIFICATION),
-    canDelete: access.canDelete(ResourceType.NOTIFICATION),
-    canManage: access.canAdmin(ResourceType.NOTIFICATION),
-    accessLevel: access.getAccessLevel(ResourceType.NOTIFICATION),
+    canView: access.canRead(ResourceType.DOCUMENT),
+    canEdit: access.canWrite(ResourceType.DOCUMENT),
+    canDelete: access.canDelete(ResourceType.DOCUMENT),
+    canManage: access.canAdmin(ResourceType.DOCUMENT),
+    accessLevel: access.getAccessLevel(ResourceType.DOCUMENT),
   };
 }
 

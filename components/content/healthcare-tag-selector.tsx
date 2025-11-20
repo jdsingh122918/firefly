@@ -16,6 +16,7 @@ import {
   Filter
 } from 'lucide-react';
 import { HEALTHCARE_CATEGORIES, ALL_HEALTHCARE_TAGS } from '@/lib/data/healthcare-tags';
+import { useToast } from '@/hooks/use-toast';
 
 interface HealthcareTagSelectorProps {
   userRole: 'ADMIN' | 'VOLUNTEER' | 'MEMBER';
@@ -29,9 +30,11 @@ const HealthcareTagSelector: React.FC<HealthcareTagSelectorProps> = ({
   returnUrl
 }) => {
   const router = useRouter();
+  const { toast } = useToast();
   const [selectedTags, setSelectedTags] = useState<string[]>(currentTags);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
 
   // Filter tags based on search query and category filter
   const filteredHealthcareTags = ALL_HEALTHCARE_TAGS.filter(tag => {
@@ -88,11 +91,32 @@ const HealthcareTagSelector: React.FC<HealthcareTagSelectorProps> = ({
     }
   }, [selectedTags]);
 
-  const handleApplySelection = () => {
-    const encodedTags = encodeURIComponent(selectedTags.join(','));
-    const separator = returnUrl.includes('?') ? '&' : '?';
-    const newUrl = `${returnUrl}${separator}selectedTags=${encodedTags}`;
-    router.push(newUrl);
+  const handleApplySelection = async () => {
+    setIsApplying(true);
+
+    try {
+      const encodedTags = encodeURIComponent(selectedTags.join(','));
+      const separator = returnUrl.includes('?') ? '&' : '?';
+      const newUrl = `${returnUrl}${separator}selectedTags=${encodedTags}`;
+
+      // Show feedback for applying tags
+      if (selectedTags.length > 0) {
+        toast({
+          title: 'Applying Tags',
+          description: `${selectedTags.length} tag${selectedTags.length !== 1 ? 's' : ''} will be applied to your content.`,
+        });
+      }
+
+      router.push(newUrl);
+    } catch (error) {
+      console.error('Error applying tags:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to apply tags. Please try again.',
+        variant: 'destructive',
+      });
+      setIsApplying(false);
+    }
   };
 
   const handleCancel = () => {
@@ -367,7 +391,7 @@ const HealthcareTagSelector: React.FC<HealthcareTagSelectorProps> = ({
       )}
 
       {/* Action Buttons */}
-      <div className="sticky bottom-6 bg-white border border-gray-200 rounded-lg p-4 shadow-lg">
+      <div className="sticky bottom-6 bg-background/95 backdrop-blur-sm border-2 border-primary/20 rounded-lg p-4 shadow-lg hover:shadow-xl transition-all">
         <div className="flex justify-between items-center">
           <div>
             <p className="font-medium">
@@ -380,11 +404,20 @@ const HealthcareTagSelector: React.FC<HealthcareTagSelectorProps> = ({
             )}
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={handleCancel}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancel}
+              disabled={isApplying}
+            >
               Cancel
             </Button>
-            <Button onClick={handleApplySelection}>
-              Apply Tags
+            <Button
+              type="button"
+              onClick={handleApplySelection}
+              disabled={isApplying}
+            >
+              {isApplying ? 'Applying...' : 'Apply Tags'}
             </Button>
           </div>
         </div>

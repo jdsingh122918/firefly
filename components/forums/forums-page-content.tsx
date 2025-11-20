@@ -45,9 +45,12 @@ interface Forum {
     lastName?: string
   }
   creator?: {
+    id: string
     name: string
   }
   createdAt: string
+  isMember?: boolean
+  isCreator?: boolean
 }
 
 const visibilityIcons = {
@@ -82,6 +85,8 @@ export function ForumsPageContent() {
   const [searchTerm, setSearchTerm] = useState("")
   const [visibilityFilter, setVisibilityFilter] = useState<string>("all")
   const [sortBy, setSortBy] = useState<string>("lastActivity")
+  const [joiningForum, setJoiningForum] = useState<string | null>(null)
+  const [leavingForum, setLeavingForum] = useState<string | null>(null)
 
   // Get user role from session claims or default to member
   const userRole = ((sessionClaims?.metadata as { role?: string })?.role || 'member').toLowerCase()
@@ -157,6 +162,94 @@ export function ForumsPageContent() {
     const userRole = (sessionClaims?.metadata as { role?: string })?.role || 'member'
     const rolePrefix = userRole.toLowerCase()
     router.push(`/${rolePrefix}/forums/${forum.slug}`)
+  }
+
+  const handleJoinForum = async (forumId: string, event: React.MouseEvent) => {
+    event.stopPropagation() // Prevent forum navigation
+
+    if (!isSignedIn || joiningForum === forumId) return
+
+    setJoiningForum(forumId)
+
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/forums/${forumId}/join`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to join forum')
+      }
+
+      const data = await response.json()
+
+      // Update forum in local state
+      setForums(prev => prev.map(forum =>
+        forum.id === forumId
+          ? {
+              ...forum,
+              isMember: true,
+              memberCount: data.forum.memberCount
+            }
+          : forum
+      ))
+
+      console.log("✅ Successfully joined forum:", data.forum.title)
+    } catch (err) {
+      console.error("❌ Failed to join forum:", err)
+      setError(err instanceof Error ? err.message : 'Failed to join forum')
+    } finally {
+      setJoiningForum(null)
+    }
+  }
+
+  const handleLeaveForum = async (forumId: string, event: React.MouseEvent) => {
+    event.stopPropagation() // Prevent forum navigation
+
+    if (!isSignedIn || leavingForum === forumId) return
+
+    setLeavingForum(forumId)
+
+    try {
+      const token = await getToken()
+      const response = await fetch(`/api/forums/${forumId}/join`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to leave forum')
+      }
+
+      const data = await response.json()
+
+      // Update forum in local state
+      setForums(prev => prev.map(forum =>
+        forum.id === forumId
+          ? {
+              ...forum,
+              isMember: false,
+              memberCount: data.forum.memberCount
+            }
+          : forum
+      ))
+
+      console.log("✅ Successfully left forum:", data.forum.title)
+    } catch (err) {
+      console.error("❌ Failed to leave forum:", err)
+      setError(err instanceof Error ? err.message : 'Failed to leave forum')
+    } finally {
+      setLeavingForum(null)
+    }
   }
 
 
@@ -331,15 +424,60 @@ export function ForumsPageContent() {
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      {/* Title and visibility row */}
+                      {/* Title and badges row */}
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <h3 className="font-semibold text-base truncate">
-                          {forum.title}
-                        </h3>
-                        <Badge variant="outline" className="flex items-center gap-1 text-xs px-2 py-0.5">
-                          <VisibilityIcon className="h-3 w-3" />
-                          {visibilityLabels[forum.visibility]}
-                        </Badge>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <h3 className="font-semibold text-base truncate">
+                            {forum.title}
+                          </h3>
+
+                          {/* Membership Status Badge */}
+                          {forum.isMember && (
+                            <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-green-50 text-green-700 border-green-200 flex-shrink-0">
+                              Member
+                            </Badge>
+                          )}
+
+                          {/* Creator Badge */}
+                          {forum.isCreator && (
+                            <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 border-blue-200 flex-shrink-0">
+                              Creator
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {/* Visibility Badge */}
+                          <Badge variant="outline" className="flex items-center gap-1 text-xs px-2 py-0.5">
+                            <VisibilityIcon className="h-3 w-3" />
+                            {visibilityLabels[forum.visibility]}
+                          </Badge>
+
+                          {/* Join/Leave Button */}
+                          {!forum.isCreator && (
+                            forum.isMember ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs px-3 py-1 h-7"
+                                disabled={leavingForum === forum.id}
+                                onClick={(e) => handleLeaveForum(forum.id, e)}
+                              >
+                                {leavingForum === forum.id ? "Leaving..." : "Leave"}
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="text-xs px-3 py-1 h-7"
+                                disabled={joiningForum === forum.id}
+                                onClick={(e) => handleJoinForum(forum.id, e)}
+                              >
+                                {joiningForum === forum.id ? "Joining..." : "Join"}
+                              </Button>
+                            )
+                          )}
+                        </div>
                       </div>
 
                       {/* Description */}

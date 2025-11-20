@@ -25,20 +25,16 @@ import {
   ChevronUp
 } from 'lucide-react';
 import {
-  ContentType,
-  NoteType,
-  ResourceContentType,
-  NoteVisibility
+  ResourceType,
+  ResourceVisibility
 } from '@prisma/client';
 import { HEALTHCARE_CATEGORIES, ALL_HEALTHCARE_TAGS } from '@/lib/data/healthcare-tags';
 
 export interface HealthcareContentFiltersState {
   // Basic filters
   search?: string;
-  contentType?: ContentType[];
-  noteType?: NoteType[];
-  resourceType?: ResourceContentType[];
-  visibility?: NoteVisibility[];
+  resourceType?: ResourceType[];
+  visibility?: ResourceVisibility[];
 
   // Healthcare-specific filters
   healthcareCategories?: string[];
@@ -286,7 +282,7 @@ const HealthcareContentFilters: React.FC<HealthcareContentFiltersProps> = ({
             <div className="space-y-2">
               <p className="text-xs font-medium text-gray-700">Visibility</p>
               <div className="grid grid-cols-2 gap-2">
-                {Object.values(NoteVisibility).map(visibility => (
+                {Object.values(ResourceVisibility).map(visibility => (
                   <label key={visibility} className="flex items-center space-x-2 text-xs cursor-pointer">
                     <Checkbox
                       checked={filters.visibility?.includes(visibility)}

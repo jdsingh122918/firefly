@@ -1,57 +1,34 @@
-import { auth } from '@clerk/nextjs/server';
-import { redirect } from 'next/navigation';
-import { PrismaClient, UserRole } from '@prisma/client';
+'use client';
+
+import { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
 import HealthcareTagSelector from '@/components/content/healthcare-tag-selector';
 
-/**
- * Healthcare Tag Selection Page - Volunteer
- */
+function VolunteerContentTagSelector() {
+  const { userId } = useAuth();
+  const searchParams = useSearchParams();
 
-const prisma = new PrismaClient();
-
-interface SearchParams {
-  returnUrl?: string;
-  selectedTags?: string;
-}
-
-export default async function VolunteerHealthcareTagsPage({
-  searchParams
-}: {
-  searchParams: SearchParams
-}) {
-  const { userId, sessionClaims } = await auth();
+  const returnUrl = searchParams.get('returnUrl') || '/volunteer/resources';
+  const currentTags = searchParams.get('selectedTags')?.split(',').filter(Boolean) || [];
 
   if (!userId) {
-    redirect('/sign-in');
+    return <div>Please sign in to select tags.</div>;
   }
-
-  // Get user role with dual-path pattern
-  const userRole = (sessionClaims?.metadata as { role?: UserRole })?.role;
-  let finalUserRole = userRole;
-
-  if (!userRole) {
-    const dbUser = await prisma.user.findUnique({
-      where: { clerkId: userId },
-      select: { role: true }
-    });
-    if (dbUser?.role) finalUserRole = dbUser.role as UserRole;
-  }
-
-  if (finalUserRole !== UserRole.VOLUNTEER) {
-    redirect('/unauthorized');
-  }
-
-  // Parse selected tags from URL
-  const currentTags = searchParams.selectedTags ?
-    decodeURIComponent(searchParams.selectedTags).split(',').filter(Boolean) : [];
-
-  const returnUrl = searchParams.returnUrl || '/volunteer/content/new';
 
   return (
     <HealthcareTagSelector
-      userRole={finalUserRole}
+      userRole="VOLUNTEER"
       currentTags={currentTags}
-      returnUrl={returnUrl}
+      returnUrl={decodeURIComponent(returnUrl)}
     />
+  );
+}
+
+export default function VolunteerContentTagsPage() {
+  return (
+    <Suspense fallback={<div>Loading tag selector...</div>}>
+      <VolunteerContentTagSelector />
+    </Suspense>
   );
 }

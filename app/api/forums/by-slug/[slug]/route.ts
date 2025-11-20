@@ -122,6 +122,9 @@ export async function GET(
         joinedAt: new Date(), // Would need to fetch actual join date
         notifications: true, // Would need to fetch actual preference
       } : null,
+      // Add membership status for UI
+      isMember,
+      isCreator: forum.createdBy === user.id,
     };
 
     return NextResponse.json({

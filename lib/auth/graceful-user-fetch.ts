@@ -9,7 +9,7 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { UserRole } from '@prisma/client';
-import { isDatabaseError, classifyDatabaseError } from '@/lib/db/database-health';
+import { isDatabaseErrorClient, classifyDatabaseError } from '@/lib/db/database-health';
 
 export interface UserData {
   id?: string;
@@ -113,7 +113,7 @@ export async function getGracefulUserData(): Promise<GracefulUserResult> {
     console.error('❌ Database error in graceful user fetch:', error);
 
     // Check if this is a database connectivity error
-    if (isDatabaseError(error)) {
+    if (isDatabaseErrorClient(error)) {
       const errorType = classifyDatabaseError(error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
 
@@ -156,7 +156,7 @@ export async function getGracefulUserData(): Promise<GracefulUserResult> {
  * Check if we should use cached/fallback data instead of database
  */
 export function shouldUseFallbackData(error: unknown): boolean {
-  return isDatabaseError(error);
+  return isDatabaseErrorClient(error);
 }
 
 /**

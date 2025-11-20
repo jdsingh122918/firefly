@@ -46,12 +46,6 @@ enum NotificationType {
 // ASSIGNMENT SYSTEM ENUMS (Session 018)
 // ====================================
 
-enum NoteAssignmentStatus {
-  ASSIGNED      // Task assigned, not started
-  IN_PROGRESS   // User is working on it
-  COMPLETED     // Task completed
-  CANCELLED     // Assignment cancelled
-}
 
 enum AssignmentPriority {
   LOW
@@ -105,7 +99,6 @@ model User {
   // Tag and Category relations
   createdTags        Tag[] @relation("TagCreator")
   createdCategories  Category[] @relation("CategoryCreator")
-  createdResourceTags ResourceTag[] @relation("ResourceTagCreator")
 
   // Forum relations (Session 010)
   createdForums      Forum[] @relation("ForumCreator")
@@ -114,39 +107,20 @@ model User {
   replies            Reply[] @relation("ReplyAuthor")
   votes              Vote[] @relation("UserVotes")
 
-  // Notes relations (Session 010)
-  createdNotes       Note[] @relation("NoteCreator")
-  sharedNotes        NoteShare[] @relation("SharedNotes")
-  sharedNotesToOthers NoteShare[] @relation("NoteSharer")
-
-  // Resources relations (Session 010)
+  // Resources relations
+  createdResources   Resource[] @relation("ResourceCreator")
   submittedResources Resource[] @relation("ResourceSubmitter")
   approvedResources  Resource[] @relation("ResourceApprover")
   resourceRatings    ResourceRating[] @relation("ResourceRatings")
-  resourceShares     ResourceShare[] @relation("ResourceSharer")
-  receivedResourceShares ResourceShare[] @relation("ResourceRecipient")
+  resourceShares     ResourceShare[] @relation("ResourceShareReceiver")
+  sharedResources    ResourceShare[] @relation("ResourceShareSender")
+  resourceAssignments ResourceAssignment[] @relation("ResourceAssignments")
+  createdResourceAssignments ResourceAssignment[] @relation("ResourceAssigner")
+  completedResourceAssignments ResourceAssignment[] @relation("ResourceAssignmentCompleter")
 
-  // Assignment relations (Session 018)
-  assignedNotes      NoteAssignment[] @relation("AssigneeNotes")
-  createdAssignments NoteAssignment[] @relation("AssignerNotes")
-
-  // Enhanced document and tag relations (Session 018)
-  attachedDocuments  NoteDocument[] @relation("DocumentAttacher")
-  createdNoteTags    NoteTag[] @relation("NoteTagCreator")
-
-  // Unified Content relations (Session 022 consolidation)
-  createdContent     Content[] @relation("ContentCreator")
-  submittedContent   Content[] @relation("ContentSubmitter")
-  approvedContent    Content[] @relation("ContentApprover")
-  editedContent      Content[] @relation("ContentEditor")
-  contentShares      ContentShare[] @relation("ContentShareReceiver")
-  sharedContent      ContentShare[] @relation("ContentShareSender")
-  contentAssignments ContentAssignment[] @relation("ContentAssignments")
-  createdContentAssignments ContentAssignment[] @relation("ContentAssigner")
-  completedContentAssignments ContentAssignment[] @relation("ContentAssignmentCompleter")
-  contentRatings     ContentRating[] @relation("ContentRatings")
-  contentDocumentAttachments ContentDocument[] @relation("ContentDocumentAttacher")
-  contentFormResponses ContentFormResponse[] @relation("ContentFormResponses")
+  // Document and tag relations
+  resourceDocumentAttachments ResourceDocument[] @relation("ResourceDocumentAttacher")
+  resourceFormResponses ResourceFormResponse[] @relation("ResourceFormResponses")
 
   // Volunteer-Family assignment relations
   volunteerAssignments    VolunteerFamilyAssignment[] @relation("VolunteerAssignments")
@@ -181,14 +155,8 @@ model Family {
   // Forum relations (Session 010)
   forums           Forum[] @relation("ForumFamily")
 
-  // Notes relations (Session 010)
-  notes            Note[] @relation("FamilyNotes")
-
-  // Resources relations (Session 010)
+  // Resources relations
   resources        Resource[] @relation("FamilyResources")
-
-  // Unified Content relations (Session 022 consolidation)
-  content          Content[] @relation("FamilyContent")
 
   // Volunteer assignment relations
   volunteerAssignments VolunteerFamilyAssignment[] @relation("FamilyVolunteers")
@@ -397,16 +365,6 @@ enum DocumentStatus {
   PROCESSING
 }
 
-// Resource types for tagging system
-enum ResourceType {
-  DOCUMENT
-  MESSAGE
-  FAMILY
-  USER
-  NOTIFICATION
-  CARE_PLAN
-  ACTIVITY
-}
 
 // Document model for file management
 model Document {
@@ -442,21 +400,13 @@ model Document {
   uploadedByUser   User    @relation("DocumentUploader", fields: [uploadedBy], references: [id], onDelete: NoAction)
   family           Family? @relation("DocumentFamily", fields: [familyId], references: [id], onDelete: SetNull)
 
-  // Tag relations
-  resourceTags     ResourceTag[] @relation("DocumentResourceTags")
 
   // Forum relations (Session 010)
   postDocuments    PostDocument[] @relation("PostDocuments")
   replyDocuments   ReplyDocument[] @relation("ReplyDocuments")
 
-  // Notes relations (Session 010)
-  noteDocuments    NoteDocument[] @relation("NoteDocuments")
-
-  // Resources relations (Session 010)
+  // Resources relations
   resourceDocuments ResourceDocument[] @relation("ResourceDocuments")
-
-  // Unified Content relations (Session 022 consolidation)
-  contentDocuments  ContentDocument[] @relation("ContentDocuments")
 
   @@index([uploadedBy])
   @@index([familyId])
@@ -489,12 +439,8 @@ model Category {
   createdByUser User    @relation("CategoryCreator", fields: [createdBy], references: [id], onDelete: NoAction)
   tags        Tag[]     @relation("CategoryTags")
 
-  // Notes and Resources relations (Session 010)
-  notes       Note[]    @relation("NotesCategory")
-  resources   Resource[] @relation("ResourcesCategory")
-
-  // Unified Content relations (Session 022 consolidation)
-  content     Content[] @relation("ContentCategory")
+  // Resources relations
+  resources   Resource[] @relation("ResourceCategory")
 
   @@unique([name, familyId]) // Unique category names within family scope
   @@index([familyId])
@@ -520,16 +466,10 @@ model Tag {
   updatedAt   DateTime   @updatedAt
 
   // Relations
-  category    Category?  @relation("CategoryTags", fields: [categoryId], references: [id], onDelete: SetNull)
-  family      Family?    @relation("TagFamily", fields: [familyId], references: [id], onDelete: SetNull)
-  createdByUser User     @relation("TagCreator", fields: [createdBy], references: [id], onDelete: NoAction)
-  resourceTags ResourceTag[] @relation("TagResources")
-
-  // Enhanced relations (Session 018)
-  noteTags    NoteTag[] @relation("TagNotes") // Notes using this tag
-
-  // Unified Content relations (Session 022 consolidation)
-  contentTags ContentTag[] @relation("ContentTags") // Content using this tag
+  category      Category?     @relation("CategoryTags", fields: [categoryId], references: [id], onDelete: SetNull)
+  family        Family?       @relation("TagFamily", fields: [familyId], references: [id], onDelete: SetNull)
+  createdByUser User          @relation("TagCreator", fields: [createdBy], references: [id], onDelete: NoAction)
+  resources     ResourceTag[] @relation("ResourceTags")
 
   @@unique([name, familyId]) // Unique tag names within family scope
   @@index([familyId])
@@ -540,28 +480,6 @@ model Tag {
   @@map("tags")
 }
 
-// ResourceTag model for tagging any resource type
-model ResourceTag {
-  id           String       @id @default(auto()) @map("_id") @db.ObjectId
-  resourceId   String       @db.ObjectId
-  resourceType ResourceType
-  tagId        String       @db.ObjectId
-  createdBy    String       @db.ObjectId
-  createdAt    DateTime     @default(now())
-
-  // Relations
-  tag          Tag          @relation("TagResources", fields: [tagId], references: [id], onDelete: Cascade)
-  createdByUser User        @relation("ResourceTagCreator", fields: [createdBy], references: [id], onDelete: NoAction)
-
-  // Polymorphic relations - only one will be populated based on resourceType
-  document     Document?    @relation("DocumentResourceTags", fields: [resourceId], references: [id], onDelete: Cascade)
-
-  @@unique([resourceId, resourceType, tagId]) // Prevent duplicate tags on same resource
-  @@index([resourceId, resourceType])
-  @@index([tagId])
-  @@index([createdBy])
-  @@map("resource_tags")
-}
 
 // ====================================
 // FORUM SYSTEM MODELS (Session 010)
@@ -850,194 +768,24 @@ model ReplyDocument {
 }
 
 // ====================================
-// NOTES SYSTEM MODELS (Session 010)
+// RESOURCES SYSTEM MODELS
 // ====================================
 
-// Note visibility and sharing options
-enum NoteVisibility {
+// Resource visibility and sharing options
+enum ResourceVisibility {
   PRIVATE      // Only visible to creator
   FAMILY       // Visible to family members
   SHARED       // Shared with specific users
   PUBLIC       // Visible to all authenticated users
 }
 
-// Content type discriminator for unified model
-enum ContentType {
-  NOTE         // Personal/collaborative notes
-  RESOURCE     // Curated content library
-}
-
-// Note types for different use cases
-enum NoteType {
-  TEXT         // Plain text/markdown note
-  CHECKLIST    // Task/checklist note
-  JOURNAL      // Personal journal entry
-  MEETING      // Meeting minutes/notes
-  CARE_PLAN    // Care planning notes
-  RESOURCE     // Resource or reference note
-}
-
-// Note model - personal and shared notes
-model Note {
-  id              String         @id @default(auto()) @map("_id") @db.ObjectId
-  title           String
-  content         String         // Markdown content
-  type            NoteType       @default(TEXT)
-  visibility      NoteVisibility @default(PRIVATE)
-
-  // Ownership and access
-  createdBy       String         @db.ObjectId
-  familyId        String?        @db.ObjectId // For family-scoped notes
-  sharedWith      String[]       @db.ObjectId @default([]) // User IDs for shared notes
-
-  // Content organization
-  tags            String[]       @default([]) // Note tags
-  categoryId      String?        @db.ObjectId // Optional category
-  attachments     String[]       @default([]) // File attachments
-
-  // Note metadata
-  isPinned        Boolean        @default(false) // Pin important notes
-  isArchived      Boolean        @default(false) // Archive old notes
-  isDeleted       Boolean        @default(false) // Soft delete
-  deletedAt       DateTime?
-
-  // Collaboration features
-  allowComments   Boolean        @default(false) // Enable comments on note
-  allowEditing    Boolean        @default(false) // Allow others to edit
-
-  // Activity tracking
-  lastEditedBy    String?        @db.ObjectId
-  lastEditedAt    DateTime?
-  viewCount       Int            @default(0)
-
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-
-  // Relations
-  creator         User           @relation("NoteCreator", fields: [createdBy], references: [id], onDelete: NoAction)
-  family          Family?        @relation("FamilyNotes", fields: [familyId], references: [id], onDelete: SetNull)
-  category        Category?      @relation("NotesCategory", fields: [categoryId], references: [id], onDelete: SetNull)
-  documents       NoteDocument[] // Link to Document model
-  shares          NoteShare[]    // Detailed sharing permissions
-
-  // Enhanced relations (Session 018)
-  assignments     NoteAssignment[] @relation("NoteAssignments") // Task assignments
-  structuredTags  NoteTag[]        @relation("NoteStructuredTags") // Enhanced structured tags
-
-  @@index([createdBy])
-  @@index([familyId])
-  @@index([visibility])
-  @@index([type])
-  @@index([tags])
-  @@index([isPinned, isArchived, isDeleted])
-  @@index([createdAt])
-  @@map("notes")
-}
-
-// Note sharing with detailed permissions
-model NoteShare {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  noteId      String    @db.ObjectId
-  userId      String    @db.ObjectId
-  canEdit     Boolean   @default(false) // Can edit the note
-  canComment  Boolean   @default(true)  // Can comment on the note
-  canShare    Boolean   @default(false) // Can share with others
-  sharedBy    String    @db.ObjectId    // Who shared it
-  sharedAt    DateTime  @default(now())
-
-  // Relations
-  note        Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  user        User      @relation("SharedNotes", fields: [userId], references: [id], onDelete: Cascade)
-  sharedByUser User     @relation("NoteSharer", fields: [sharedBy], references: [id], onDelete: NoAction)
-
-  @@unique([noteId, userId]) // One share record per user per note
-  @@index([userId])          // For user's shared notes
-  @@index([sharedBy])        // For sharing history
-  @@map("note_shares")
-}
-
-// Junction table for Note-Document relationships (Enhanced for dual workflow)
-model NoteDocument {
-  id          String         @id @default(auto()) @map("_id") @db.ObjectId
-  noteId      String         @db.ObjectId
-  documentId  String         @db.ObjectId
-  order       Int            @default(0) // Display order
-
-  // Enhanced fields for dual workflow (Session 018)
-  source      DocumentSource @default(UPLOAD) // Upload new vs select existing
-  createdBy   String         @db.ObjectId     // Who attached the document
-  createdAt   DateTime       @default(now())
-
-  // Relations
-  note        Note           @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  document    Document       @relation("NoteDocuments", fields: [documentId], references: [id], onDelete: Cascade)
-  attachedBy  User           @relation("DocumentAttacher", fields: [createdBy], references: [id], onDelete: NoAction)
-
-  @@unique([noteId, documentId])
-  @@index([noteId, order])
-  @@index([documentId])
-  @@index([createdBy])
-  @@map("note_documents")
-}
-
-// Note Assignment model - Task workflow for notes (Session 018)
-model NoteAssignment {
-  id            String              @id @default(auto()) @map("_id") @db.ObjectId
-  noteId        String              @db.ObjectId
-  assignedTo    String              @db.ObjectId
-  assignedBy    String              @db.ObjectId
-  status        NoteAssignmentStatus @default(ASSIGNED)
-  priority      AssignmentPriority  @default(MEDIUM)
-
-  // Assignment metadata
-  dueDate       DateTime?
-  completedAt   DateTime?
-  notes         String?             // Assignment-specific instructions
-
-  // Timestamps
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-
-  // Relations
-  note          Note                @relation("NoteAssignments", fields: [noteId], references: [id], onDelete: Cascade)
-  assignee      User                @relation("AssigneeNotes", fields: [assignedTo], references: [id], onDelete: Cascade)
-  assigner      User                @relation("AssignerNotes", fields: [assignedBy], references: [id], onDelete: NoAction)
-
-  @@unique([noteId, assignedTo])  // One assignment per user per note
-  @@index([assignedTo, status])   // For assignee's task list
-  @@index([assignedBy])           // For assigner's created assignments
-  @@index([noteId])               // For note's assignments
-  @@index([status])               // Filter by status
-  @@index([dueDate])              // Overdue assignments
-  @@map("note_assignments")
-}
-
-// Junction table for Note-Tag relationships (Enhanced structured tags)
-model NoteTag {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  noteId      String    @db.ObjectId
-  tagId       String    @db.ObjectId
-  createdBy   String    @db.ObjectId
-  createdAt   DateTime  @default(now())
-
-  // Relations
-  note        Note      @relation("NoteStructuredTags", fields: [noteId], references: [id], onDelete: Cascade)
-  tag         Tag       @relation("TagNotes", fields: [tagId], references: [id], onDelete: Cascade)
-  createdByUser User    @relation("NoteTagCreator", fields: [createdBy], references: [id], onDelete: NoAction)
-
-  @@unique([noteId, tagId])
-  @@index([noteId])
-  @@index([tagId])
-  @@index([createdBy])
-  @@map("note_tags")
-}
 
 // ====================================
-// RESOURCES SYSTEM MODELS (Session 010)
+// RESOURCES SYSTEM MODELS
 // ====================================
 
 // Resource types for categorization
-enum ResourceContentType {
+enum ResourceType {
   DOCUMENT     // PDF, Word, etc.
   LINK         // External URL
   VIDEO        // Video file or embedded
@@ -1058,151 +806,22 @@ enum ResourceStatus {
   REJECTED     // Rejected/not approved
 }
 
-// Resource model - curated library of helpful resources
+
+
+
+
+// Unified Resource model - handles all types of resources
 model Resource {
-  id              String              @id @default(auto()) @map("_id") @db.ObjectId
-  title           String
-  description     String?
-  contentType     ResourceContentType
-  url             String?             // External URL (for links, videos, etc.)
-  content         String?             // Rich text content
-
-  // File attachments (for documents, images, etc.)
-  attachments     String[]            @default([])
-
-  // Organization
-  categoryId      String?             @db.ObjectId
-  tags            String[]            @default([])
-
-  // Access control
-  visibility      NoteVisibility      @default(PUBLIC) // Reuse visibility enum
-  familyId        String?             @db.ObjectId     // Family-scoped resources
-  targetAudience  String[]            @default([])     // Target user roles
-
-  // Curation workflow
-  status          ResourceStatus      @default(APPROVED)
-  submittedBy     String              @db.ObjectId
-  approvedBy      String?             @db.ObjectId
-  approvedAt      DateTime?
-  featuredBy      String?             @db.ObjectId
-  featuredAt      DateTime?
-
-  // Engagement metrics
-  viewCount       Int                 @default(0)
-  downloadCount   Int                 @default(0)
-  shareCount      Int                 @default(0)
-  rating          Float?              // Average rating (1-5)
-  ratingCount     Int                 @default(0)
-
-  // Metadata
-  externalMeta    Json?               // Metadata for external resources
-  isVerified      Boolean             @default(false) // Staff-verified resource
-  lastVerifiedAt  DateTime?
-
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-
-  // Relations
-  submitter       User                @relation("ResourceSubmitter", fields: [submittedBy], references: [id], onDelete: NoAction)
-  approver        User?               @relation("ResourceApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
-  family          Family?             @relation("FamilyResources", fields: [familyId], references: [id], onDelete: SetNull)
-  category        Category?           @relation("ResourcesCategory", fields: [categoryId], references: [id], onDelete: SetNull)
-  documents       ResourceDocument[]
-  ratings         ResourceRating[]
-  shares          ResourceShare[]
-
-  @@index([submittedBy])
-  @@index([familyId])
-  @@index([categoryId])
-  @@index([contentType])
-  @@index([status])
-  @@index([visibility])
-  @@index([tags])
-  @@index([isVerified])
-  @@index([rating, ratingCount]) // For sorting by rating
-  @@index([viewCount])          // For sorting by popularity
-  @@index([createdAt])
-  @@map("resources")
-}
-
-// Resource ratings and reviews
-model ResourceRating {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  resourceId  String    @db.ObjectId
-  userId      String    @db.ObjectId
-  rating      Int       // 1-5 stars
-  review      String?   // Optional written review
-  isHelpful   Boolean?  // Did this help the user
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  // Relations
-  resource    Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  user        User      @relation("ResourceRatings", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([resourceId, userId]) // One rating per user per resource
-  @@index([resourceId, rating]) // For calculating averages
-  @@index([userId])             // For user's rating history
-  @@map("resource_ratings")
-}
-
-// Resource sharing tracking
-model ResourceShare {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  resourceId  String    @db.ObjectId
-  sharedBy    String    @db.ObjectId
-  sharedWith  String?   @db.ObjectId // Specific user (optional)
-  shareMethod String    // 'link', 'email', 'forum_post', etc.
-  shareData   Json?     // Additional share metadata
-  sharedAt    DateTime  @default(now())
-
-  // Relations
-  resource    Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  sharer      User      @relation("ResourceSharer", fields: [sharedBy], references: [id], onDelete: NoAction)
-  recipient   User?     @relation("ResourceRecipient", fields: [sharedWith], references: [id], onDelete: SetNull)
-
-  @@index([resourceId]) // For resource share analytics
-  @@index([sharedBy])   // For user sharing history
-  @@index([sharedWith]) // For user received resources
-  @@map("resource_shares")
-}
-
-// Junction table for Resource-Document relationships
-model ResourceDocument {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  resourceId  String    @db.ObjectId
-  documentId  String    @db.ObjectId
-  order       Int       @default(0) // Display order
-  isMain      Boolean   @default(false) // Main document for this resource
-  createdAt   DateTime  @default(now())
-
-  // Relations
-  resource    Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  document    Document  @relation("ResourceDocuments", fields: [documentId], references: [id], onDelete: Cascade)
-
-  @@unique([resourceId, documentId])
-  @@index([resourceId, order])
-  @@index([documentId])
-  @@index([isMain]) // For finding main documents
-  @@map("resource_documents")
-}
-
-// Unified Content model - combines Notes and Resources
-model Content {
   id              String       @id @default(auto()) @map("_id") @db.ObjectId
   title           String
   description     String?      // Optional description
   body            String?      // Main content (markdown/rich text)
 
-  // Content type discriminator
-  contentType     ContentType  // NOTE or RESOURCE
+  // Resource type categorization
+  resourceType    ResourceType // Type of resource (DOCUMENT, LINK, VIDEO, etc.)
 
-  // Type-specific categorization
-  noteType        NoteType?    // Only for NOTE content
-  resourceType    ResourceContentType? // Only for RESOURCE content
-
-  // Shared organization fields
-  visibility      NoteVisibility @default(PRIVATE)
+  // Organization fields
+  visibility      ResourceVisibility @default(PRIVATE)
   familyId        String?      @db.ObjectId
   categoryId      String?      @db.ObjectId
   tags            String[]     @default([])
@@ -1210,25 +829,20 @@ model Content {
 
   // Ownership and access
   createdBy       String       @db.ObjectId
-  sharedWith      String[]     @db.ObjectId @default([]) // User IDs for shared content
+  sharedWith      String[]     @db.ObjectId @default([]) // User IDs for shared resources
 
-  // Feature flags for type-specific functionality
-  hasAssignments  Boolean      @default(false) // NOTE: Enable assignment features
-  hasCuration     Boolean      @default(false) // RESOURCE: Enable curation workflow
-  hasRatings      Boolean      @default(false) // RESOURCE: Enable rating system
-  hasSharing      Boolean      @default(false) // Both: Enable advanced sharing
+  // Feature flags
+  hasAssignments  Boolean      @default(false) // Enable assignment features
+  hasCuration     Boolean      @default(false) // Enable curation workflow
+  hasRatings      Boolean      @default(false) // Enable rating system
+  hasSharing      Boolean      @default(false) // Enable advanced sharing
 
-  // NOTE-specific fields
-  isPinned        Boolean?     // Pin important notes
+  // Archive and deletion (simplified)
   isArchived      Boolean      @default(false)
   isDeleted       Boolean      @default(false)
   deletedAt       DateTime?
-  allowComments   Boolean?     // Enable comments
-  allowEditing    Boolean?     // Allow others to edit
-  lastEditedBy    String?      @db.ObjectId
-  lastEditedAt    DateTime?
 
-  // RESOURCE-specific fields
+  // Resource fields
   url             String?      // External URL for links/videos
   targetAudience  String[]     @default([]) // Target user roles
   status          ResourceStatus? // Curation workflow status
@@ -1243,115 +857,107 @@ model Content {
 
   // Engagement metrics
   viewCount       Int          @default(0)
-  downloadCount   Int          @default(0) // RESOURCE only
-  shareCount      Int          @default(0) // RESOURCE only
-  rating          Float?       // RESOURCE: Average rating (1-5)
-  ratingCount     Int          @default(0) // RESOURCE: Number of ratings
+  downloadCount   Int          @default(0)
+  shareCount      Int          @default(0)
+  rating          Float?       // Average rating (1-5)
+  ratingCount     Int          @default(0) // Number of ratings
 
   // Timestamps
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  // Relations - unified from both models
-  creator         User         @relation("ContentCreator", fields: [createdBy], references: [id], onDelete: NoAction)
-  family          Family?      @relation("FamilyContent", fields: [familyId], references: [id], onDelete: SetNull)
-  category        Category?    @relation("ContentCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  // Relations
+  creator         User         @relation("ResourceCreator", fields: [createdBy], references: [id], onDelete: NoAction)
+  family          Family?      @relation("FamilyResources", fields: [familyId], references: [id], onDelete: SetNull)
+  category        Category?    @relation("ResourceCategory", fields: [categoryId], references: [id], onDelete: SetNull)
 
-  // Unified document attachments
-  documents       ContentDocument[] // Replaces NoteDocument + ResourceDocument
+  // Document attachments
+  documents       ResourceDocument[]
 
-  // Content sharing (unified)
-  shares          ContentShare[]    // Replaces NoteShare + ResourceShare
+  // Resource sharing
+  shares          ResourceShare[]
 
-  // NOTE-specific relations (preserved)
-  assignments     ContentAssignment[] // Renamed from NoteAssignment
-  structuredTags  ContentTag[]        // Renamed from NoteTag
+  // Assignments
+  assignments     ResourceAssignment[]
+  structuredTags  ResourceTag[]
 
-  // RESOURCE-specific relations (preserved)
-  ratings         ContentRating[]     // Renamed from ResourceRating
-  formResponses   ContentFormResponse[] // Interactive form responses
+  // Resource-specific relations
+  ratings         ResourceRating[]
+  formResponses   ResourceFormResponse[]
 
-  // Optional relations for legacy users during migration
-  submitter       User?        @relation("ContentSubmitter", fields: [submittedBy], references: [id], onDelete: SetNull)
-  approver        User?        @relation("ContentApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
-  lastEditor      User?        @relation("ContentEditor", fields: [lastEditedBy], references: [id], onDelete: SetNull)
+  // Optional relations for workflow
+  submitter       User?        @relation("ResourceSubmitter", fields: [submittedBy], references: [id], onDelete: SetNull)
+  approver        User?        @relation("ResourceApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
 
   // Indexes for performance
-  @@index([contentType])
   @@index([createdBy])
   @@index([familyId])
   @@index([visibility])
-  @@index([noteType])
   @@index([resourceType])
   @@index([status])
   @@index([tags])
-  @@index([isPinned, isArchived, isDeleted])
+  @@index([isArchived, isDeleted])
   @@index([rating, ratingCount]) // For resource sorting by rating
   @@index([viewCount])           // For popularity sorting
   @@index([createdAt])
   @@index([hasAssignments])      // For assignment queries
   @@index([hasCuration])         // For curation workflow
   @@index([hasRatings])          // For rating queries
-  @@map("content")
+  @@map("resources")
 }
 
-// Unified Content-Document junction table
-model ContentDocument {
+// Resource-Document junction table
+model ResourceDocument {
   id          String         @id @default(auto()) @map("_id") @db.ObjectId
-  contentId   String         @db.ObjectId
+  resourceId  String         @db.ObjectId
   documentId  String         @db.ObjectId
   order       Int            @default(0) // Display order
-  isMain      Boolean        @default(false) // Main document for this content
+  isMain      Boolean        @default(false) // Main document for this resource
   source      DocumentSource @default(UPLOAD) // Upload new vs select existing
   createdBy   String         @db.ObjectId // Who attached the document
   createdAt   DateTime       @default(now())
 
   // Relations
-  content     Content        @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  document    Document       @relation("ContentDocuments", fields: [documentId], references: [id], onDelete: Cascade)
-  attachedBy  User           @relation("ContentDocumentAttacher", fields: [createdBy], references: [id], onDelete: NoAction)
+  resource    Resource       @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  document    Document       @relation("ResourceDocuments", fields: [documentId], references: [id], onDelete: Cascade)
+  attachedBy  User           @relation("ResourceDocumentAttacher", fields: [createdBy], references: [id], onDelete: NoAction)
 
-  @@unique([contentId, documentId])
-  @@index([contentId, order])
+  @@unique([resourceId, documentId])
+  @@index([resourceId, order])
   @@index([documentId])
   @@index([isMain])
-  @@map("content_documents")
+  @@map("resource_documents")
 }
 
-// Unified Content sharing model
-model ContentShare {
+// Resource sharing model
+model ResourceShare {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  contentId   String    @db.ObjectId
+  resourceId  String    @db.ObjectId
   userId      String?   @db.ObjectId // Specific user (null for public shares)
   sharedBy    String    @db.ObjectId
 
-  // NOTE-style permission sharing
-  canEdit     Boolean?  // Can edit the content (NOTE only)
-  canComment  Boolean?  // Can comment (NOTE only)
-  canShare    Boolean?  // Can share with others (NOTE only)
-
-  // RESOURCE-style tracking sharing
-  shareMethod String?   // 'link', 'email', 'forum_post', etc. (RESOURCE only)
-  shareData   Json?     // Additional share metadata (RESOURCE only)
+  // Resource sharing tracking
+  shareMethod String?   // 'link', 'email', 'forum_post', etc.
+  shareData   Json?     // Additional share metadata
 
   sharedAt    DateTime  @default(now())
 
   // Relations
-  content     Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  user        User?     @relation("ContentShareReceiver", fields: [userId], references: [id], onDelete: Cascade)
-  sharer      User      @relation("ContentShareSender", fields: [sharedBy], references: [id], onDelete: NoAction)
+  resource    Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  user        User?     @relation("ResourceShareReceiver", fields: [userId], references: [id], onDelete: Cascade)
+  sharer      User      @relation("ResourceShareSender", fields: [sharedBy], references: [id], onDelete: NoAction)
 
-  @@unique([contentId, userId]) // One share record per user per content (when userId specified)
-  @@index([contentId])
+  @@unique([resourceId, userId]) // One share record per user per resource (when userId specified)
+  @@index([resourceId])
   @@index([userId])
   @@index([sharedBy])
-  @@map("content_shares")
+  @@map("resource_shares")
 }
 
-// Unified Content assignments (renamed from NoteAssignment)
-model ContentAssignment {
+// Resource assignments
+model ResourceAssignment {
   id              String           @id @default(auto()) @map("_id") @db.ObjectId
-  contentId       String           @db.ObjectId // Link to Content (NOTE type only)
+  resourceId      String           @db.ObjectId // Link to Resource
   title           String
   description     String?
   priority        AssignmentPriority @default(MEDIUM)
@@ -1374,42 +980,42 @@ model ContentAssignment {
   updatedAt       DateTime         @updatedAt
 
   // Relations
-  content         Content          @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  assignee        User             @relation("ContentAssignments", fields: [assignedTo], references: [id], onDelete: NoAction)
-  assigner        User             @relation("ContentAssigner", fields: [assignedBy], references: [id], onDelete: NoAction)
-  completedByUser User?            @relation("ContentAssignmentCompleter", fields: [completedBy], references: [id], onDelete: NoAction)
+  resource        Resource         @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  assignee        User             @relation("ResourceAssignments", fields: [assignedTo], references: [id], onDelete: NoAction)
+  assigner        User             @relation("ResourceAssigner", fields: [assignedBy], references: [id], onDelete: NoAction)
+  completedByUser User?            @relation("ResourceAssignmentCompleter", fields: [completedBy], references: [id], onDelete: NoAction)
 
-  @@index([contentId])
+  @@index([resourceId])
   @@index([assignedTo, status])  // For user's assigned tasks
   @@index([assignedBy])          // For user's created assignments
   @@index([status])              // For filtering by status
   @@index([priority])            // For sorting by priority
   @@index([dueDate])            // For sorting by due date
   @@index([createdAt])
-  @@map("content_assignments")
+  @@map("resource_assignments")
 }
 
-// Unified Content tags (renamed from NoteTag)
-model ContentTag {
+// Resource tags
+model ResourceTag {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  contentId   String    @db.ObjectId
+  resourceId  String    @db.ObjectId
   tagId       String    @db.ObjectId
   createdAt   DateTime  @default(now())
 
   // Relations
-  content     Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  tag         Tag       @relation("ContentTags", fields: [tagId], references: [id], onDelete: Cascade)
+  resource    Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  tag         Tag       @relation("ResourceTags", fields: [tagId], references: [id], onDelete: Cascade)
 
-  @@unique([contentId, tagId])
-  @@index([contentId])
+  @@unique([resourceId, tagId])
+  @@index([resourceId])
   @@index([tagId])
-  @@map("content_tags")
+  @@map("resource_tags")
 }
 
-// Unified Content ratings (renamed from ResourceRating)
-model ContentRating {
+// Resource ratings
+model ResourceRating {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  contentId   String    @db.ObjectId
+  resourceId  String    @db.ObjectId
   userId      String    @db.ObjectId
   rating      Int       // 1-5 stars
   review      String?   // Optional written review
@@ -1418,19 +1024,19 @@ model ContentRating {
   updatedAt   DateTime  @updatedAt
 
   // Relations
-  content     Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  user        User      @relation("ContentRatings", fields: [userId], references: [id], onDelete: Cascade)
+  resource    Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  user        User      @relation("ResourceRatings", fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([contentId, userId]) // One rating per user per content
-  @@index([contentId, rating]) // For calculating averages
+  @@unique([resourceId, userId]) // One rating per user per resource
+  @@index([resourceId, rating]) // For calculating averages
   @@index([userId])            // For user's rating history
-  @@map("content_ratings")
+  @@map("resource_ratings")
 }
 
-// Form responses for interactive content (advance directives, assessments)
-model ContentFormResponse {
+// Form responses for interactive resources (advance directives, assessments)
+model ResourceFormResponse {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  contentId   String    @db.ObjectId
+  resourceId  String    @db.ObjectId
   userId      String    @db.ObjectId
   formData    Json      // Stores form field responses as structured JSON
   completedAt DateTime? // When form was fully completed
@@ -1438,12 +1044,12 @@ model ContentFormResponse {
   updatedAt   DateTime  @updatedAt
 
   // Relations
-  content     Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  user        User      @relation("ContentFormResponses", fields: [userId], references: [id], onDelete: Cascade)
+  resource    Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  user        User      @relation("ResourceFormResponses", fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([contentId, userId]) // One form response per user per content
-  @@index([contentId])
+  @@unique([resourceId, userId]) // One form response per user per resource
+  @@index([resourceId])
   @@index([userId])
   @@index([completedAt])       // For tracking completion status
-  @@map("content_form_responses")
+  @@map("resource_form_responses")
 }

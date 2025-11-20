@@ -16,17 +16,14 @@ import type {
   Vote as PrismaVote,
   ForumMember as PrismaForumMember,
   ForumCategory as PrismaForumCategory,
-  // Notes and Resources types (Session 010)
-  Note as PrismaNote,
-  NoteShare as PrismaNoteShare,
-  NoteDocument as PrismaNoteDocument,
+  // Unified Resources system
   Resource as PrismaResource,
   ResourceRating as PrismaResourceRating,
   ResourceShare as PrismaResourceShare,
   ResourceDocument as PrismaResourceDocument,
-  // Assignment types (Session 018)
-  NoteAssignment as PrismaNoteAssignment,
-  NoteTag as PrismaNoteTag,
+  ResourceAssignment as PrismaResourceAssignment,
+  ResourceTag as PrismaResourceTag,
+  ResourceFormResponse as PrismaResourceFormResponse,
 } from "@prisma/client";
 
 // Enums from Prisma (VALUE IMPORTS - used at runtime)
@@ -38,13 +35,11 @@ import {
   ForumVisibility,
   PostType,
   VoteType,
-  NoteVisibility,
-  NoteType,
-  ResourceContentType,
+  ResourceVisibility,
+  ResourceType,
   ResourceStatus,
-  // Assignment enums (Session 018)
-  NoteAssignmentStatus,
   AssignmentPriority,
+  AssignmentStatus,
   DocumentSource,
 } from "@prisma/client";
 
@@ -66,17 +61,14 @@ export type {
   PrismaVote,
   PrismaForumMember,
   PrismaForumCategory,
-  // Notes and Resources types (Session 010)
-  PrismaNote,
-  PrismaNoteShare,
-  PrismaNoteDocument,
+  // Unified Resources system
   PrismaResource,
   PrismaResourceRating,
   PrismaResourceShare,
   PrismaResourceDocument,
-  // Assignment types (Session 018)
-  PrismaNoteAssignment,
-  PrismaNoteTag,
+  PrismaResourceAssignment,
+  PrismaResourceTag,
+  PrismaResourceFormResponse,
 };
 
 // Re-export enums as values (so they can be used at runtime)
@@ -88,13 +80,11 @@ export {
   ForumVisibility,
   PostType,
   VoteType,
-  NoteVisibility,
-  NoteType,
-  ResourceContentType,
+  ResourceVisibility,
+  ResourceType,
   ResourceStatus,
-  // Assignment enums (Session 018)
-  NoteAssignmentStatus,
   AssignmentPriority,
+  AssignmentStatus,
   DocumentSource,
 };
 
@@ -274,16 +264,7 @@ export enum DocumentStatus {
   PROCESSING = "PROCESSING",
 }
 
-// Resource types for tagging system
-export enum ResourceType {
-  DOCUMENT = "DOCUMENT",
-  MESSAGE = "MESSAGE",
-  FAMILY = "FAMILY",
-  USER = "USER",
-  NOTIFICATION = "NOTIFICATION",
-  CARE_PLAN = "CARE_PLAN",
-  ACTIVITY = "ACTIVITY",
-}
+// Resource content types (unified system)
 
 export interface Document {
   id: string;
@@ -419,17 +400,10 @@ export interface Category {
 export interface ResourceTag {
   id: string;
   resourceId: string;
-  resourceType: ResourceType;
   tagId: string;
-  createdBy: string;
   createdAt: Date;
+  resource?: Resource;
   tag?: Tag;
-  createdByUser?: {
-    id: string;
-    firstName?: string;
-    lastName?: string;
-    email: string;
-  };
 }
 
 export interface CreateTagInput {
@@ -852,32 +826,62 @@ export interface PostStatistics {
   engagementRate: number;
 }
 
+
 // ====================================
-// NOTES SYSTEM TYPES (Session 010)
+// RESOURCES SYSTEM TYPES (Session 010)
 // ====================================
 
-// Enhanced Note interface
-export interface Note {
+// Unified Resource interface
+export interface Resource {
   id: string;
   title: string;
-  content: string;
-  type: NoteType;
-  visibility: NoteVisibility;
-  createdBy: string;
+  description?: string;
+  body?: string; // Main content (markdown/rich text)
+  resourceType: ResourceType; // Type of resource (DOCUMENT, LINK, VIDEO, etc.)
+
+  // Organization fields
+  visibility: ResourceVisibility;
   familyId?: string;
-  sharedWith: string[];
-  tags: string[];
   categoryId?: string;
-  attachments: string[];
-  isPinned: boolean;
+  tags: string[];
+  attachments: string[]; // Legacy field for migration
+
+  // Ownership and access
+  createdBy: string;
+  sharedWith: string[]; // User IDs for shared resources
+
+  // Feature flags
+  hasAssignments: boolean; // Enable assignment features
+  hasCuration: boolean; // Enable curation workflow
+  hasRatings: boolean; // Enable rating system
+  hasSharing: boolean; // Enable advanced sharing
+
+  // Archive and deletion (simplified)
   isArchived: boolean;
   isDeleted: boolean;
   deletedAt?: Date;
-  allowComments: boolean;
-  allowEditing: boolean;
-  lastEditedBy?: string;
-  lastEditedAt?: Date;
+
+  // Resource fields
+  url?: string; // External URL for links/videos
+  targetAudience: string[]; // Target user roles
+  status?: ResourceStatus; // Curation workflow status
+  submittedBy?: string; // Different from createdBy for resources
+  approvedBy?: string;
+  approvedAt?: Date;
+  featuredBy?: string;
+  featuredAt?: Date;
+  isVerified: boolean;
+  lastVerifiedAt?: Date;
+  externalMeta?: Record<string, unknown>; // Metadata for external resources
+
+  // Engagement metrics
   viewCount: number;
+  downloadCount: number;
+  shareCount: number;
+  rating?: number; // Average rating (1-5)
+  ratingCount: number; // Number of ratings
+
+  // Timestamps
   createdAt: Date;
   updatedAt: Date;
 
@@ -885,126 +889,14 @@ export interface Note {
   creator?: User;
   family?: Family;
   category?: Category;
-  documents?: Document[];
-  shares?: NoteShare[];
-}
-
-export interface NoteShare {
-  id: string;
-  noteId: string;
-  userId: string;
-  canEdit: boolean;
-  canComment: boolean;
-  canShare: boolean;
-  sharedBy: string;
-  sharedAt: Date;
-
-  // Relations
-  note?: Note;
-  user?: User;
-  sharedByUser?: User;
-}
-
-// Note Input Types
-export interface CreateNoteInput {
-  title: string;
-  content: string;
-  type?: NoteType;
-  visibility?: NoteVisibility;
-  createdBy: string;
-  familyId?: string;
-  sharedWith?: string[];
-  tags?: string[];
-  categoryId?: string;
-  attachments?: string[];
-  allowComments?: boolean;
-  allowEditing?: boolean;
-}
-
-export interface UpdateNoteInput {
-  title?: string;
-  content?: string;
-  type?: NoteType;
-  visibility?: NoteVisibility;
-  sharedWith?: string[];
-  tags?: string[];
-  categoryId?: string;
-  attachments?: string[];
-  isPinned?: boolean;
-  isArchived?: boolean;
-  allowComments?: boolean;
-  allowEditing?: boolean;
-}
-
-export interface ShareNoteInput {
-  noteId: string;
-  userId: string;
-  canEdit?: boolean;
-  canComment?: boolean;
-  canShare?: boolean;
-  sharedBy: string;
-}
-
-// Note Filter Types
-export interface NoteFilters {
-  createdBy?: string;
-  familyId?: string;
-  type?: NoteType;
-  visibility?: NoteVisibility;
-  tags?: string[];
-  categoryId?: string;
-  isPinned?: boolean;
-  isArchived?: boolean;
-  isDeleted?: boolean;
-  search?: string;
-  sharedWith?: string; // Notes shared with specific user
-  createdAfter?: Date;
-  createdBefore?: Date;
-}
-
-// ====================================
-// RESOURCES SYSTEM TYPES (Session 010)
-// ====================================
-
-// Enhanced Resource interface
-export interface Resource {
-  id: string;
-  title: string;
-  description?: string;
-  contentType: ResourceContentType;
-  url?: string;
-  content?: string;
-  attachments: string[];
-  categoryId?: string;
-  tags: string[];
-  visibility: NoteVisibility; // Reusing NoteVisibility
-  familyId?: string;
-  targetAudience: string[];
-  status: ResourceStatus;
-  submittedBy: string;
-  approvedBy?: string;
-  approvedAt?: Date;
-  featuredBy?: string;
-  featuredAt?: Date;
-  viewCount: number;
-  downloadCount: number;
-  shareCount: number;
-  rating?: number;
-  ratingCount: number;
-  externalMeta?: Record<string, unknown>;
-  isVerified: boolean;
-  lastVerifiedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-
-  // Relations
+  documents?: PrismaResourceDocument[];
+  shares?: ResourceShare[];
+  assignments?: ResourceAssignment[];
+  structuredTags?: ResourceTag[];
+  ratings?: ResourceRating[];
+  formResponses?: ResourceFormResponse[];
   submitter?: User;
   approver?: User;
-  family?: Family;
-  category?: Category;
-  documents?: Document[];
-  ratings?: ResourceRating[];
-  shares?: ResourceShare[];
 }
 
 export interface ResourceRating {
@@ -1037,34 +929,87 @@ export interface ResourceShare {
   recipient?: User;
 }
 
+export interface ResourceAssignment {
+  id: string;
+  resourceId: string;
+  title: string;
+  description?: string;
+  priority: AssignmentPriority;
+  status: AssignmentStatus;
+  assignedTo: string;
+  assignedBy: string;
+  dueDate?: Date;
+  estimatedMinutes?: number;
+  completedAt?: Date;
+  completionNotes?: string;
+  completedBy?: string;
+  tags: string[];
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Relations
+  resource?: Resource;
+  assignee?: User;
+  assigner?: User;
+  completedByUser?: User;
+}
+
+export interface ResourceFormResponse {
+  id: string;
+  resourceId: string;
+  respondentId: string;
+  formData: Record<string, unknown>;
+  isComplete: boolean;
+  submittedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Relations
+  resource?: Resource;
+  respondent?: User;
+}
+
 // Resource Input Types
 export interface CreateResourceInput {
   title: string;
   description?: string;
-  contentType: ResourceContentType;
-  url?: string;
-  content?: string;
-  attachments?: string[];
+  body?: string; // Main content (markdown/rich text)
+  resourceType: ResourceType;
+  visibility?: ResourceVisibility;
+  familyId?: string;
   categoryId?: string;
   tags?: string[];
-  visibility?: NoteVisibility;
-  familyId?: string;
+  attachments?: string[];
+  createdBy: string;
+  sharedWith?: string[];
+  hasAssignments?: boolean;
+  hasCuration?: boolean;
+  hasRatings?: boolean;
+  hasSharing?: boolean;
+  url?: string;
   targetAudience?: string[];
-  submittedBy: string;
   status?: ResourceStatus;
+  submittedBy?: string;
   externalMeta?: Record<string, unknown>;
 }
 
 export interface UpdateResourceInput {
   title?: string;
   description?: string;
-  contentType?: ResourceContentType;
-  url?: string;
-  content?: string;
-  attachments?: string[];
+  body?: string;
+  resourceType?: ResourceType;
+  visibility?: ResourceVisibility;
   categoryId?: string;
   tags?: string[];
-  visibility?: NoteVisibility;
+  attachments?: string[];
+  sharedWith?: string[];
+  hasAssignments?: boolean;
+  hasCuration?: boolean;
+  hasRatings?: boolean;
+  hasSharing?: boolean;
+  isArchived?: boolean;
+  isDeleted?: boolean;
+  url?: string;
   targetAudience?: string[];
   status?: ResourceStatus;
   isVerified?: boolean;
@@ -1089,15 +1034,22 @@ export interface ShareResourceInput {
 
 // Resource Filter Types
 export interface ResourceFilters {
+  createdBy?: string;
   submittedBy?: string;
   familyId?: string;
   categoryId?: string;
-  contentType?: ResourceContentType;
+  resourceType?: ResourceType;
   status?: ResourceStatus;
-  visibility?: NoteVisibility;
+  visibility?: ResourceVisibility;
   tags?: string[];
   isVerified?: boolean;
   targetAudience?: string[];
+  hasAssignments?: boolean;
+  hasCuration?: boolean;
+  hasRatings?: boolean;
+  hasSharing?: boolean;
+  isArchived?: boolean;
+  isDeleted?: boolean;
   search?: string;
   ratingMin?: number;
   ratingMax?: number;
@@ -1152,137 +1104,59 @@ export interface ApiErrorResponse {
 }
 
 // ====================================
-// ASSIGNMENT SYSTEM TYPES (Session 018)
+// UNIFIED ASSIGNMENT SYSTEM TYPES
 // ====================================
 
-// Note Assignment interface
-export interface NoteAssignment {
-  id: string;
-  noteId: string;
-  assignedTo: string;
-  assignedBy: string;
-  status: NoteAssignmentStatus;
-  priority: AssignmentPriority;
-  dueDate?: Date;
-  completedAt?: Date;
-  notes?: string;
-  createdAt: Date;
-  updatedAt: Date;
-
-  // Relations (optional)
-  note?: {
-    id: string;
-    title: string;
-    type: NoteType;
-    creator?: User;
-  };
-  assignee?: User;
-  assigner?: User;
-}
-
-// Note Tag junction interface
-export interface NoteTag {
-  id: string;
-  noteId: string;
-  tagId: string;
-  createdBy: string;
-  createdAt: Date;
-
-  // Relations (optional)
-  note?: Note;
-  tag?: {
-    id: string;
-    name: string;
-    color?: string;
-    categoryId?: string;
-    usageCount: number;
-  };
-  createdByUser?: User;
-}
-
-// Enhanced Document Attachment interface
-export interface DocumentAttachment {
-  id: string;
-  noteId: string;
-  documentId: string;
-  order: number;
-  source: DocumentSource;
-  createdBy: string;
-  createdAt: Date;
-
-  // Relations (optional)
-  document?: {
-    id: string;
-    title: string;
-    fileName: string;
-    originalFileName?: string;
-    fileSize?: number;
-    mimeType?: string;
-    type: string;
-  };
-  attachedBy?: User;
-}
-
-// Assignment input types
-export interface CreateNoteAssignmentInput {
-  noteId: string;
+// Resource Assignment input types
+export interface CreateResourceAssignmentInput {
+  resourceId: string;
+  title: string;
+  description?: string;
   assignedTo: string;
   assignedBy: string;
   priority?: AssignmentPriority;
   dueDate?: Date;
-  notes?: string;
+  estimatedMinutes?: number;
+  tags?: string[];
 }
 
-export interface UpdateNoteAssignmentInput {
-  status?: NoteAssignmentStatus;
+export interface UpdateResourceAssignmentInput {
+  title?: string;
+  description?: string;
+  status?: AssignmentStatus;
   priority?: AssignmentPriority;
   dueDate?: Date;
-  notes?: string;
+  estimatedMinutes?: number;
   completedAt?: Date;
+  completionNotes?: string;
+  completedBy?: string;
+  tags?: string[];
 }
 
 // Assignment filter types
-export interface NoteAssignmentFilters {
-  noteId?: string;
+export interface ResourceAssignmentFilters {
+  resourceId?: string;
   assignedTo?: string;
   assignedBy?: string;
-  status?: NoteAssignmentStatus;
+  status?: AssignmentStatus;
   priority?: AssignmentPriority;
   dueBefore?: Date;
   dueAfter?: Date;
-}
-
-// Enhanced Note interface with assignments and structured tags
-export interface NoteWithAssignments extends Note {
-  assignments?: NoteAssignment[];
-  structuredTags?: NoteTag[];
+  tags?: string[];
 }
 
 // Assignment summary for dashboard views
 export interface AssignmentSummary {
   id: string;
-  noteId: string;
-  noteTitle: string;
+  resourceId: string;
+  resourceTitle: string;
+  title: string;
   assigneeName: string;
-  status: NoteAssignmentStatus;
+  status: AssignmentStatus;
   priority: AssignmentPriority;
   dueDate?: Date;
   completedAt?: Date;
   createdAt: Date;
-}
-
-// Document attachment input types
-export interface AttachDocumentInput {
-  noteId: string;
-  documentId: string;
-  source: DocumentSource;
-  order?: number;
-}
-
-// Tag management types
-export interface CreateNoteTagInput {
-  noteId: string;
-  tagId: string;
 }
 
 export interface TagWithUsage {

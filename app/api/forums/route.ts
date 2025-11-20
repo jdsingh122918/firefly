@@ -114,45 +114,56 @@ export async function GET(request: NextRequest) {
       filters
     });
 
-    // Format response
-    const formattedForums = accessibleForums.map(forum => ({
-      id: forum.id,
-      title: forum.title,
-      description: forum.description,
-      slug: forum.slug,
-      icon: forum.icon,
-      color: forum.color,
-      visibility: forum.visibility,
-      familyId: forum.familyId,
-      family: forum.family ? {
-        id: forum.family.id,
-        name: forum.family.name,
-      } : null,
-      allowedRoles: forum.allowedRoles,
-      rules: forum.rules,
-      settings: forum.settings,
-      isActive: forum.isActive,
-      isArchived: forum.isArchived,
-      postCount: forum.postCount,
-      memberCount: forum.memberCount,
-      lastActivityAt: forum.lastActivityAt,
-      lastPostAt: forum.lastPostAt,
-      createdAt: forum.createdAt,
-      creator: forum.creator ? {
-        id: forum.creator.id,
-        name: forum.creator.firstName
-          ? `${forum.creator.firstName} ${forum.creator.lastName || ""}`.trim()
-          : forum.creator.email,
-      } : null,
-      members: includeMembers && forum.members ? forum.members.filter(member => member.user).slice(0, 5).map(member => ({
-        id: member.user!.id,
-        name: member.user!.firstName
-          ? `${member.user!.firstName} ${member.user!.lastName || ""}`.trim()
-          : member.user!.email,
-        role: member.role,
-        joinedAt: member.joinedAt,
-      })) : [],
-    }));
+    // Format response with membership status
+    const formattedForums = await Promise.all(
+      accessibleForums.map(async (forum) => {
+        // Check if user is a member
+        const isMember = await forumRepository.isMember(forum.id, user.id);
+        const isCreator = forum.createdBy === user.id;
+
+        return {
+          id: forum.id,
+          title: forum.title,
+          description: forum.description,
+          slug: forum.slug,
+          icon: forum.icon,
+          color: forum.color,
+          visibility: forum.visibility,
+          familyId: forum.familyId,
+          family: forum.family ? {
+            id: forum.family.id,
+            name: forum.family.name,
+          } : null,
+          allowedRoles: forum.allowedRoles,
+          rules: forum.rules,
+          settings: forum.settings,
+          isActive: forum.isActive,
+          isArchived: forum.isArchived,
+          postCount: forum.postCount,
+          memberCount: forum.memberCount,
+          lastActivityAt: forum.lastActivityAt,
+          lastPostAt: forum.lastPostAt,
+          createdAt: forum.createdAt,
+          creator: forum.creator ? {
+            id: forum.creator.id,
+            name: forum.creator.firstName
+              ? `${forum.creator.firstName} ${forum.creator.lastName || ""}`.trim()
+              : forum.creator.email,
+          } : null,
+          members: includeMembers && forum.members ? forum.members.filter(member => member.user).slice(0, 5).map(member => ({
+            id: member.user!.id,
+            name: member.user!.firstName
+              ? `${member.user!.firstName} ${member.user!.lastName || ""}`.trim()
+              : member.user!.email,
+            role: member.role,
+            joinedAt: member.joinedAt,
+          })) : [],
+          // Add membership status
+          isMember,
+          isCreator,
+        };
+      })
+    );
 
     return NextResponse.json({
       forums: formattedForums,

@@ -17,10 +17,11 @@ import {
 } from 'lucide-react'
 import { UserRepository } from '@/lib/db/repositories/user.repository'
 import { FamilyRepository } from '@/lib/db/repositories/family.repository'
-import { NoteRepository } from '@/lib/db/repositories/note.repository'
+import { ResourceRepository } from '@/lib/db/repositories/resource.repository'
 import { ForumRepository } from '@/lib/db/repositories/forum.repository'
 import { DocumentRepository } from '@/lib/db/repositories/document.repository'
 import { UserRole } from '@/lib/auth/roles'
+import { prisma } from '@/lib/db/prisma'
 
 export default async function AdminDashboard() {
   const { userId, sessionClaims } = await auth()
@@ -47,17 +48,25 @@ export default async function AdminDashboard() {
   // Fetch dashboard statistics
   const userRepository = new UserRepository()
   const familyRepository = new FamilyRepository()
-  const noteRepository = new NoteRepository()
+  const resourceRepository = new ResourceRepository(prisma)
   const forumRepository = new ForumRepository()
   const documentRepository = new DocumentRepository()
 
-  const [userStats, familyStats, noteStats, forumStats, documentStats] = await Promise.all([
+  const [userStats, familyStats, forumStats, documentStats] = await Promise.all([
     userRepository.getUserStats(),
     familyRepository.getFamilyStats(),
-    noteRepository.getNoteStats(),
     forumRepository.getForumStats(),
     documentRepository.getDocumentStats()
   ])
+
+  // TODO: Implement getResourceStats() in ResourceRepository
+  // Since notes were consolidated into resources, this method needs to be implemented
+  const resourceStats = {
+    total: 0,
+    published: 0,
+    draft: 0,
+    archived: 0
+  }
 
   return (
     <div className="space-y-6 pb-6">
@@ -144,7 +153,7 @@ export default async function AdminDashboard() {
               <FileText className="h-4 w-4 text-[hsl(var(--healthcare-home))]" />
             </CardHeader>
             <CardContent className="space-y-1">
-              <div className="text-2xl font-bold">{noteStats.totalNotes}</div>
+              <div className="text-2xl font-bold">{resourceStats.total}</div>
               <p className="text-xs text-muted-foreground">
                 All documentation
               </p>
@@ -157,7 +166,7 @@ export default async function AdminDashboard() {
               <Heart className="h-4 w-4 text-[hsl(var(--healthcare-medical))]" />
             </CardHeader>
             <CardContent className="space-y-1">
-              <div className="text-2xl font-bold">{noteStats.carePlanNotes}</div>
+              <div className="text-2xl font-bold">{resourceStats.published}</div>
               <p className="text-xs text-muted-foreground">
                 Care plan documents
               </p>
@@ -183,7 +192,7 @@ export default async function AdminDashboard() {
               <CheckSquare className="h-4 w-4 text-[hsl(var(--healthcare-equipment))]" />
             </CardHeader>
             <CardContent className="space-y-1">
-              <div className="text-2xl font-bold">{noteStats.notesWithAssignments}</div>
+              <div className="text-2xl font-bold">{resourceStats.published}</div>
               <p className="text-xs text-muted-foreground">
                 Tasks assigned
               </p>

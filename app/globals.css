@@ -324,3 +324,301 @@
 .message-bubble-container {
   overflow: visible !important;
 }
+
+/* Accessibility Features */
+
+/* Font Size Scaling Support */
+:root {
+  --font-size-scale: 1; /* Default medium size */
+}
+
+[data-font-size="small"] {
+  --font-size-scale: 0.875;
+}
+
+[data-font-size="medium"] {
+  --font-size-scale: 1;
+}
+
+[data-font-size="large"] {
+  --font-size-scale: 1.125;
+}
+
+/* Apply font scaling to all text elements */
+[data-font-size] {
+  font-size: calc(1rem * var(--font-size-scale)) !important;
+}
+
+[data-font-size] h1 {
+  font-size: calc(2.25rem * var(--font-size-scale)) !important;
+}
+
+[data-font-size] h2 {
+  font-size: calc(1.875rem * var(--font-size-scale)) !important;
+}
+
+[data-font-size] h3 {
+  font-size: calc(1.5rem * var(--font-size-scale)) !important;
+}
+
+[data-font-size] h4 {
+  font-size: calc(1.25rem * var(--font-size-scale)) !important;
+}
+
+[data-font-size] h5 {
+  font-size: calc(1.125rem * var(--font-size-scale)) !important;
+}
+
+[data-font-size] h6 {
+  font-size: calc(1rem * var(--font-size-scale)) !important;
+}
+
+[data-font-size] .text-xs {
+  font-size: calc(0.75rem * var(--font-size-scale)) !important;
+}
+
+[data-font-size] .text-sm {
+  font-size: calc(0.875rem * var(--font-size-scale)) !important;
+}
+
+[data-font-size] .text-base {
+  font-size: calc(1rem * var(--font-size-scale)) !important;
+}
+
+[data-font-size] .text-lg {
+  font-size: calc(1.125rem * var(--font-size-scale)) !important;
+}
+
+[data-font-size] .text-xl {
+  font-size: calc(1.25rem * var(--font-size-scale)) !important;
+}
+
+[data-font-size] .text-2xl {
+  font-size: calc(1.5rem * var(--font-size-scale)) !important;
+}
+
+/* High Contrast Mode */
+.high-contrast {
+  --background: #000000 !important;
+  --foreground: #ffffff !important;
+  --card: #000000 !important;
+  --card-foreground: #ffffff !important;
+  --popover: #000000 !important;
+  --popover-foreground: #ffffff !important;
+  --primary: #ffff00 !important; /* Bright yellow for high contrast */
+  --primary-foreground: #000000 !important;
+  --secondary: #333333 !important;
+  --secondary-foreground: #ffffff !important;
+  --muted: #333333 !important;
+  --muted-foreground: #cccccc !important;
+  --accent: #ffff00 !important;
+  --accent-foreground: #000000 !important;
+  --destructive: #ff0000 !important; /* Bright red */
+  --destructive-foreground: #ffffff !important;
+  --border: #ffffff !important;
+  --input: #333333 !important;
+  --ring: #ffff00 !important;
+}
+
+.high-contrast * {
+  border-color: currentColor !important;
+  background-clip: padding-box !important;
+}
+
+.high-contrast a {
+  color: #00ff00 !important; /* Bright green for links */
+  text-decoration: underline !important;
+}
+
+.high-contrast a:visited {
+  color: #ff00ff !important; /* Magenta for visited links */
+}
+
+.high-contrast button {
+  background-color: #ffff00 !important;
+  color: #000000 !important;
+  border: 2px solid #ffffff !important;
+  font-weight: bold !important;
+}
+
+.high-contrast button:hover,
+.high-contrast button:focus {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  outline: 3px solid #ffff00 !important;
+}
+
+.high-contrast input,
+.high-contrast textarea,
+.high-contrast select {
+  background-color: #333333 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+.high-contrast input:focus,
+.high-contrast textarea:focus,
+.high-contrast select:focus {
+  outline: 3px solid #ffff00 !important;
+  background-color: #000000 !important;
+}
+
+/* Reduced Motion Support */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+  animation-fill-mode: forwards !important;
+}
+
+/* Respect user's motion preference from OS */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+    animation-fill-mode: forwards !important;
+  }
+}
+
+/* Large Touch Targets */
+.large-buttons button,
+.large-buttons [role="button"],
+.large-buttons a,
+.large-buttons input[type="button"],
+.large-buttons input[type="submit"],
+.large-buttons .clickable {
+  min-height: 44px !important;
+  min-width: 44px !important;
+  padding: 12px 16px !important;
+  font-size: calc(1rem * var(--font-size-scale, 1)) !important;
+  line-height: 1.5 !important;
+}
+
+.large-buttons .btn,
+.large-buttons .button {
+  min-height: 44px !important;
+  padding: 12px 20px !important;
+}
+
+/* Ensure touch targets are spaced appropriately */
+.large-buttons button + button,
+.large-buttons [role="button"] + [role="button"] {
+  margin-left: 8px !important;
+}
+
+/* Focus indicators for better keyboard navigation */
+.large-buttons *:focus {
+  outline: 3px solid var(--ring) !important;
+  outline-offset: 2px !important;
+}
+
+/* Enhanced focus indicators for form elements */
+input:focus,
+textarea:focus,
+select:focus,
+[role="combobox"]:focus,
+[role="textbox"]:focus {
+  outline: 2px solid var(--ring) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring) !important;
+}
+
+/* High contrast focus indicators */
+.high-contrast input:focus,
+.high-contrast textarea:focus,
+.high-contrast select:focus,
+.high-contrast button:focus,
+.high-contrast a:focus,
+.high-contrast [role="button"]:focus {
+  outline: 4px solid #ffff00 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 2px #000000, 0 0 0 6px #ffff00 !important;
+}
+
+/* Ensure sufficient spacing for accessibility */
+.accessible-spacing * + * {
+  margin-top: calc(0.5rem * var(--font-size-scale, 1)) !important;
+}
+
+/* Enhanced visibility for disabled elements */
+[disabled],
+[aria-disabled="true"] {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+.high-contrast [disabled],
+.high-contrast [aria-disabled="true"] {
+  background-color: #666666 !important;
+  color: #cccccc !important;
+  border-color: #999999 !important;
+}
+
+/* Better visibility for required fields */
+[required]::after,
+[aria-required="true"]::after {
+  content: " *" !important;
+  color: var(--destructive) !important;
+  font-weight: bold !important;
+}
+
+.high-contrast [required]::after,
+.high-contrast [aria-required="true"]::after {
+  color: #ff0000 !important;
+}
+
+/* Skip link for keyboard navigation */
+.skip-link {
+  position: absolute !important;
+  top: -40px !important;
+  left: 6px !important;
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  padding: 8px !important;
+  z-index: 1000 !important;
+  text-decoration: none !important;
+  border-radius: 4px !important;
+  font-weight: bold !important;
+}
+
+.skip-link:focus {
+  top: 6px !important;
+}
+
+.high-contrast .skip-link {
+  background: #ffff00 !important;
+  color: #000000 !important;
+  border: 2px solid #ffffff !important;
+}
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* When focused, show screen reader content */
+.sr-only:focus {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  padding: inherit !important;
+  margin: inherit !important;
+  overflow: visible !important;
+  clip: auto !important;
+  white-space: normal !important;
+}

@@ -9,14 +9,14 @@ import { Separator } from '@/components/ui/separator'
 import { Heart, MessageSquare, FileText, Calendar, Users, Mail, User, Eye, Plus, BookOpen } from 'lucide-react'
 import { UserRepository } from '@/lib/db/repositories/user.repository'
 import { ConversationRepository } from '@/lib/db/repositories/conversation.repository'
-import { ContentRepository } from '@/lib/db/repositories/content.repository'
+import { ResourceRepository } from '@/lib/db/repositories/resource.repository'
 import { ForumRepository } from '@/lib/db/repositories/forum.repository'
 import { NotificationRepository } from '@/lib/db/repositories/notification.repository'
 import { prisma } from '@/lib/db/prisma'
 
 const userRepository = new UserRepository()
 const conversationRepository = new ConversationRepository()
-const contentRepository = new ContentRepository(prisma)
+const resourceRepository = new ResourceRepository(prisma)
 const forumRepository = new ForumRepository()
 const notificationRepository = new NotificationRepository()
 
@@ -58,7 +58,7 @@ export default async function MemberDashboard() {
       const [conversations, notifications, content] = await Promise.allSettled([
         conversationRepository.getConversationsForUser(user.id),
         notificationRepository.getUnreadCount(user.id),
-        contentRepository.filter({
+        resourceRepository.filter({
           createdBy: user.id,
           page: 1,
           limit: 5
@@ -243,7 +243,7 @@ export default async function MemberDashboard() {
                 </Button>
 
                 <Button asChild variant="outline" className="h-auto flex-col p-4">
-                  <Link href="/member/content">
+                  <Link href="/member/resources">
                     <FileText className="h-5 w-5 mb-2" />
                     <span className="text-sm">Content</span>
                   </Link>
@@ -274,7 +274,7 @@ export default async function MemberDashboard() {
                   </p>
                   <div className="mt-2">
                     <Button size="sm" asChild>
-                      <Link href="/member/content/new">
+                      <Link href="/member/resources/new">
                         <Plus className="mr-2 h-3 w-3" />
                         New Content
                       </Link>
@@ -315,7 +315,7 @@ export default async function MemberDashboard() {
                 <span>Recent Activity</span>
               </CardTitle>
               <Button size="sm" variant="outline" asChild>
-                <Link href="/member/content">
+                <Link href="/member/resources">
                   <Eye className="mr-2 h-4 w-4" />
                   View All
                 </Link>
@@ -331,7 +331,7 @@ export default async function MemberDashboard() {
                       You have {userStats.content} content items
                     </div>
                     <Button size="sm" variant="ghost" asChild className="p-0 h-auto text-primary hover:underline">
-                      <Link href="/member/content">View your content →</Link>
+                      <Link href="/member/resources">View your resources →</Link>
                     </Button>
                   </div>
                   {userStats.conversations > 0 && (
@@ -354,7 +354,7 @@ export default async function MemberDashboard() {
                   </p>
                   <div className="mt-6 space-x-2">
                     <Button size="sm" asChild>
-                      <Link href="/member/content/new">
+                      <Link href="/member/resources/new">
                         <Plus className="mr-2 h-4 w-4" />
                         Create Content
                       </Link>

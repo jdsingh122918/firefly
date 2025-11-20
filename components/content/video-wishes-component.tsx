@@ -26,6 +26,7 @@ import {
   Plus
 } from 'lucide-react';
 import QRCode from 'qrcode';
+import { QRPrivacyWarning } from '@/components/shared/privacy-security';
 
 // Types
 interface VideoWish {
@@ -140,6 +141,11 @@ const QRCodeGenerator: React.FC<{
         <p className="text-sm text-muted-foreground">
           Scan this QR code with a phone camera to access the video
         </p>
+
+        <QRPrivacyWarning
+          purpose="personal video messages"
+          className="text-left"
+        />
 
         <div className="flex justify-center gap-2">
           <Button onClick={downloadQR} variant="outline" size="sm">

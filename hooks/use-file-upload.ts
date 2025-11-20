@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 
 export interface UploadConfig {
@@ -394,6 +394,14 @@ export function useFileUpload() {
     },
     [isSignedIn, getToken],
   );
+
+  // Auto-fetch configuration when user signs in
+  useEffect(() => {
+    if (isSignedIn && !state.config && !state.isLoading) {
+      console.log("📁 Auto-fetching upload configuration...");
+      fetchConfig();
+    }
+  }, [isSignedIn, state.config, state.isLoading, fetchConfig]);
 
   return {
     // State

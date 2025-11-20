@@ -3,9 +3,11 @@
 /**
  * Interactive Form Components for Advance Directive Content
  * Provides rich form elements that can be embedded in content templates
+ *
+ * Enhanced with auto-save functionality and recovery system
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +17,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Save, Check, AlertCircle } from 'lucide-react';
+import { useAutoSave } from '@/lib/utils/auto-save';
+import { SaveStatusIndicator, FloatingSaveStatus, StickySaveStatus } from '@/components/shared/save-status-indicator';
+import { HealthcarePrivacyHeader, FormPrivacyFooter } from '@/components/shared/privacy-security';
 
 // Types for form data structure
 export interface FormFieldData {
@@ -451,43 +456,96 @@ export const AdvanceDirectiveForm: React.FC<AdvanceDirectiveFormProps> = ({
       lastSaved: undefined
     }
   );
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const updateSection = useCallback((sectionId: string, section: FormSectionData) => {
-    setFormData(prev => ({
-      ...prev,
-      sections: {
-        ...prev.sections,
-        [sectionId]: section
-      }
-    }));
-  }, []);
+  // Enhanced auto-save functionality
+  const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false);
 
-  const handleSave = useCallback(async () => {
-    if (readOnly) return;
-
-    setSaving(true);
-    setSaveError(null);
-
-    try {
+  // Auto-save configuration
+  const autoSave = useAutoSave({
+    interval: 30000, // 30 seconds
+    storageKey: `advance-directive-${contentId}-${userId}`,
+    onSave: async (data: FormResponseData) => {
       const dataToSave = {
-        ...formData,
+        ...data,
         lastSaved: new Date(),
-        completedAt: Object.values(formData.sections).every(s => s.completed)
+        completedAt: Object.values(data.sections).every(s => s.completed)
           ? new Date()
           : undefined
       };
 
       await onSave(dataToSave);
       setFormData(dataToSave);
-    } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Failed to save form data');
-      console.error('Form save error:', error);
-    } finally {
-      setSaving(false);
+    },
+    onError: (error: Error) => {
+      console.error('Auto-save error:', error);
+    },
+    onConflict: async (localData, serverData) => {
+      // Simple conflict resolution: prefer local data (user's latest work)
+      setShowRecoveryPrompt(true);
+      return localData;
     }
-  }, [formData, onSave, readOnly]);
+  });
+
+  // Initialize auto-save with form data
+  useEffect(() => {
+    if (!readOnly) {
+      autoSave.initialize(formData);
+    }
+  }, [contentId, userId, readOnly]); // Only initialize once per form instance
+
+  // Check for recovery data on mount
+  useEffect(() => {
+    if (!readOnly && autoSave.hasBackup) {
+      const backupData = autoSave.getBackupData();
+      if (backupData && backupData.timestamp) {
+        const backupAge = Date.now() - backupData.timestamp;
+        // Show recovery prompt if backup is less than 1 hour old
+        if (backupAge < 60 * 60 * 1000) {
+          setShowRecoveryPrompt(true);
+        }
+      }
+    }
+  }, []);
+
+  const updateSection = useCallback((sectionId: string, section: FormSectionData) => {
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionId]: section
+        }
+      };
+
+      // Trigger auto-save update
+      if (!readOnly) {
+        autoSave.updateData(updated);
+      }
+
+      return updated;
+    });
+  }, [readOnly, autoSave.updateData]);
+
+  // Manual save function (still available for user-triggered saves)
+  const handleManualSave = useCallback(async () => {
+    if (readOnly) return;
+    await autoSave.save();
+  }, [readOnly, autoSave.save]);
+
+  // Recovery functions
+  const handleRecoverFromBackup = useCallback(() => {
+    const backupData = autoSave.getBackupData();
+    if (backupData) {
+      setFormData(backupData.formData);
+      autoSave.updateData(backupData.formData);
+      setShowRecoveryPrompt(false);
+    }
+  }, [autoSave]);
+
+  const handleDismissRecovery = useCallback(() => {
+    autoSave.clearBackup();
+    setShowRecoveryPrompt(false);
+  }, [autoSave]);
 
   const sectionEntries = Object.entries(formData.sections);
   const completedSections = sectionEntries.filter(([, section]) => section.completed).length;
@@ -496,15 +554,67 @@ export const AdvanceDirectiveForm: React.FC<AdvanceDirectiveFormProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Auto-save status indicator (sticky at top for long forms) */}
+      {!readOnly && (
+        <StickySaveStatus
+          status={autoSave.status}
+          onRetry={handleManualSave}
+          onRecoverFromBackup={showRecoveryPrompt ? handleRecoverFromBackup : undefined}
+          hasBackup={showRecoveryPrompt}
+        />
+      )}
+
+      {/* Privacy and Security Header */}
+      {!readOnly && (
+        <HealthcarePrivacyHeader
+          formType="advance directive information"
+          accessLevel="family"
+          showFullDetails={false}
+        />
+      )}
+
+      {/* Recovery prompt */}
+      {showRecoveryPrompt && !readOnly && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-blue-900">Unsaved Changes Found</h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  We found more recent changes from a previous session.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleDismissRecovery}>
+                  Ignore
+                </Button>
+                <Button variant="default" size="sm" onClick={handleRecoverFromBackup}>
+                  Recover Changes
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Progress indicator */}
       {totalSections > 0 && (
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium">Progress</h3>
-              <span className="text-sm text-muted-foreground">
-                {completedSections}/{totalSections} sections complete
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">
+                  {completedSections}/{totalSections} sections complete
+                </span>
+                {!readOnly && (
+                  <SaveStatusIndicator
+                    status={autoSave.status}
+                    onRetry={handleManualSave}
+                    compact
+                  />
+                )}
+              </div>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
@@ -526,31 +636,45 @@ export const AdvanceDirectiveForm: React.FC<AdvanceDirectiveFormProps> = ({
         />
       ))}
 
-      {/* Save button and status */}
+      {/* Enhanced save controls and status */}
       {!readOnly && (
-        <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-center gap-2">
-            {formData.lastSaved && (
-              <span className="text-sm text-muted-foreground">
-                Last saved: {formData.lastSaved.toLocaleString()}
-              </span>
-            )}
-            {saveError && (
-              <span className="text-sm text-red-600 flex items-center gap-1">
-                <AlertCircle className="w-4 h-4" />
-                {saveError}
-              </span>
-            )}
-          </div>
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? 'Saving...' : 'Save Progress'}
-          </Button>
-        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <SaveStatusIndicator
+                  status={autoSave.status}
+                  onRetry={handleManualSave}
+                  hasBackup={autoSave.hasBackup}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleManualSave}
+                  disabled={autoSave.status.status === 'saving'}
+                  className="flex items-center gap-2 min-h-[44px]"
+                >
+                  <Save className="w-4 h-4" />
+                  Save Now
+                </Button>
+                {autoSave.hasUnsavedChanges && (
+                  <Badge variant="secondary" className="px-3 py-1">
+                    Unsaved changes
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Floating save status for mobile/long forms */}
+      {!readOnly && (autoSave.status.status === 'saving' || autoSave.status.status === 'error') && (
+        <FloatingSaveStatus
+          status={autoSave.status}
+          onRetry={handleManualSave}
+        />
       )}
 
       {/* Completion indicator */}
@@ -566,6 +690,9 @@ export const AdvanceDirectiveForm: React.FC<AdvanceDirectiveFormProps> = ({
           </CardContent>
         </Card>
       )}
+
+      {/* Privacy and Security Footer */}
+      <FormPrivacyFooter className="pt-6" />
     </div>
   );
 };

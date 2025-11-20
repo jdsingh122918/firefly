@@ -6,13 +6,18 @@ import { useRouter } from "next/navigation"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Loader2, MessageSquare, AlertCircle, Paperclip, X } from "lucide-react"
+import { Loader2, MessageSquare, AlertCircle, Paperclip, X, Plus } from "lucide-react"
+import {
+  VALID_POST_TYPES
+} from "@/lib/forum/post-types"
+import { EnhancedPostTypeSelector } from "@/components/forums/enhanced-post-type-selector"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { EnhancedTextarea } from "@/components/shared/enhanced-textarea"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -25,15 +30,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+// Select components no longer needed - using EnhancedPostTypeSelector
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { DocumentBrowser } from "@/components/notes/document-browser"
 import { ForumTagSelector } from "@/components/forums/forum-tag-selector"
 import { UploadedFile } from "@/hooks/use-file-upload"
 import { toast } from "sonner"
@@ -41,7 +39,7 @@ import { toast } from "sonner"
 const postFormSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title is too long"),
   content: z.string().min(1, "Content is required").max(10000, "Content is too long"),
-  type: z.enum(["DISCUSSION", "QUESTION", "ANNOUNCEMENT", "RESOURCE"], "Please select a post type"),
+  type: z.enum(VALID_POST_TYPES, "Please select a post type"),
   tags: z.array(z.string()).optional()
 })
 
@@ -54,19 +52,7 @@ interface SimplePostFormProps {
   trigger?: React.ReactNode
 }
 
-const postTypeLabels = {
-  DISCUSSION: "Discussion",
-  QUESTION: "Question",
-  ANNOUNCEMENT: "Announcement",
-  RESOURCE: "Resource"
-}
-
-const postTypeDescriptions = {
-  DISCUSSION: "General discussion or conversation",
-  QUESTION: "Ask for help or information",
-  ANNOUNCEMENT: "Important news or updates",
-  RESOURCE: "Share helpful resources or links"
-}
+// Post type configuration is now handled by the shared system
 
 export function SimplePostForm({
   forumId,
@@ -79,8 +65,6 @@ export function SimplePostForm({
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([])
-  const [selectedDocuments, setSelectedDocuments] = useState<any[]>([])
-  const [browserOpen, setBrowserOpen] = useState(false)
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedFile[]>([])
 
   const form = useForm<PostFormData>({
@@ -94,19 +78,6 @@ export function SimplePostForm({
   })
 
   const { isSubmitting } = form.formState
-
-  // Handle document selection
-  const handleDocumentSelect = (documents: any[]) => {
-    setSelectedDocuments(documents)
-    setSelectedDocumentIds(documents.map(doc => doc.id))
-    setBrowserOpen(false)
-  }
-
-  // Remove selected document
-  const removeDocument = (documentId: string) => {
-    setSelectedDocuments(prev => prev.filter(doc => doc.id !== documentId))
-    setSelectedDocumentIds(prev => prev.filter(id => id !== documentId))
-  }
 
   const onSubmit = async (data: PostFormData) => {
     setError(null)
@@ -145,7 +116,6 @@ export function SimplePostForm({
 
       toast.success('Post created successfully!')
       form.reset()
-      setSelectedDocuments([])
       setSelectedDocumentIds([])
       setUploadedDocuments([])
       setOpen(false)
@@ -169,9 +139,9 @@ export function SimplePostForm({
   }
 
   const defaultTrigger = (
-    <Button>
-      <MessageSquare className="mr-2 h-4 w-4" />
-      New Post
+    <Button size="sm">
+      <Plus className="mr-2 h-4 w-4" />
+      Quick Post
     </Button>
   )
 
@@ -180,10 +150,15 @@ export function SimplePostForm({
       <DialogTrigger asChild>
         {trigger || defaultTrigger}
       </DialogTrigger>
-
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Post</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            Create New Post
+          </DialogTitle>
+          <DialogDescription>
+            Share your thoughts, ask questions, or provide resources for the community.
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -195,75 +170,19 @@ export function SimplePostForm({
               </Alert>
             )}
 
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Title *</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="What would you like to discuss?"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+            {/* Post Type Selection */}
             <FormField
               control={form.control}
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Post Type *</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a post type" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {Object.entries(postTypeLabels).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          <div>
-                            <div className="font-medium">{label}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {postTypeDescriptions[value as keyof typeof postTypeDescriptions]}
-                            </div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="content"
-              render={({ field }) => (
-                <FormItem>
+                  <FormLabel>Post Type</FormLabel>
                   <FormControl>
-                    <EnhancedTextarea
-                      value={field.value || ""}
+                    <EnhancedPostTypeSelector
+                      value={field.value}
                       onChange={field.onChange}
-                      placeholder="Share your thoughts, ask questions, or provide information..."
-                      maxLength={10000}
-                      minHeight={200}
-                      maxHeight={400}
-                      showToolbar={true}
-                      enableEmojis={true}
-                      enableAttachments={true}
-                      attachments={uploadedDocuments}
-                      onAttachmentsChange={setUploadedDocuments}
-                      autoResize={true}
-                      label="Content *"
-                      description="Create your post with rich formatting, emojis, and file attachments."
-                      showCharacterCount="near-limit"
+                      placeholder="Select post type"
+                      disabled={isSubmitting}
                     />
                   </FormControl>
                   <FormMessage />
@@ -271,6 +190,55 @@ export function SimplePostForm({
               )}
             />
 
+            {/* Title */}
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="What would you like to discuss?"
+                      {...field}
+                      maxLength={200}
+                    />
+                  </FormControl>
+                  <div className="text-xs text-muted-foreground">
+                    {field.value.length}/200 characters
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Content */}
+            <FormField
+              control={form.control}
+              name="content"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Content</FormLabel>
+                  <FormControl>
+                    <EnhancedTextarea
+                      placeholder="Share your thoughts, provide details, or ask your question..."
+                      {...field}
+                      minHeight={150}
+                      maxHeight={400}
+                      maxLength={10000}
+                      enableAttachments={true}
+                      onAttachmentsChange={setUploadedDocuments}
+                    />
+                  </FormControl>
+                  <div className="text-xs text-muted-foreground">
+                    {field.value.length}/10,000 characters
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Tags */}
             <FormField
               control={form.control}
               name="tags"
@@ -281,8 +249,6 @@ export function SimplePostForm({
                     <ForumTagSelector
                       value={field.value || []}
                       onChange={field.onChange}
-                      placeholder="Add tags to categorize your post..."
-                      disabled={isSubmitting}
                     />
                   </FormControl>
                   <FormMessage />
@@ -290,54 +256,43 @@ export function SimplePostForm({
               )}
             />
 
-            {/* Document Attachments */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Attachments (Optional)</label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setBrowserOpen(true)}
-                  className="h-8"
-                >
-                  <Paperclip className="mr-1 h-3 w-3" />
-                  Add Documents
-                </Button>
-              </div>
-
-              {selectedDocuments.length > 0 && (
-                <div className="space-y-2">
-                  {selectedDocuments.map((doc) => (
+            {/* Uploaded Files Preview */}
+            {uploadedDocuments.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Attached Files</div>
+                <div className="space-y-1">
+                  {uploadedDocuments.map((doc) => (
                     <div
-                      key={doc.id}
-                      className="flex items-center justify-between p-2 bg-muted rounded-md text-sm"
+                      key={doc.fileId}
+                      className="flex items-center justify-between p-2 border rounded-md bg-muted/50"
                     >
                       <div className="flex items-center gap-2">
-                        <Paperclip className="h-3 w-3" />
-                        <span className="font-medium">{doc.title}</span>
-                        {doc.size && (
-                          <span className="text-muted-foreground">
-                            ({Math.round(doc.size / 1024)}KB)
-                          </span>
-                        )}
+                        <Paperclip className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{doc.fileName}</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({Math.round(doc.size / 1024)} KB)
+                        </span>
                       </div>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeDocument(doc.id)}
-                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => {
+                          setUploadedDocuments(prev =>
+                            prev.filter(f => f.fileId !== doc.fileId)
+                          )
+                        }}
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            <div className="flex justify-end space-x-4">
+            {/* Form Actions */}
+            <div className="flex justify-end gap-3 pt-4 border-t">
               <Button
                 type="button"
                 variant="outline"
@@ -346,23 +301,25 @@ export function SimplePostForm({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Post
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Create Post
+                  </>
+                )}
               </Button>
             </div>
           </form>
         </Form>
-
-        {/* Document Browser */}
-        <DocumentBrowser
-          open={browserOpen}
-          onOpenChange={setBrowserOpen}
-          onSelect={handleDocumentSelect}
-          selectedDocuments={selectedDocumentIds}
-          multiSelect={true}
-          title="Select Documents to Attach"
-        />
       </DialogContent>
     </Dialog>
   )

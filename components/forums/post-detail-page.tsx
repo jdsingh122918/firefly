@@ -32,6 +32,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ReplyThread } from "./reply-thread"
 import { ReplyForm } from "./reply-form"
+import { PostModerationActions } from "./post-moderation-actions"
 import { MessageContentRenderer } from "@/components/chat/message-content-renderer"
 
 interface Post {
@@ -143,7 +144,7 @@ function formatFileSize(bytes?: number): string {
 
 export function PostDetailPage() {
   // Fixed all avatar and author property access issues with optional chaining
-  const { isLoaded, isSignedIn, getToken, sessionClaims } = useAuth()
+  const { isLoaded, isSignedIn, getToken, sessionClaims, userId } = useAuth()
   const router = useRouter()
   const params = useParams()
 
@@ -397,6 +398,17 @@ export function PostDetailPage() {
                   </Badge>
                 ))}
               </div>
+            </div>
+
+            {/* Moderation Actions */}
+            <div className="flex-shrink-0 ml-3">
+              <PostModerationActions
+                postId={post.id}
+                isPinned={post.isPinned}
+                isLocked={post.isLocked}
+                isAuthor={post.author?.id === userId}
+                onUpdate={() => window.location.reload()}
+              />
             </div>
           </div>
 

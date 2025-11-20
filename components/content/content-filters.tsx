@@ -33,11 +33,9 @@ import {
   CheckCircle
 } from 'lucide-react';
 import {
-  ContentType,
-  NoteType,
-  ResourceContentType,
+  ResourceType,
   ResourceStatus,
-  NoteVisibility
+  ResourceVisibility
 } from '@prisma/client';
 
 /**
@@ -52,11 +50,9 @@ import {
 
 export interface ContentFiltersProps {
   // Current filter state
-  contentType?: ContentType[];
-  noteType?: NoteType[];
-  resourceType?: ResourceContentType[];
+  resourceType?: ResourceType[];
   status?: ResourceStatus[];
-  visibility?: NoteVisibility[];
+  visibility?: ResourceVisibility[];
   search?: string;
   tags?: string[];
   hasAssignments?: boolean;
@@ -88,11 +84,9 @@ export interface ContentFiltersProps {
 }
 
 export interface ContentFiltersState {
-  contentType?: ContentType[];
-  noteType?: NoteType[];
-  resourceType?: ResourceContentType[];
+  resourceType?: ResourceType[];
   status?: ResourceStatus[];
-  visibility?: NoteVisibility[];
+  visibility?: ResourceVisibility[];
   search?: string;
   tags?: string[];
   hasAssignments?: boolean;
@@ -108,8 +102,6 @@ export interface ContentFiltersState {
 }
 
 const ContentFilters: React.FC<ContentFiltersProps> = ({
-  contentType = [],
-  noteType = [],
   resourceType = [],
   status = [],
   visibility = [],
@@ -140,28 +132,10 @@ const ContentFilters: React.FC<ContentFiltersProps> = ({
   const [searchInput, setSearchInput] = useState(search);
   const [tagInput, setTagInput] = useState('');
 
-  const isNoteSelected = contentType.includes(ContentType.NOTE);
-  const isResourceSelected = contentType.includes(ContentType.RESOURCE);
-  const showNoteFilters = isNoteSelected && showTypeSpecificFilters;
-  const showResourceFilters = isResourceSelected && showTypeSpecificFilters;
+  // Since everything is now a resource, always show resource filters when enabled
+  const showResourceFilters = showTypeSpecificFilters;
 
-  const handleContentTypeChange = (type: ContentType, checked: boolean) => {
-    const newContentType = checked
-      ? [...contentType, type]
-      : contentType.filter(t => t !== type);
-
-    onFiltersChange({ contentType: newContentType });
-  };
-
-  const handleNoteTypeChange = (type: NoteType, checked: boolean) => {
-    const newNoteType = checked
-      ? [...noteType, type]
-      : noteType.filter(t => t !== type);
-
-    onFiltersChange({ noteType: newNoteType });
-  };
-
-  const handleResourceTypeChange = (type: ResourceContentType, checked: boolean) => {
+  const handleResourceTypeChange = (type: ResourceType, checked: boolean) => {
     const newResourceType = checked
       ? [...resourceType, type]
       : resourceType.filter(t => t !== type);
@@ -177,7 +151,7 @@ const ContentFilters: React.FC<ContentFiltersProps> = ({
     onFiltersChange({ status: newStatuses });
   };
 
-  const handleVisibilityChange = (newVisibility: NoteVisibility, checked: boolean) => {
+  const handleVisibilityChange = (newVisibility: ResourceVisibility, checked: boolean) => {
     const newVisibilities = checked
       ? [...visibility, newVisibility]
       : visibility.filter(v => v !== newVisibility);
@@ -209,8 +183,6 @@ const ContentFilters: React.FC<ContentFiltersProps> = ({
 
   const getActiveFilterCount = () => {
     let count = 0;
-    if (contentType.length > 0) count++;
-    if (noteType.length > 0) count++;
     if (resourceType.length > 0) count++;
     if (status.length > 0) count++;
     if (visibility.length > 0) count++;
@@ -230,82 +202,27 @@ const ContentFilters: React.FC<ContentFiltersProps> = ({
   const renderContentTypeFilters = () => {
     if (!showContentTypeFilter) return null;
 
-    return (
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Content Type</Label>
-        <div className="flex flex-wrap gap-2">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="content-type-note"
-              checked={contentType.includes(ContentType.NOTE)}
-              onCheckedChange={(checked) => handleContentTypeChange(ContentType.NOTE, checked as boolean)}
-            />
-            <Label htmlFor="content-type-note" className="flex items-center gap-1 text-sm">
-              <FileText className="h-4 w-4" />
-              Notes
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="content-type-resource"
-              checked={contentType.includes(ContentType.RESOURCE)}
-              onCheckedChange={(checked) => handleContentTypeChange(ContentType.RESOURCE, checked as boolean)}
-            />
-            <Label htmlFor="content-type-resource" className="flex items-center gap-1 text-sm">
-              <Star className="h-4 w-4" />
-              Resources
-            </Label>
-          </div>
-        </div>
-      </div>
-    );
+    // All content is now unified as resources - no content type selection needed
+    return null;
   };
 
   const renderNoteFilters = () => {
-    if (!showNoteFilters) return null;
-
-    const noteTypes = [
-      { value: NoteType.TEXT, label: 'Text' },
-      { value: NoteType.CHECKLIST, label: 'Checklist' },
-      { value: NoteType.JOURNAL, label: 'Journal' },
-      { value: NoteType.MEETING, label: 'Meeting' },
-      { value: NoteType.CARE_PLAN, label: 'Care Plan' },
-      { value: NoteType.RESOURCE, label: 'Resource' }
-    ];
-
-    return (
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Note Types</Label>
-        <div className="grid grid-cols-2 gap-2">
-          {noteTypes.map((type) => (
-            <div key={type.value} className="flex items-center space-x-2">
-              <Checkbox
-                id={`note-type-${type.value}`}
-                checked={noteType.includes(type.value)}
-                onCheckedChange={(checked) => handleNoteTypeChange(type.value, checked as boolean)}
-              />
-              <Label htmlFor={`note-type-${type.value}`} className="text-sm">
-                {type.label}
-              </Label>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    // Notes no longer exist - everything is unified as resources
+    return null;
   };
 
   const renderResourceFilters = () => {
     if (!showResourceFilters) return null;
 
     const resourceTypes = [
-      { value: ResourceContentType.DOCUMENT, label: 'Document', icon: FileText },
-      { value: ResourceContentType.LINK, label: 'Link', icon: Link },
-      { value: ResourceContentType.VIDEO, label: 'Video', icon: Video },
-      { value: ResourceContentType.IMAGE, label: 'Image', icon: Image },
-      { value: ResourceContentType.AUDIO, label: 'Audio', icon: FileText },
-      { value: ResourceContentType.TOOL, label: 'Tool', icon: FileText },
-      { value: ResourceContentType.CONTACT, label: 'Contact', icon: FileText },
-      { value: ResourceContentType.SERVICE, label: 'Service', icon: FileText }
+      { value: ResourceType.DOCUMENT, label: 'Document', icon: FileText },
+      { value: ResourceType.LINK, label: 'Link', icon: Link },
+      { value: ResourceType.VIDEO, label: 'Video', icon: Video },
+      { value: ResourceType.IMAGE, label: 'Image', icon: Image },
+      { value: ResourceType.AUDIO, label: 'Audio', icon: FileText },
+      { value: ResourceType.TOOL, label: 'Tool', icon: FileText },
+      { value: ResourceType.CONTACT, label: 'Contact', icon: FileText },
+      { value: ResourceType.SERVICE, label: 'Service', icon: FileText }
     ];
 
     return (
@@ -331,7 +248,7 @@ const ContentFilters: React.FC<ContentFiltersProps> = ({
   };
 
   const renderStatusFilter = () => {
-    if (!showStatusFilter || !isResourceSelected) return null;
+    if (!showStatusFilter) return null;
 
     const statuses = [
       { value: ResourceStatus.DRAFT, label: 'Draft' },
@@ -366,10 +283,10 @@ const ContentFilters: React.FC<ContentFiltersProps> = ({
     if (!showVisibilityFilter) return null;
 
     const visibilities = [
-      { value: NoteVisibility.PUBLIC, label: 'Public' },
-      { value: NoteVisibility.FAMILY, label: 'Family' },
-      { value: NoteVisibility.SHARED, label: 'Shared' },
-      { value: NoteVisibility.PRIVATE, label: 'Private' }
+      { value: ResourceVisibility.PUBLIC, label: 'Public' },
+      { value: ResourceVisibility.FAMILY, label: 'Family' },
+      { value: ResourceVisibility.SHARED, label: 'Shared' },
+      { value: ResourceVisibility.PRIVATE, label: 'Private' }
     ];
 
     return (
@@ -418,10 +335,11 @@ const ContentFilters: React.FC<ContentFiltersProps> = ({
         </CollapsibleTrigger>
 
         <CollapsibleContent className="space-y-4 pt-2">
-          {/* Feature Flags */}
-          {isNoteSelected && (
+          {/* Feature Flags - all content is now resources */}
+          <div className="space-y-3">
+            {/* Assignment feature (for all resources) */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Note Features</Label>
+              <Label className="text-sm font-medium">Assignment Features</Label>
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="has-assignments"
@@ -435,9 +353,8 @@ const ContentFilters: React.FC<ContentFiltersProps> = ({
                 </Label>
               </div>
             </div>
-          )}
 
-          {isResourceSelected && (
+            {/* Resource features */}
             <div className="space-y-3">
               <Label className="text-sm font-medium">Resource Features</Label>
 
@@ -520,7 +437,7 @@ const ContentFilters: React.FC<ContentFiltersProps> = ({
                 </Select>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Family Filter */}
           {showFamilyFilter && availableFamilies.length > 0 && (
