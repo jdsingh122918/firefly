@@ -309,9 +309,15 @@
   overflow: visible !important;
 }
 
-/* ScrollArea viewport adjustments for chat messages */
+/* ScrollArea viewport adjustments for chat messages - Improved emoji picker compatibility */
 [data-radix-scroll-area-viewport] {
   overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Specific adjustments for chat message scrolling */
+.chat-message-container [data-radix-scroll-area-viewport] {
+  overflow-x: visible; /* Allow emoji picker to extend horizontally */
   overflow-y: auto;
 }
 
