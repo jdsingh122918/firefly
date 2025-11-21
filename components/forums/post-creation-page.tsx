@@ -7,6 +7,10 @@ import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, MessageSquare, AlertCircle, Paperclip, X, ArrowLeft } from "lucide-react"
+import {
+  VALID_POST_TYPES
+} from "@/lib/forum/post-types"
+import { EnhancedPostTypeSelector } from "@/components/forums/enhanced-post-type-selector"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,15 +30,9 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+// Select components no longer needed - using EnhancedPostTypeSelector
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { DocumentBrowser } from "@/components/notes/document-browser"
+// import { DocumentBrowser } from "@/components/notes/document-browser" // TODO: Restore document browser for forums
 import { ForumTagSelector } from "@/components/forums/forum-tag-selector"
 import { UploadedFile } from "@/hooks/use-file-upload"
 import { toast } from "sonner"
@@ -42,7 +40,7 @@ import { toast } from "sonner"
 const postFormSchema = z.object({
   title: z.string().min(1, "Title is required").max(200, "Title is too long"),
   content: z.string().min(1, "Content is required").max(50000, "Content is too long"),
-  type: z.enum(["DISCUSSION", "QUESTION", "ANNOUNCEMENT", "RESOURCE"], "Please select a post type"),
+  type: z.enum(VALID_POST_TYPES, "Please select a post type"),
   tags: z.array(z.string()).optional()
 })
 
@@ -54,19 +52,7 @@ interface PostCreationPageProps {
   forumName: string
 }
 
-const postTypeLabels = {
-  DISCUSSION: "Discussion",
-  QUESTION: "Question",
-  ANNOUNCEMENT: "Announcement",
-  RESOURCE: "Resource"
-}
-
-const postTypeDescriptions = {
-  DISCUSSION: "General discussion or conversation",
-  QUESTION: "Ask for help or information",
-  ANNOUNCEMENT: "Important news or updates",
-  RESOURCE: "Share helpful resources or links"
-}
+// Post type configuration is now handled by the shared system
 
 export function PostCreationPage({
   forumId,
@@ -280,25 +266,14 @@ export function PostCreationPage({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Post Type *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a post type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Object.entries(postTypeLabels).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            <div>
-                              <div className="font-medium">{label}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {value && postTypeDescriptions[value as keyof typeof postTypeDescriptions] || ''}
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <EnhancedPostTypeSelector
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select a post type"
+                        disabled={isSubmitting}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -447,15 +422,15 @@ export function PostCreationPage({
         </CardContent>
       </Card>
 
-      {/* Document Browser */}
-      <DocumentBrowser
+      {/* Document Browser - TODO: Restore document browser for forums */}
+      {/* <DocumentBrowser
         open={browserOpen}
         onOpenChange={setBrowserOpen}
         onSelect={handleDocumentSelect}
         selectedDocuments={selectedDocumentIds}
         multiSelect={true}
         title="Select Documents to Attach"
-      />
+      /> */}
     </div>
   )
 }

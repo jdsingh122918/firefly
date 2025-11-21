@@ -26,7 +26,7 @@ import {
   MoreVertical,
   RefreshCw
 } from 'lucide-react';
-import { ContentType, NoteType, ResourceContentType, UserRole } from '@prisma/client';
+import { ResourceType, UserRole } from '@prisma/client';
 import ContentCard from './content-card';
 import HealthcareContentFilters, { type HealthcareContentFiltersState } from './healthcare-content-filters';
 import { useToast } from '@/hooks/use-toast';
@@ -63,9 +63,7 @@ interface ContentItem {
   id: string;
   title: string;
   description?: string;
-  contentType: ContentType;
-  noteType?: NoteType;
-  resourceType?: ResourceContentType;
+  resourceType: ResourceType;
   visibility: string;
   status?: string;
   viewCount: number;
@@ -172,10 +170,7 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
         ...(searchTerm && { search: searchTerm })
       });
 
-      // Note: Content type filter removed to show both Notes and Resources by default
-      if (filters.noteType?.length) {
-        params.set('noteType', filters.noteType.join(','));
-      }
+      // Note: Content type filter removed - everything is now unified as resources
       if (filters.resourceType?.length) {
         params.set('resourceType', filters.resourceType.join(','));
       }
@@ -222,22 +217,24 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
       params.set('includeFamily', 'true');
       params.set('includeCategory', 'true');
 
-      const response = await fetch(`/api/content?${params}`);
+      const response = await fetch(`/api/resources?${params}`, {
+        credentials: 'include'
+      });
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
       }
 
       const data = await response.json();
-      if (data.success) {
+      if (data.resources) {
         console.log('🔍 ContentHub API Response:', {
-          totalItems: data.data.content?.length,
-          firstItem: data.data.content?.[0],
-          itemsWithDocuments: data.data.content?.filter((item: any) => item.documents?.length > 0).length,
-          sampleDocuments: data.data.content?.find((item: any) => item.documents?.length > 0)?.documents
+          totalItems: data.resources?.length,
+          firstItem: data.resources?.[0],
+          itemsWithDocuments: data.resources?.filter((item: any) => item.documents?.length > 0).length,
+          sampleDocuments: data.resources?.find((item: any) => item.documents?.length > 0)?.documents
         });
 
-        const items = data.data.content.map((item: any) => ({
+        const items = data.resources.map((item: any) => ({
           ...item,
           createdAt: new Date(item.createdAt).toISOString(),
           updatedAt: new Date(item.updatedAt).toISOString()
@@ -269,7 +266,9 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
     if (!showCurationQueue) return;
 
     try {
-      const response = await fetch('/api/content?hasCuration=true&status=PENDING&contentType=RESOURCE&includeDocuments=true&includeCreator=true&includeFamily=true&includeCategory=true');
+      const response = await fetch('/api/resources?hasCuration=true&status=PENDING&includeDocuments=true&includeCreator=true&includeFamily=true&includeCategory=true', {
+        credentials: 'include'
+      });
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -335,8 +334,9 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
     if (!confirm('Are you sure you want to delete this content?')) return;
 
     try {
-      const response = await fetch(`/api/content/${contentId}`, {
-        method: 'DELETE'
+      const response = await fetch(`/api/resources/${contentId}`, {
+        method: 'DELETE',
+        credentials: 'include'
       });
 
       if (!response.ok) throw new Error('Failed to delete content');
@@ -361,8 +361,9 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
 
   const handleContentApprove = async (contentId: string) => {
     try {
-      const response = await fetch(`/api/content/${contentId}/approve`, {
-        method: 'POST'
+      const response = await fetch(`/api/resources/${contentId}/approve`, {
+        method: 'POST',
+        credentials: 'include'
       });
 
       if (!response.ok) throw new Error('Failed to approve content');
@@ -388,8 +389,9 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
 
   const handleContentFeature = async (contentId: string) => {
     try {
-      const response = await fetch(`/api/content/${contentId}/feature`, {
-        method: 'POST'
+      const response = await fetch(`/api/resources/${contentId}/feature`, {
+        method: 'POST',
+        credentials: 'include'
       });
 
       if (!response.ok) throw new Error('Failed to feature content');

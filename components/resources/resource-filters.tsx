@@ -23,6 +23,7 @@ interface Category {
 interface ResourceFiltersProps {
   selectedCategory: string;
   selectedType: string;
+  selectedContentFilter: string;
   sortBy: string;
   sortOrder: string;
   onChange: (filters: Record<string, any>) => void;
@@ -39,6 +40,12 @@ const RESOURCE_TYPES = [
   { value: "SERVICE", label: "Services" },
 ];
 
+const CONTENT_FILTERS = [
+  { value: "all", label: "All Content" },
+  { value: "templates", label: "Advance Directive Templates" },
+  { value: "resources", label: "Regular Resources" },
+];
+
 const SORT_OPTIONS = [
   { value: "createdAt-desc", label: "Newest First" },
   { value: "createdAt-asc", label: "Oldest First" },
@@ -51,6 +58,7 @@ const SORT_OPTIONS = [
 export function ResourceFilters({
   selectedCategory,
   selectedType,
+  selectedContentFilter,
   sortBy,
   sortOrder,
   onChange,
@@ -80,6 +88,7 @@ export function ResourceFilters({
     const newFilters = {
       category: selectedCategory,
       type: selectedType,
+      contentFilter: selectedContentFilter,
       sortBy,
       sortOrder,
       [key]: value,
@@ -98,6 +107,7 @@ export function ResourceFilters({
   const clearFilters = () => {
     onChange({
       category: "all",
+      contentFilter: "all",
       type: "all",
       sortBy: "createdAt",
       sortOrder: "desc",
@@ -107,6 +117,7 @@ export function ResourceFilters({
   const hasActiveFilters =
     selectedCategory !== "all" ||
     selectedType !== "all" ||
+    selectedContentFilter !== "all" ||
     sortBy !== "createdAt" ||
     sortOrder !== "desc";
 
@@ -123,7 +134,29 @@ export function ResourceFilters({
           )}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Content Filter */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">
+              Content
+            </label>
+            <Select
+              value={selectedContentFilter}
+              onValueChange={(value) => handleFilterChange("contentFilter", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All Content" />
+              </SelectTrigger>
+              <SelectContent>
+                {CONTENT_FILTERS.map((filter) => (
+                  <SelectItem key={filter.value} value={filter.value}>
+                    {filter.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Category Filter */}
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">

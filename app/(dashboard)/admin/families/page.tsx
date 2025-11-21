@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Eye, Edit, Trash2, Users } from 'lucide-react'
+import { Plus, Search, Eye, Edit, Trash2, Users, UserCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@clerk/nextjs'
 import {
@@ -24,12 +24,16 @@ interface Family {
   id: string
   name: string
   description?: string
-  createdAt: string
   createdBy?: {
     id: string
     name: string
     email: string
   }
+  assignedVolunteer?: {
+    id: string
+    name: string
+    email: string
+  } | null
   members: Array<{
     id: string
     name: string
@@ -99,8 +103,8 @@ export default function FamiliesPage() {
     } else {
       const filtered = families.filter(family =>
         family.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (family.description && family.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (family.createdBy?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+        (family.createdBy?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (family.assignedVolunteer?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase())
       )
       setFilteredFamilies(filtered)
     }
@@ -243,7 +247,7 @@ export default function FamiliesPage() {
           <div className="flex items-center space-x-2 mb-6">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search families by name, description, or creator..."
+              placeholder="Search families by name, creator, or assigned volunteer..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm"
@@ -292,10 +296,9 @@ export default function FamiliesPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Family Name</TableHead>
-                    <TableHead>Description</TableHead>
                     <TableHead>Members</TableHead>
+                    <TableHead>Assigned Volunteer</TableHead>
                     <TableHead>Created By</TableHead>
-                    <TableHead>Created</TableHead>
                     <TableHead className="w-[130px]">View</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -313,16 +316,19 @@ export default function FamiliesPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="max-w-xs truncate">
-                          {family.description || (
-                            <span className="text-muted-foreground italic">No description</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
                         <Badge variant="secondary" className="text-xs">
                           {family.memberCount} {family.memberCount === 1 ? 'member' : 'members'}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {family.assignedVolunteer ? (
+                          <div className="text-sm">
+                            <div className="font-medium">{family.assignedVolunteer.name}</div>
+                            <div className="text-muted-foreground text-xs">{family.assignedVolunteer.email}</div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground italic text-sm">None assigned</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
@@ -331,12 +337,7 @@ export default function FamiliesPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm text-muted-foreground">
-                          {new Date(family.createdAt).toLocaleDateString()}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm" asChild>
+                        <Button size="sm" asChild>
                           <Link href={`/admin/families/${family.id}`}>
                             <Eye className="mr-2 h-4 w-4" />
                             View Details

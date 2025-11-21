@@ -6,8 +6,9 @@ import { ResourceRepository } from "@/lib/db/repositories/resource.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
 import { NotificationRepository } from "@/lib/db/repositories/notification.repository";
 import { NotificationType } from "@/lib/types";
+import { prisma } from "@/lib/db/prisma";
 
-const resourceRepository = new ResourceRepository();
+const resourceRepository = new ResourceRepository(prisma);
 const userRepository = new UserRepository();
 const notificationRepository = new NotificationRepository();
 
@@ -55,7 +56,7 @@ export async function POST(
     });
 
     // Check if resource exists and is accessible
-    const resource = await resourceRepository.getResourceById(id, user.id);
+    const resource = await resourceRepository.findById(id, user.id, user.role);
     if (!resource) {
       return NextResponse.json({ error: "Resource not found or access denied" }, { status: 404 });
     }
@@ -77,13 +78,13 @@ export async function POST(
     }
 
     // Rate the resource (this will update existing rating if one exists)
-    const result = await resourceRepository.rateResource({
-      userId: user.id,
-      resourceId: id,
-      rating: validatedData.rating,
-      review: validatedData.comment,
-      isHelpful: validatedData.isPublic,
-    });
+    const result = await resourceRepository.rateContent(
+      id,
+      user.id,
+      validatedData.rating,
+      validatedData.comment,
+      validatedData.isPublic
+    );
 
     console.log("✅ Resource rated successfully:", {
       resourceId: id,
@@ -95,7 +96,7 @@ export async function POST(
 
     // Create notification for resource author (if new rating and not anonymous)
     // TODO: Implement proper new rating detection and notification system
-    if (validatedData.isPublic && resource.submittedBy !== user.id) {
+    if (validatedData.isPublic && resource.submittedBy && resource.submittedBy !== user.id) {
       await createResourceRatingNotification(id, resource.submittedBy, user.id, validatedData.rating);
     }
 
@@ -169,9 +170,8 @@ export async function GET(
     });
 
     // Get resource with rating details
-    const resource = await resourceRepository.getResourceById(id, user.id, {
-      includeRatings: true,
-    });
+    // TODO: findById doesn't support options parameter - may need to fetch ratings separately
+    const resource = await resourceRepository.findById(id, user.id, user.role);
 
     if (!resource) {
       return NextResponse.json({ error: "Resource not found or access denied" }, { status: 404 });
@@ -240,7 +240,7 @@ export async function DELETE(
     });
 
     // Check if resource exists
-    const resource = await resourceRepository.getResourceById(id, user.id);
+    const resource = await resourceRepository.findById(id, user.id, user.role);
     if (!resource) {
       return NextResponse.json({ error: "Resource not found or access denied" }, { status: 404 });
     }
@@ -296,7 +296,8 @@ async function createResourceRatingNotification(
     if (rating < 4) return;
 
     // Get resource and rater details
-    const resource = await resourceRepository.getResourceById(resourceId, raterId);
+    // TODO: We need to get the rater's role for findById - using MEMBER as default for now
+    const resource = await resourceRepository.findById(resourceId, raterId, "MEMBER");
     const rater = await userRepository.getUserById(raterId);
 
     if (!resource || !rater) return;
@@ -310,7 +311,7 @@ async function createResourceRatingNotification(
       data: {
         resourceId,
         resourceTitle: resource.title,
-        resourceType: resource.contentType,
+        resourceType: resource.resourceType,
         raterId,
         raterName: `${rater.firstName} ${rater.lastName || ""}`,
         rating,

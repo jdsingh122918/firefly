@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,10 +19,8 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import {
-  ContentType,
-  NoteType,
-  ResourceContentType,
-  NoteVisibility
+  ResourceType,
+  ResourceVisibility
 } from '@prisma/client';
 import { HEALTHCARE_CATEGORIES, ALL_HEALTHCARE_TAGS } from '@/lib/data/healthcare-tags';
 import {
@@ -57,10 +55,8 @@ export interface ContentFormProps {
     title?: string;
     description?: string;
     body?: string;
-    contentType: ContentType;
-    noteType?: NoteType;
-    resourceType?: ResourceContentType;
-    visibility?: NoteVisibility;
+    resourceType: ResourceType;
+    visibility?: ResourceVisibility;
     familyId?: string;
     categoryId?: string;
     tags?: string[];
@@ -78,8 +74,8 @@ export interface ContentFormProps {
 
   // Form configuration
   mode: 'create' | 'edit';
-  contentType?: ContentType; // For create mode
-  enableTypeSelection?: boolean; // Allow switching between NOTE/RESOURCE
+  resourceType?: ResourceType; // For create mode
+  enableTypeSelection?: boolean; // Allow switching between resource types
 
   // Available options
   availableFamilies?: Array<{ id: string; name: string }>;
@@ -109,10 +105,8 @@ export interface ContentFormData {
   title: string;
   description?: string;
   body?: string;
-  contentType: ContentType;
-  noteType?: NoteType;
-  resourceType?: ResourceContentType;
-  visibility: NoteVisibility;
+  resourceType: ResourceType;
+  visibility: ResourceVisibility;
   familyId?: string;
   categoryId?: string;
   tags: string[];
@@ -129,10 +123,10 @@ export interface ContentFormData {
   documentIds?: string[];
 }
 
-const ContentForm: React.FC<ContentFormProps> = ({
+const ContentForm = ({
   initialData,
   mode,
-  contentType: initialContentType,
+  resourceType: initialResourceType,
   enableTypeSelection = true,
   availableFamilies = [],
   availableCategories = [],
@@ -147,7 +141,7 @@ const ContentForm: React.FC<ContentFormProps> = ({
   onPreview,
   isLoading = false,
   errors = {}
-}) => {
+}: ContentFormProps) => {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -159,10 +153,8 @@ const ContentForm: React.FC<ContentFormProps> = ({
     title: initialData?.title || '',
     description: initialData?.description || '',
     body: initialData?.body || '',
-    contentType: initialData?.contentType || initialContentType || ContentType.NOTE,
-    noteType: initialData?.noteType || NoteType.TEXT,
-    resourceType: initialData?.resourceType || ResourceContentType.DOCUMENT,
-    visibility: initialData?.visibility || NoteVisibility.PRIVATE,
+    resourceType: initialData?.resourceType || initialResourceType || ResourceType.DOCUMENT,
+    visibility: initialData?.visibility || ResourceVisibility.PRIVATE,
     familyId: initialData?.familyId || 'none',
     categoryId: initialData?.categoryId || 'none',
     tags: initialData?.tags || [],
@@ -173,7 +165,7 @@ const ContentForm: React.FC<ContentFormProps> = ({
     allowEditing: initialData?.allowEditing || false,
     hasAssignments: initialData?.hasAssignments || false,
     hasCuration: initialData?.hasCuration || (userRole !== 'ADMIN'),
-    hasRatings: initialData?.hasRatings || ((initialData?.contentType || initialContentType || ContentType.NOTE) === ContentType.RESOURCE),
+    hasRatings: initialData?.hasRatings || true, // All resources can have ratings
     hasSharing: initialData?.hasSharing || false,
     externalMeta: initialData?.externalMeta,
     documentIds: []
@@ -184,16 +176,17 @@ const ContentForm: React.FC<ContentFormProps> = ({
 
   // Use controlled state if provided, otherwise use local state
   const formData = isControlled ? controlledFormData : localFormData;
-  const setFormData = isControlled ? controlledSetFormData : setLocalFormData;
+  const setFormData = isControlled ? controlledSetFormData! : setLocalFormData;
   const uploadedAttachments = controlledUploadedAttachments || localUploadedAttachments;
   const setUploadedAttachments = controlledSetUploadedAttachments || setLocalUploadedAttachments;
 
   const [tagInput, setTagInput] = useState('');
   const [audienceInput, setAudienceInput] = useState('');
+  const defaultsSetRef = useRef(false);
 
-  const isNote = formData.contentType === ContentType.NOTE;
-  const isResource = formData.contentType === ContentType.RESOURCE;
-  const requiresUrl = isResource && ['LINK', 'VIDEO'].includes(formData.resourceType as string);
+  // All content is now unified as resources
+  const isResource = true;
+  const requiresUrl = ['LINK', 'VIDEO'].includes(formData.resourceType as string);
 
   // Listen for tags from URL parameters (when returning from tag selection page)
   useEffect(() => {
@@ -201,7 +194,7 @@ const ContentForm: React.FC<ContentFormProps> = ({
     if (selectedTagsParam && mode === 'create') {
       const tagsFromUrl = decodeURIComponent(selectedTagsParam).split(',').filter(Boolean);
       if (tagsFromUrl.length > 0) {
-        setFormData!({
+        setFormData({
           ...formData,
           tags: tagsFromUrl
         });
@@ -211,41 +204,27 @@ const ContentForm: React.FC<ContentFormProps> = ({
         router.replace(newUrl.pathname + newUrl.search);
       }
     }
-  }, [searchParams, mode, router]);
+  }, [searchParams, mode, router, formData, setFormData]);
 
-  // Update resource-specific defaults when content type changes (fixed dependencies)
+  // Update resource defaults when creating (simplified since everything is a resource)
   useEffect(() => {
-    const isResource = formData.contentType === ContentType.RESOURCE;
-    const isNote = formData.contentType === ContentType.NOTE;
+    if (mode !== 'create' || defaultsSetRef.current) return; // Guard: only run in create mode and if defaults not set
 
-    if (mode !== 'create') return; // Guard: only run in create mode
-
-    if (isResource) {
-      // Only update if values need to change to prevent unnecessary re-renders
-      const expectedHasCuration = userRole !== 'ADMIN';
-      if (!formData.hasRatings || formData.hasCuration !== expectedHasCuration || formData.visibility !== NoteVisibility.PUBLIC) {
-        setFormData!({
-          ...formData,
-          hasRatings: true,
-          hasCuration: expectedHasCuration,
-          visibility: NoteVisibility.PUBLIC
-        });
-      }
-    } else if (isNote) {
-      // Only update if values need to change to prevent unnecessary re-renders
-      if (formData.hasRatings || formData.hasCuration || formData.visibility !== NoteVisibility.PRIVATE) {
-        setFormData!({
-          ...formData,
-          hasRatings: false,
-          hasCuration: false,
-          visibility: NoteVisibility.PRIVATE
-        });
-      }
+    // Set resource defaults - only update if values need to change
+    const expectedHasCuration = userRole !== 'ADMIN';
+    if (!formData.hasRatings || formData.hasCuration !== expectedHasCuration || formData.visibility !== ResourceVisibility.PUBLIC) {
+      setFormData({
+        ...formData,
+        hasRatings: true,
+        hasCuration: expectedHasCuration,
+        visibility: ResourceVisibility.PUBLIC
+      });
+      defaultsSetRef.current = true;
     }
-  }, [formData.contentType, formData.hasRatings, formData.hasCuration, formData.visibility, mode, userRole]);
+  }, [mode, userRole, formData, setFormData]); // Include all dependencies
 
   const handleInputChange = (field: keyof ContentFormData, value: any) => {
-    setFormData!({ ...formData, [field]: value });
+    setFormData({ ...formData, [field]: value });
   };
 
   const handleTagAdd = (tag: string) => {
@@ -343,12 +322,12 @@ const ContentForm: React.FC<ContentFormProps> = ({
     onPreview?.(previewData);
   };
 
-  const getVisibilityIcon = (visibility: NoteVisibility) => {
+  const getVisibilityIcon = (visibility: ResourceVisibility) => {
     switch (visibility) {
-      case NoteVisibility.PRIVATE: return <Lock className="h-4 w-4" />;
-      case NoteVisibility.FAMILY: return <Users className="h-4 w-4" />;
-      case NoteVisibility.SHARED: return <Users className="h-4 w-4" />;
-      case NoteVisibility.PUBLIC: return <Globe className="h-4 w-4" />;
+      case ResourceVisibility.PRIVATE: return <Lock className="h-4 w-4" />;
+      case ResourceVisibility.FAMILY: return <Users className="h-4 w-4" />;
+      case ResourceVisibility.SHARED: return <Users className="h-4 w-4" />;
+      case ResourceVisibility.PUBLIC: return <Globe className="h-4 w-4" />;
       default: return <Lock className="h-4 w-4" />;
     }
   };
@@ -391,56 +370,31 @@ const ContentForm: React.FC<ContentFormProps> = ({
 
   const renderTypeSpecificFields = () => (
     <div className="space-y-3">
-      {/* Note Type */}
-      {isNote && (
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Note Type</Label>
-          <Select
-            value={formData.noteType}
-            onValueChange={(value) => handleInputChange('noteType', value as NoteType)}
-          >
-            <SelectTrigger className="min-h-[44px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NoteType.TEXT}>Text Note</SelectItem>
-              <SelectItem value={NoteType.CHECKLIST}>Checklist</SelectItem>
-              <SelectItem value={NoteType.JOURNAL}>Journal Entry</SelectItem>
-              <SelectItem value={NoteType.MEETING}>Meeting Notes</SelectItem>
-              <SelectItem value={NoteType.CARE_PLAN}>Care Plan</SelectItem>
-              <SelectItem value={NoteType.RESOURCE}>Resource</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      {/* Resource Type */}
-      {isResource && (
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Resource Type *</Label>
-          <Select
-            value={formData.resourceType}
-            onValueChange={(value) => handleInputChange('resourceType', value as ResourceContentType)}
-          >
-            <SelectTrigger className="min-h-[44px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ResourceContentType.DOCUMENT}>Document</SelectItem>
-              <SelectItem value={ResourceContentType.LINK}>External Link</SelectItem>
-              <SelectItem value={ResourceContentType.VIDEO}>Video</SelectItem>
-              <SelectItem value={ResourceContentType.AUDIO}>Audio</SelectItem>
-              <SelectItem value={ResourceContentType.IMAGE}>Image</SelectItem>
-              <SelectItem value={ResourceContentType.TOOL}>Tool</SelectItem>
-              <SelectItem value={ResourceContentType.CONTACT}>Contact</SelectItem>
-              <SelectItem value={ResourceContentType.SERVICE}>Service</SelectItem>
-            </SelectContent>
-          </Select>
-          {errors.resourceType && (
-            <p className="text-sm text-red-600">{errors.resourceType}</p>
-          )}
-        </div>
-      )}
+      {/* Resource Type - always shown since everything is a resource */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Resource Type *</Label>
+        <Select
+          value={formData.resourceType}
+          onValueChange={(value) => handleInputChange('resourceType', value as ResourceType)}
+        >
+          <SelectTrigger className="min-h-[44px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ResourceType.DOCUMENT}>Document</SelectItem>
+            <SelectItem value={ResourceType.LINK}>External Link</SelectItem>
+            <SelectItem value={ResourceType.VIDEO}>Video</SelectItem>
+            <SelectItem value={ResourceType.AUDIO}>Audio</SelectItem>
+            <SelectItem value={ResourceType.IMAGE}>Image</SelectItem>
+            <SelectItem value={ResourceType.TOOL}>Tool</SelectItem>
+            <SelectItem value={ResourceType.CONTACT}>Contact</SelectItem>
+            <SelectItem value={ResourceType.SERVICE}>Service</SelectItem>
+          </SelectContent>
+        </Select>
+        {errors.resourceType && (
+          <p className="text-sm text-red-600">{errors.resourceType}</p>
+        )}
+      </div>
 
       {/* URL for Resources */}
       {isResource && requiresUrl && (
@@ -509,44 +463,22 @@ const ContentForm: React.FC<ContentFormProps> = ({
 
   const renderOrganizationFields = () => (
     <div className="space-y-4">
-      {/* Content Type Specific Fields */}
-      {isNote && (
+      {/* Content Type Specific Fields - always resource */}
+      <div className="space-y-3">
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Note Type</Label>
-          <Select
-            value={formData.noteType}
-            onValueChange={(value) => handleInputChange('noteType', value as NoteType)}
-          >
-            <SelectTrigger className="min-h-[44px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NoteType.TEXT}>Text Note</SelectItem>
-              <SelectItem value={NoteType.CHECKLIST}>Checklist</SelectItem>
-              <SelectItem value={NoteType.MEETING}>Meeting Notes</SelectItem>
-              <SelectItem value={NoteType.CARE_PLAN}>Care Plan</SelectItem>
-              <SelectItem value={NoteType.JOURNAL}>Journal Entry</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      {isResource && (
-        <div className="space-y-3">
-          <div className="space-y-2">
             <Label className="text-sm font-medium">Resource Type</Label>
             <Select
               value={formData.resourceType}
-              onValueChange={(value) => handleInputChange('resourceType', value as ResourceContentType)}
+              onValueChange={(value) => handleInputChange('resourceType', value as ResourceType)}
             >
               <SelectTrigger className="min-h-[44px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ResourceContentType.DOCUMENT}>Document</SelectItem>
-                <SelectItem value={ResourceContentType.LINK}>Link</SelectItem>
-                <SelectItem value={ResourceContentType.VIDEO}>Video</SelectItem>
-                <SelectItem value={ResourceContentType.IMAGE}>Image</SelectItem>
+                <SelectItem value={ResourceType.DOCUMENT}>Document</SelectItem>
+                <SelectItem value={ResourceType.LINK}>Link</SelectItem>
+                <SelectItem value={ResourceType.VIDEO}>Video</SelectItem>
+                <SelectItem value={ResourceType.IMAGE}>Image</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -607,7 +539,6 @@ const ContentForm: React.FC<ContentFormProps> = ({
             </div>
           </div>
         </div>
-      )}
 
       {/* Visibility and Family */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -615,31 +546,31 @@ const ContentForm: React.FC<ContentFormProps> = ({
           <Label className="text-sm font-medium">Visibility</Label>
           <Select
             value={formData.visibility}
-            onValueChange={(value) => handleInputChange('visibility', value as NoteVisibility)}
+            onValueChange={(value) => handleInputChange('visibility', value as ResourceVisibility)}
           >
             <SelectTrigger className="min-h-[44px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NoteVisibility.PRIVATE}>
+              <SelectItem value={ResourceVisibility.PRIVATE}>
                 <div className="flex items-center gap-2">
                   <Lock className="h-4 w-4" />
                   <span>Private (Only me)</span>
                 </div>
               </SelectItem>
-              <SelectItem value={NoteVisibility.FAMILY}>
+              <SelectItem value={ResourceVisibility.FAMILY}>
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4" />
                   <span>Family</span>
                 </div>
               </SelectItem>
-              <SelectItem value={NoteVisibility.SHARED}>
+              <SelectItem value={ResourceVisibility.SHARED}>
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4" />
                   <span>Shared</span>
                 </div>
               </SelectItem>
-              <SelectItem value={NoteVisibility.PUBLIC}>
+              <SelectItem value={ResourceVisibility.PUBLIC}>
                 <div className="flex items-center gap-2">
                   <Globe className="h-4 w-4" />
                   <span>Public</span>
@@ -777,8 +708,6 @@ const ContentForm: React.FC<ContentFormProps> = ({
       </div>
     </div>
   );
-
-
 
   return (
     <div className="space-y-3">

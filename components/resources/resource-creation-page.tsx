@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { UserRole } from "@prisma/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   BookOpen,
   ArrowLeft,
@@ -16,6 +16,10 @@ import {
   Wrench,
   Phone,
   Briefcase,
+  Upload,
+  Tag,
+  Plus,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -33,18 +37,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { DocumentAttachmentManager } from "@/components/notes/document-attachment-manager";
+import { FileUploadPreview } from "@/components/shared/file-upload-preview";
+import { useFileUpload, UploadedFile } from "@/hooks/use-file-upload";
+import { ALL_HEALTHCARE_TAGS } from "@/lib/data/healthcare-tags";
+import PopularTagsQuickSelect from "@/components/content/popular-tags-quick-select";
 
 interface ResourceCreationPageProps {
   userRole: UserRole;
   userId: string;
-}
-
-interface Category {
-  id: string;
-  name: string;
-  color: string;
-  icon: string;
 }
 
 interface Family {
@@ -87,67 +87,118 @@ export function ResourceCreationPage({ userRole, userId }: ResourceCreationPageP
     type: "DOCUMENT",
     visibility: "PRIVATE",
     familyId: "",
-    categoryId: "none",
     tags: [] as string[],
     externalUrl: "",
     attachments: [] as string[],
   });
 
-  const [categories, setCategories] = useState<Category[]>([]);
   const [families, setFamilies] = useState<Family[]>([]);
   const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
+  const [uploadedAttachments, setUploadedAttachments] = useState<UploadedFile[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // File upload functionality
+  const {
+    uploadFiles,
+    clearUploads,
+    uploads,
+    isLoading: isUploading,
+    error: uploadError,
+  } = useFileUpload();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [categoriesResponse, familiesResponse] = await Promise.all([
-          fetch('/api/categories'),
-          fetch('/api/families'),
-        ]);
-
-        if (categoriesResponse.ok) {
-          const categoriesData = await categoriesResponse.json();
-          setCategories(categoriesData.categories || []);
-        }
+        const familiesResponse = await fetch('/api/families');
 
         if (familiesResponse.ok) {
           const familiesData = await familiesResponse.json();
           setFamilies(familiesData.families || []);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching families:', error);
       }
     };
 
     fetchData();
   }, []);
 
+  // Listen for tags from URL parameters (when returning from tag selection page)
+  useEffect(() => {
+    const selectedTagsParam = searchParams.get('selectedTags');
+    if (selectedTagsParam) {
+      const tagsFromUrl = decodeURIComponent(selectedTagsParam).split(',').filter(Boolean);
+      if (tagsFromUrl.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          tags: tagsFromUrl
+        }));
+        // Clean up URL parameter
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('selectedTags');
+        router.replace(newUrl.pathname + newUrl.search);
+      }
+    }
+  }, [searchParams, router]);
+
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleAddTag = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && tagInput.trim()) {
-      e.preventDefault();
-      const newTag = tagInput.trim();
-      if (!formData.tags.includes(newTag)) {
-        handleInputChange('tags', [...formData.tags, newTag]);
-      }
+  const handleAddTag = (tagValue: string) => {
+    const newTag = tagValue.trim();
+    if (newTag && !formData.tags.includes(newTag)) {
+      handleInputChange('tags', [...formData.tags, newTag]);
       setTagInput("");
     }
   };
 
-  const handleRemoveTag = (tagToRemove: string) => {
+  const handleTagRemove = (tagToRemove: string) => {
     handleInputChange('tags', formData.tags.filter(tag => tag !== tagToRemove));
   };
 
-  const handleSubmit = async (isDraft = false) => {
+  const handleTagToggle = (tagName: string) => {
+    if (formData.tags.includes(tagName)) {
+      handleTagRemove(tagName);
+    } else {
+      handleAddTag(tagName);
+    }
+  };
+
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    try {
+      const { successful, failed } = await uploadFiles(Array.from(files));
+
+      // Add successful uploads to attachments
+      if (successful.length > 0) {
+        setUploadedAttachments(prev => [...prev, ...successful]);
+      }
+
+      // Show error for failed uploads
+      if (failed.length > 0) {
+        const failedFileNames = failed.map(f => f.file.name).join(', ');
+        setError(`Failed to upload: ${failedFileNames}`);
+      }
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      setError('Failed to upload files');
+    }
+  };
+
+  const handleRemoveAttachment = (id: string | File) => {
+    const fileId = typeof id === 'string' ? id : (id as any).fileId || id.name;
+    setUploadedAttachments(prev => prev.filter(file => file.fileId !== fileId));
+  };
+
+  const handleSubmit = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -173,12 +224,12 @@ export function ResourceCreationPage({ userRole, userId }: ResourceCreationPageP
         return;
       }
 
+      const { type, ...formDataWithoutType } = formData;
       const payload = {
-        ...formData,
-        categoryId: formData.categoryId === "none" ? "" : formData.categoryId,
-        attachments: selectedDocuments.map(doc => doc.id),
-        // Set visibility based on draft status
-        visibility: isDraft ? "PRIVATE" : formData.visibility,
+        ...formDataWithoutType,
+        resourceType: type, // Map 'type' to 'resourceType' for API
+        documentIds: uploadedAttachments.map(file => file.fileId),
+        visibility: formData.visibility,
       };
 
       const response = await fetch('/api/resources', {
@@ -236,15 +287,7 @@ export function ResourceCreationPage({ userRole, userId }: ResourceCreationPageP
             {preview ? "Edit" : "Preview"}
           </Button>
           <Button
-            onClick={() => handleSubmit(true)}
-            disabled={loading}
-            variant="outline"
-            className="min-h-[44px]"
-          >
-            Save Draft
-          </Button>
-          <Button
-            onClick={() => handleSubmit(false)}
+            onClick={() => handleSubmit()}
             disabled={loading}
             className="min-h-[44px]"
           >
@@ -318,42 +361,148 @@ export function ResourceCreationPage({ userRole, userId }: ResourceCreationPageP
                   </div>
                 )}
 
-                {/* Tags */}
-                <div className="space-y-2">
-                  <Label>Tags</Label>
+                {/* Unified Tags and Categories Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Tags & Categories</Label>
+                    <span className="text-xs text-gray-500">Organize your resource for easy discovery</span>
+                  </div>
+
+                  {/* Healthcare Tags - Navigate to Selection Page */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-gray-700">Healthcare Tags:</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 text-xs"
+                        onClick={() => {
+                          const currentPath = window.location.pathname;
+                          const currentUrl = encodeURIComponent(currentPath);
+                          const currentTags = encodeURIComponent(formData.tags.join(','));
+
+                          // For now, use a unified tag selection approach
+                          // TODO: Create dedicated resource tag pages if needed
+                          let tagsPagePath = `/${userRole.toLowerCase()}/resources/tags`;
+
+                          // Fallback: if dedicated resource tag pages don't exist,
+                          // we could redirect to a tag selection modal or component
+
+                          const url = `${tagsPagePath}?returnUrl=${currentUrl}&selectedTags=${currentTags}`;
+                          router.push(url);
+                        }}
+                      >
+                        <Tag className="h-3 w-3 mr-1" />
+                        Browse Tags
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Popular Tags Quick Select */}
+                  <PopularTagsQuickSelect
+                    selectedTags={formData.tags}
+                    onTagToggle={handleTagToggle}
+                    className="mb-4"
+                  />
+
+                  {/* Selected Tags */}
                   <div className="space-y-2">
-                    <Input
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={handleAddTag}
-                      placeholder="Type a tag and press Enter"
-                      className="min-h-[44px]"
-                    />
-                    {formData.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {formData.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary" className="cursor-pointer">
-                            {tag}
-                            <button
-                              onClick={() => handleRemoveTag(tag)}
-                              className="ml-1 hover:text-destructive"
+                    <p className="text-xs font-medium text-gray-700">Selected Tags:</p>
+                    <div className="flex flex-wrap gap-2 min-h-[2rem] p-2 border rounded-lg bg-gray-50">
+                      {formData.tags.length > 0 ? (
+                        formData.tags.map((tag) => {
+                          const healthcareTag = ALL_HEALTHCARE_TAGS.find(ht => ht.name === tag);
+                          return (
+                            <Badge
+                              key={tag}
+                              variant="secondary"
+                              className="flex items-center gap-1 pr-1"
+                              style={healthcareTag ? { backgroundColor: `${healthcareTag.color}20`, color: healthcareTag.color, borderColor: healthcareTag.color } : {}}
                             >
-                              ×
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
+                              {tag}
+                              <button
+                                type="button"
+                                className="ml-1 p-1 rounded hover:bg-red-100 hover:text-red-600 transition-colors"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleTagRemove(tag);
+                                }}
+                                aria-label={`Remove ${tag} tag`}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          );
+                        })
+                      ) : (
+                        <span className="text-sm text-gray-500">No tags selected</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Custom Tag Input */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-gray-700">Add Custom Tags:</p>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Enter custom tag..."
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddTag(tagInput);
+                          }
+                        }}
+                        className="flex-1 min-h-[44px]"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAddTag(tagInput)}
+                        disabled={!tagInput.trim()}
+                        className="min-h-[44px]"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
                 {/* Document Attachments */}
                 <div className="space-y-2">
                   <Label>Attachments</Label>
-                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center">
-                    <p className="text-sm text-muted-foreground">Document attachments will be available in the next update</p>
-                    <p className="text-xs text-muted-foreground mt-1">For now, you can include links in the content or external URL field</p>
-                  </div>
+                  <FileUploadPreview
+                    attachments={uploadedAttachments}
+                    uploads={uploads}
+                    onRemoveAttachment={handleRemoveAttachment}
+                    showUploadButton={true}
+                    onUploadClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.multiple = true;
+                      input.accept = '.pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.mp4,.mp3,.zip';
+                      input.onchange = (e) => {
+                        const files = (e.target as HTMLInputElement).files;
+                        handleFileUpload(files);
+                      };
+                      input.click();
+                    }}
+                    uploadButtonText="Add Files"
+                    uploadButtonIcon={<Upload className="h-4 w-4" />}
+                    disabled={isUploading}
+                    layout="list"
+                    showFileTypes={true}
+                    showSizes={true}
+                    emptyStateText="No files attached. Click 'Add Files' to upload documents, images, or other files."
+                    className="min-h-[100px]"
+                  />
+                  {uploadError && (
+                    <p className="text-sm text-destructive">{uploadError}</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -445,33 +594,9 @@ export function ResourceCreationPage({ userRole, userId }: ResourceCreationPageP
                   ))}
                 </SelectContent>
               </Select>
-              {selectedVisibility && (
-                <p className="text-xs text-muted-foreground">{selectedVisibility.description}</p>
-              )}
             </CardContent>
           </Card>
 
-          {/* Category */}
-          <Card className="p-3">
-            <CardHeader>
-              <h3 className="font-medium text-sm">Category</h3>
-            </CardHeader>
-            <CardContent>
-              <Select value={formData.categoryId} onValueChange={(value) => handleInputChange('categoryId', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Category</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
 
           {/* Family Context */}
           {formData.visibility === "FAMILY" && families.length > 0 && (

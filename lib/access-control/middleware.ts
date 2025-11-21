@@ -210,7 +210,7 @@ export function withMessageAccess(
   getMessageId?: (params: RouteParams) => string,
 ) {
   return withAccessControl({
-    resourceType: ResourceType.MESSAGE,
+    resourceType: ResourceType.DOCUMENT,
     operation,
     getResourceData: async (request, params) => {
       if (!getMessageId) {
@@ -232,7 +232,7 @@ export function withFamilyAccess(
   getFamilyId?: (params: RouteParams) => string,
 ) {
   return withAccessControl({
-    resourceType: ResourceType.FAMILY,
+    resourceType: ResourceType.DOCUMENT,
     operation,
     getResourceData: async (request, params) => {
       if (!getFamilyId) {

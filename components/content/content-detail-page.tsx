@@ -28,7 +28,7 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react';
-import { ContentType, NoteType, ResourceContentType, UserRole } from '@prisma/client';
+import { ResourceType, UserRole } from '@prisma/client';
 import { formatTimeAgo } from '@/components/shared/format-utils';
 import { useToast } from '@/hooks/use-toast';
 import { MessageContentRenderer } from '@/components/chat/message-content-renderer';
@@ -62,9 +62,7 @@ interface ContentItem {
   title: string;
   description?: string;
   body?: string;
-  contentType: ContentType;
-  noteType?: NoteType;
-  resourceType?: ResourceContentType;
+  resourceType: ResourceType;
   visibility: string;
   status?: string;
   url?: string;
@@ -166,7 +164,9 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
         includeRatings: 'true'
       });
 
-      const response = await fetch(`/api/content/${contentId}?${params}`);
+      const response = await fetch(`/api/resources/${contentId}?${params}`, {
+        credentials: 'include'
+      });
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -212,8 +212,9 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
     }
 
     try {
-      const response = await fetch(`/api/content/${contentId}`, {
-        method: 'DELETE'
+      const response = await fetch(`/api/resources/${contentId}`, {
+        method: 'DELETE',
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -242,9 +243,10 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
 
   const handleRate = async (rating: number) => {
     try {
-      const response = await fetch(`/api/content/${contentId}/rate`, {
+      const response = await fetch(`/api/resources/${contentId}/rating`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ rating })
       });
 
@@ -290,10 +292,10 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
 
     const badges = [];
 
-    if (content.contentType === ContentType.NOTE ? content.noteType : content.resourceType) {
+    if (content.resourceType) {
       badges.push(
         <Badge key="type" variant="outline" className="text-xs">
-          {content.contentType === ContentType.NOTE ? content.noteType : content.resourceType}
+          {content.resourceType}
         </Badge>
       );
     }
@@ -450,7 +452,7 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
           <div>
             <h1 className="text-xl font-semibold">{content.title}</h1>
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>{content.contentType === ContentType.NOTE ? 'Note' : 'Resource'}</span>
+              <span>Resource</span>
               {renderStatusBadges()}
             </div>
           </div>
@@ -497,7 +499,7 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
             )}
 
             {/* Resource URL */}
-            {content.contentType === ContentType.RESOURCE && content.url && (
+            {content.url && (
               <div className="mt-3 p-3 bg-blue-50 rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
                   <Link className="h-4 w-4 text-blue-600" />

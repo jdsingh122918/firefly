@@ -621,7 +621,6 @@ export class TagRepository {
       const existingTag = await prisma.resourceTag.findFirst({
         where: {
           resourceId,
-          resourceType,
           tagId,
         },
       });
@@ -634,9 +633,7 @@ export class TagRepository {
       const resourceTag = await prisma.resourceTag.create({
         data: {
           resourceId,
-          resourceType,
           tagId,
-          createdBy,
         },
         include: {
           tag: {
@@ -685,7 +682,6 @@ export class TagRepository {
       const deletedTag = await prisma.resourceTag.deleteMany({
         where: {
           resourceId,
-          resourceType,
           tagId,
         },
       });
@@ -720,7 +716,6 @@ export class TagRepository {
       const resourceTags = await prisma.resourceTag.findMany({
         where: {
           resourceId,
-          resourceType,
         },
         include: {
           tag: {

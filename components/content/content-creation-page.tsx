@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Plus, FileText, Star } from 'lucide-react';
 import ContentForm, { ContentFormData } from './content-form';
-import { ContentType, UserRole, NoteType, ResourceContentType, NoteVisibility } from '@prisma/client';
+import { ResourceType, UserRole, ResourceVisibility } from '@prisma/client';
 import { useToast } from '@/hooks/use-toast';
 
 /**
@@ -25,7 +25,7 @@ export interface ContentCreationPageProps {
   availableFamilies: Array<{ id: string; name: string }>;
   availableCategories: Array<{ id: string; name: string; color?: string }>;
   enableTypeSelection?: boolean;
-  defaultContentType?: ContentType;
+  defaultResourceType?: ResourceType;
   showAdvancedFeatures?: boolean;
   canManageCuration?: boolean;
   backUrl: string;
@@ -37,7 +37,7 @@ const ContentCreationPage: React.FC<ContentCreationPageProps> = ({
   availableFamilies,
   availableCategories,
   enableTypeSelection = true,
-  defaultContentType,
+  defaultResourceType,
   showAdvancedFeatures = false,
   canManageCuration = false,
   backUrl
@@ -51,10 +51,8 @@ const ContentCreationPage: React.FC<ContentCreationPageProps> = ({
     title: '',
     description: '',
     body: '',
-    contentType: defaultContentType || ContentType.NOTE,
-    noteType: NoteType.TEXT,
-    resourceType: ResourceContentType.DOCUMENT,
-    visibility: NoteVisibility.PRIVATE,
+    resourceType: defaultResourceType || ResourceType.DOCUMENT,
+    visibility: ResourceVisibility.PRIVATE,
     familyId: 'none',
     categoryId: 'none',
     tags: [],
@@ -65,7 +63,7 @@ const ContentCreationPage: React.FC<ContentCreationPageProps> = ({
     allowEditing: false,
     hasAssignments: false,
     hasCuration: userRole !== 'ADMIN',
-    hasRatings: defaultContentType === ContentType.RESOURCE,
+    hasRatings: true, // All resources can have ratings
     hasSharing: false,
     externalMeta: undefined,
     documentIds: []
@@ -130,10 +128,7 @@ const ContentCreationPage: React.FC<ContentCreationPageProps> = ({
         title: submittedFormData.title,
         description: submittedFormData.description || submittedFormData.body, // Use description or fall back to body
         body: submittedFormData.body, // Include body field for API compatibility
-        contentType: submittedFormData.contentType,
-
-        // Type-specific fields
-        noteType: submittedFormData.noteType,
+        // Type field
         resourceType: submittedFormData.resourceType,
         visibility: submittedFormData.visibility || 'PRIVATE',
 
@@ -150,9 +145,9 @@ const ContentCreationPage: React.FC<ContentCreationPageProps> = ({
         isPinned: submittedFormData.isPinned || false,
         allowComments: submittedFormData.allowComments || false,
         allowEditing: submittedFormData.allowEditing || false,
-        hasAssignments: submittedFormData.contentType === ContentType.NOTE ? (submittedFormData.hasAssignments || false) : false,
-        hasCuration: submittedFormData.contentType === ContentType.RESOURCE ? (canManageCuration ? submittedFormData.hasCuration : true) : false,
-        hasRatings: submittedFormData.contentType === ContentType.RESOURCE ? (submittedFormData.hasRatings || false) : false,
+        hasAssignments: submittedFormData.hasAssignments || false,
+        hasCuration: canManageCuration ? submittedFormData.hasCuration : true,
+        hasRatings: submittedFormData.hasRatings || false,
         hasSharing: submittedFormData.hasSharing || false,
 
         // Additional fields
@@ -160,9 +155,9 @@ const ContentCreationPage: React.FC<ContentCreationPageProps> = ({
         documentIds: submittedFormData.documentIds || []
       };
 
-      console.log('📝 Sending request to /api/content with data:', requestData);
+      console.log('📝 Sending request to /api/resources with data:', requestData);
 
-      const response = await fetch('/api/content', {
+      const response = await fetch('/api/resources', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -203,7 +198,7 @@ const ContentCreationPage: React.FC<ContentCreationPageProps> = ({
 
       toast({
         title: 'Content Created',
-        description: `${submittedFormData.contentType === ContentType.NOTE ? 'Note' : 'Resource'} "${submittedFormData.title}" has been created successfully.`,
+        description: `Resource "${submittedFormData.title}" has been created successfully.`,
       });
 
       // Navigate back to content list
@@ -282,7 +277,7 @@ const ContentCreationPage: React.FC<ContentCreationPageProps> = ({
         <CardContent>
           <ContentForm
             mode="create"
-            contentType={defaultContentType}
+            resourceType={defaultResourceType}
             enableTypeSelection={false}
             availableFamilies={availableFamilies}
             availableCategories={availableCategories}

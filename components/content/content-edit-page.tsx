@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,9 +29,11 @@ import {
   Tag as TagIcon,
   FileText,
 } from 'lucide-react';
-import { ContentType, NoteType, ResourceContentType, UserRole } from '@prisma/client';
+import { ResourceType, UserRole } from '@prisma/client';
 import { formatTimeAgo } from '@/components/shared/format-utils';
 import { useToast } from '@/hooks/use-toast';
+import PopularTagsQuickSelect from '@/components/content/popular-tags-quick-select';
+import { ALL_HEALTHCARE_TAGS } from '@/lib/data/healthcare-tags';
 
 /**
  * Content Edit Page Component
@@ -61,9 +63,7 @@ interface ContentItem {
   title: string;
   description?: string;
   body?: string;
-  contentType: ContentType;
-  noteType?: NoteType;
-  resourceType?: ResourceContentType;
+  resourceType: ResourceType;
   visibility: string;
   status?: string;
   url?: string;
@@ -104,8 +104,7 @@ interface FormData {
   title: string;
   description: string;
   body: string;
-  noteType: NoteType;
-  resourceType: ResourceContentType;
+  resourceType: ResourceType;
   url: string;
   visibility: string;
   familyId: string;
@@ -133,6 +132,7 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
   allowContentTypeChange
 }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
 
   // State
@@ -145,8 +145,7 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
     title: '',
     description: '',
     body: '',
-    noteType: NoteType.JOURNAL,
-    resourceType: ResourceContentType.DOCUMENT,
+    resourceType: ResourceType.DOCUMENT,
     url: '',
     visibility: 'PRIVATE',
     familyId: 'none',
@@ -175,7 +174,9 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
         includeDocuments: 'true'
       });
 
-      const response = await fetch(`/api/content/${contentId}?${params}`);
+      const response = await fetch(`/api/resources/${contentId}?${params}`, {
+        credentials: 'include'
+      });
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -195,8 +196,7 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
           title: contentData.title || '',
           description: contentData.description || '',
           body: contentData.body || '',
-          noteType: contentData.noteType || NoteType.JOURNAL,
-          resourceType: contentData.resourceType || ResourceContentType.DOCUMENT,
+          resourceType: contentData.resourceType || ResourceType.DOCUMENT,
           url: contentData.url || '',
           visibility: contentData.visibility || 'PRIVATE',
           familyId: contentData.familyId || 'none',
@@ -223,15 +223,83 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
     }
   }, [contentId]);
 
+  // Coordinated content fetch and tag application to prevent race condition
   useEffect(() => {
-    fetchContent();
-  }, [fetchContent]);
+    const selectedTagsParam = searchParams.get('selectedTags');
+
+    if (selectedTagsParam) {
+      // Tags from URL - fetch content first, then apply tags
+      const tagsFromUrl = decodeURIComponent(selectedTagsParam).split(',').filter(Boolean);
+
+      // Fetch content, then override tags with URL parameter
+      fetchContent().then(() => {
+        if (tagsFromUrl.length > 0) {
+          setFormData(prev => ({ ...prev, tags: tagsFromUrl.join(', ') }));
+
+          toast({
+            title: 'Tags Applied',
+            description: `${tagsFromUrl.length} tag${tagsFromUrl.length > 1 ? 's' : ''} applied successfully`,
+          });
+        }
+      }).catch(error => {
+        console.error('Error applying tags:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to apply tags. Please try again.',
+          variant: 'destructive',
+        });
+      });
+
+      // Clean up URL parameter
+      const url = new URL(window.location.href);
+      url.searchParams.delete('selectedTags');
+      window.history.replaceState({}, '', url.toString());
+    } else {
+      // Normal content fetch without tag override
+      fetchContent();
+    }
+  }, [searchParams, fetchContent, toast]);
 
   // Form handlers
   const handleInputChange = useCallback((field: keyof FormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (error) setError(null);
   }, [error]);
+
+  // Tag management functions
+  const handleTagToggle = useCallback((tagName: string) => {
+    setFormData(prev => {
+      const currentTags = prev.tags ? prev.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [];
+      const tagIndex = currentTags.indexOf(tagName);
+
+      let newTags: string[];
+      if (tagIndex > -1) {
+        // Remove tag
+        newTags = currentTags.filter(tag => tag !== tagName);
+      } else {
+        // Add tag
+        newTags = [...currentTags, tagName];
+      }
+
+      return { ...prev, tags: newTags.join(', ') };
+    });
+  }, []);
+
+  const handleBrowseTags = useCallback(() => {
+    const currentPath = window.location.pathname;
+    const currentUrl = encodeURIComponent(currentPath);
+    const currentTags = encodeURIComponent(formData.tags || '');
+
+    // Determine the correct tags page based on resource type
+    let tagsPagePath = `/${userRole.toLowerCase()}/resources/tags`;
+
+    const url = `${tagsPagePath}?returnUrl=${currentUrl}&selectedTags=${currentTags}`;
+    router.push(url);
+  }, [formData.tags, userRole, router]);
+
+  const getCurrentTagsArray = useCallback(() => {
+    return formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [];
+  }, [formData.tags]);
 
   const handleSave = async () => {
     if (!content) return;
@@ -255,11 +323,8 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
         title: formData.title.trim(),
         description: formData.description.trim() || null,
         body: formData.body.trim() || null,
-        ...(content.contentType === ContentType.NOTE
-          ? { noteType: formData.noteType }
-          : { resourceType: formData.resourceType }
-        ),
-        ...(content.contentType === ContentType.RESOURCE && formData.url.trim()
+        resourceType: formData.resourceType,
+        ...(formData.url.trim()
           ? { url: formData.url.trim() }
           : {}
         ),
@@ -267,7 +332,7 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
         familyId: formData.familyId === 'none' ? null : formData.familyId,
         categoryId: formData.categoryId === 'none' ? null : formData.categoryId,
         tags,
-        ...(content.contentType === ContentType.RESOURCE ? { targetAudience } : {}),
+        targetAudience,
         isPinned: formData.isPinned,
         allowComments: formData.allowComments,
         allowEditing: formData.allowEditing,
@@ -277,9 +342,10 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
         hasSharing: formData.hasSharing
       };
 
-      const response = await fetch(`/api/content/${contentId}`, {
+      const response = await fetch(`/api/resources/${contentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(updateData)
       });
 
@@ -309,7 +375,7 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
   // Navigation
   const handleBack = () => {
     const rolePrefix = userRole.toLowerCase();
-    router.push(`/${rolePrefix}/content/${contentId}`);
+    router.push(`/${rolePrefix}/resources/${contentId}`);
   };
 
   const handleCancel = () => {
@@ -374,8 +440,8 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
           <div>
             <h1 className="text-xl font-semibold">Edit {content.title}</h1>
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>Editing {content.contentType === ContentType.NOTE ? 'Note' : 'Resource'}</span>
-              <Badge variant="outline">{content.contentType}</Badge>
+              <span>Editing Resource</span>
+              <Badge variant="outline">{content.resourceType}</Badge>
             </div>
           </div>
         </div>
@@ -460,7 +526,7 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
               </div>
 
               {/* Resource URL */}
-              {content.contentType === ContentType.RESOURCE && (
+              {(
                 <div className="space-y-1">
                   <Label htmlFor="url" className="text-sm font-medium">Resource URL</Label>
                   <Input
@@ -475,8 +541,8 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
                 </div>
               )}
 
-              {/* Target Audience (Resources only) */}
-              {content.contentType === ContentType.RESOURCE && (
+              {/* Target Audience */}
+              {(
                 <div className="space-y-1">
                   <Label htmlFor="targetAudience" className="text-sm font-medium">Target Audience</Label>
                   <Input
@@ -531,10 +597,10 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
               <div className="space-y-1">
                 <Label className="text-sm font-medium">Type</Label>
                 <Select
-                  value={content.contentType === ContentType.NOTE ? formData.noteType : formData.resourceType}
+                  value={formData.resourceType}
                   onValueChange={(value) =>
                     handleInputChange(
-                      content.contentType === ContentType.NOTE ? 'noteType' : 'resourceType',
+                      'resourceType',
                       value
                     )
                   }
@@ -544,19 +610,11 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {content.contentType === ContentType.NOTE ? (
-                      Object.values(NoteType).map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type.replace('_', ' ')}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      Object.values(ResourceContentType).map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type.replace('_', ' ')}
-                        </SelectItem>
-                      ))
-                    )}
+                    {Object.values(ResourceType).map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type.replace('_', ' ')}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -627,18 +685,80 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
                 </Select>
               </div>
 
-              {/* Tags */}
-              <div className="space-y-1">
-                <Label htmlFor="tags" className="text-sm font-medium">Tags</Label>
-                <Input
-                  id="tags"
-                  value={formData.tags}
-                  onChange={(e) => handleInputChange('tags', e.target.value)}
-                  placeholder="healthcare, grief, support..."
-                  disabled={isSubmitting}
-                  className="min-h-[44px]"
+              {/* Tags - Hybrid Approach */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Tags & Categories</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleBrowseTags}
+                    disabled={isSubmitting}
+                    className="h-8 px-3 text-xs"
+                  >
+                    <TagIcon className="h-3 w-3 mr-1" />
+                    Browse All Tags
+                  </Button>
+                </div>
+
+                {/* Popular Tags Quick Select */}
+                <PopularTagsQuickSelect
+                  selectedTags={getCurrentTagsArray()}
+                  onTagToggle={handleTagToggle}
+                  className="mb-4"
                 />
-                <p className="text-xs text-gray-600">Separate with commas</p>
+
+                {/* Selected Tags Display */}
+                {formData.tags && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-gray-700">Selected Tags:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {getCurrentTagsArray().map((tagName) => {
+                        const healthcareTag = ALL_HEALTHCARE_TAGS.find(tag => tag.name === tagName);
+                        return (
+                          <Badge
+                            key={tagName}
+                            variant="secondary"
+                            className="text-xs px-2 py-1 cursor-pointer backdrop-blur-sm border-2"
+                            style={healthcareTag ? {
+                              backgroundColor: `${healthcareTag.color}20`,
+                              borderColor: healthcareTag.color,
+                              color: healthcareTag.color
+                            } : {}}
+                            onClick={() => handleTagToggle(tagName)}
+                          >
+                            {tagName}
+                            <button
+                              type="button"
+                              className="ml-1 hover:bg-red-100 hover:text-red-600 rounded-full p-0.5"
+                            >
+                              ×
+                            </button>
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Custom Tag Input */}
+                <div className="space-y-1">
+                  <Label htmlFor="custom-tags" className="text-xs font-medium text-gray-600">
+                    Add Custom Tags:
+                  </Label>
+                  <Input
+                    id="custom-tags"
+                    value={formData.tags}
+                    onChange={(e) => handleInputChange('tags', e.target.value)}
+                    placeholder="healthcare, grief, support..."
+                    disabled={isSubmitting}
+                    className="min-h-[44px] text-sm"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Separate multiple tags with commas. Use quick select above for common healthcare tags.
+                  </p>
+                </div>
               </div>
             </div>
           </Card>

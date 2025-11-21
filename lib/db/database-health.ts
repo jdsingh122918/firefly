@@ -7,13 +7,7 @@
 
 import { prisma } from "@/lib/db/prisma";
 
-export interface DatabaseHealthStatus {
-  isHealthy: boolean;
-  lastChecked: Date;
-  error?: string;
-  errorType?: 'CONNECTION' | 'TIMEOUT' | 'AUTH' | 'UNKNOWN';
-  retryAfter?: number; // seconds
-}
+import { DatabaseHealthStatus } from './database-health-client';
 
 let cachedHealthStatus: DatabaseHealthStatus | null = null;
 let lastHealthCheck = 0;
@@ -53,9 +47,9 @@ export function isDatabaseError(error: unknown): boolean {
 }
 
 /**
- * Classify the type of database error
+ * Classify the type of database error (server-side version)
  */
-export function classifyDatabaseError(error: unknown): DatabaseHealthStatus['errorType'] {
+function classifyDatabaseErrorServer(error: unknown): DatabaseHealthStatus['errorType'] {
   if (!error) return 'UNKNOWN';
 
   const errorString = error instanceof Error ? error.message : String(error);
@@ -106,7 +100,7 @@ export async function checkDatabaseHealth(useCache = true): Promise<DatabaseHeal
     console.warn('Database health check failed:', error);
 
     healthStatus.error = error instanceof Error ? error.message : String(error);
-    healthStatus.errorType = classifyDatabaseError(error);
+    healthStatus.errorType = classifyDatabaseErrorServer(error);
 
     // Set retry delay based on error type
     switch (healthStatus.errorType) {
@@ -163,18 +157,11 @@ export function clearHealthCache(): void {
   lastHealthCheck = 0;
 }
 
-/**
- * Get a user-friendly error message for database issues
- */
-export function getDatabaseErrorMessage(errorType: DatabaseHealthStatus['errorType']): string {
-  switch (errorType) {
-    case 'CONNECTION':
-      return 'Unable to connect to the database. Please check your internet connection and try again.';
-    case 'TIMEOUT':
-      return 'Database is responding slowly. Please wait a moment and try again.';
-    case 'AUTH':
-      return 'Database authentication issue. Please contact system administrator.';
-    default:
-      return 'Database is temporarily unavailable. Please try again in a few moments.';
-  }
-}
+// Re-export client-safe utilities for backward compatibility
+// These are now maintained in the client-safe module to prevent server/client boundary issues
+export {
+  isDatabaseErrorClient,
+  classifyDatabaseError,
+  getDatabaseErrorMessage,
+  type DatabaseHealthStatus
+} from './database-health-client';

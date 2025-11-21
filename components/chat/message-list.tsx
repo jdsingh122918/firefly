@@ -114,7 +114,7 @@ export function MessageList({
 
   return (
     <ScrollArea className="h-full chat-message-container">
-      <div className="p-4 space-y-4">
+      <div className="p-4 space-y-2">
         {messages.map((message, index) => {
           const previousMessage = index > 0 ? messages[index - 1] : undefined;
           const showSenderInfo = shouldShowSenderInfo(message, previousMessage);
@@ -165,7 +165,7 @@ export function MessageList({
                 )}
 
                 {/* Message Bubble */}
-                <div className={`group relative mb-8 message-bubble-container ${isOwnMessage ? 'flex justify-end' : ''}`}>
+                <div className={`group relative mb-12 message-bubble-container ${isOwnMessage ? 'flex justify-end' : ''}`}>
                   <div
                     className={`inline-block max-w-[70%] rounded-lg px-3 py-2 shadow-lg bg-muted text-foreground border-2 border-border`}
                   >
@@ -203,17 +203,25 @@ export function MessageList({
                     )}
                   </div>
 
-                  {/* Reaction Controls - Positioned below bubble */}
-                  <div className={`absolute -bottom-6 ${isOwnMessage ? 'right-0' : 'left-0'} opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20 md:opacity-60 md:hover:opacity-100`}>
+                  {/* Reaction Controls - Positioned near the message bubble */}
+                  <div className={`absolute -bottom-8 ${isOwnMessage ? 'right-0' : 'left-0'} opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20 md:opacity-60 md:hover:opacity-100`}>
                     <EmojiPicker
-                      onEmojiSelect={(emoji) => onAddReaction?.(message.id, emoji)}
+                      onEmojiSelect={(emoji) => {
+                        console.log('🔗 MessageList callback triggered:', {
+                          emoji,
+                          messageId: message.id,
+                          hasCallback: typeof onAddReaction === 'function',
+                          timestamp: new Date().toISOString()
+                        });
+                        onAddReaction?.(message.id, emoji);
+                      }}
                       size="sm"
-                      align={isOwnMessage ? "end" : "start"}
+                      align={isOwnMessage ? "start" : "end"}
                     />
                   </div>
-                  {/* Message Reactions - Positioned just outside bottom edge */}
+                  {/* Message Reactions - Positioned outside bubble */}
                   {message.metadata && (
-                    <div className="absolute -bottom-6 left-0 z-30">
+                    <div className={`absolute -bottom-8 ${isOwnMessage ? 'right-0' : 'left-0'} z-30`}>
                       <MessageReactions
                         messageId={message.id}
                         reactions={(message.metadata as MessageMetadata).reactions}

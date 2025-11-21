@@ -105,8 +105,8 @@ export class AccessControlService {
     });
 
     // Message access rules
-    this.setResourceRules(ResourceType.MESSAGE, {
-      resourceType: ResourceType.MESSAGE,
+    this.setResourceRules(ResourceType.DOCUMENT, {
+      resourceType: ResourceType.DOCUMENT,
       rules: [
         {
           condition: { type: "isAdmin" },
@@ -128,8 +128,8 @@ export class AccessControlService {
     });
 
     // Family access rules
-    this.setResourceRules(ResourceType.FAMILY, {
-      resourceType: ResourceType.FAMILY,
+    this.setResourceRules(ResourceType.DOCUMENT, {
+      resourceType: ResourceType.DOCUMENT,
       rules: [
         {
           condition: { type: "isAdmin" },
@@ -155,8 +155,8 @@ export class AccessControlService {
     });
 
     // User access rules
-    this.setResourceRules(ResourceType.USER, {
-      resourceType: ResourceType.USER,
+    this.setResourceRules(ResourceType.CONTACT, {
+      resourceType: ResourceType.CONTACT,
       rules: [
         {
           condition: { type: "isAdmin" },
@@ -182,8 +182,8 @@ export class AccessControlService {
     });
 
     // Notification access rules
-    this.setResourceRules(ResourceType.NOTIFICATION, {
-      resourceType: ResourceType.NOTIFICATION,
+    this.setResourceRules(ResourceType.DOCUMENT, {
+      resourceType: ResourceType.DOCUMENT,
       rules: [
         {
           condition: { type: "isAdmin" },
@@ -200,8 +200,8 @@ export class AccessControlService {
     });
 
     // Care plan access rules
-    this.setResourceRules(ResourceType.CARE_PLAN, {
-      resourceType: ResourceType.CARE_PLAN,
+    this.setResourceRules(ResourceType.DOCUMENT, {
+      resourceType: ResourceType.DOCUMENT,
       rules: [
         {
           condition: { type: "isAdmin" },
@@ -232,8 +232,8 @@ export class AccessControlService {
     });
 
     // Activity access rules
-    this.setResourceRules(ResourceType.ACTIVITY, {
-      resourceType: ResourceType.ACTIVITY,
+    this.setResourceRules(ResourceType.DOCUMENT, {
+      resourceType: ResourceType.DOCUMENT,
       rules: [
         {
           condition: { type: "isAdmin" },

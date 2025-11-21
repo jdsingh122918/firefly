@@ -33,7 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ContentType, NoteType, ResourceContentType, ResourceStatus, AssignmentStatus, NoteVisibility } from '@prisma/client';
+import { ResourceType, ResourceStatus, AssignmentStatus, ResourceVisibility } from '@prisma/client';
 import { formatDistanceToNow } from 'date-fns';
 import { formatFileSize } from '@/components/shared/format-utils';
 
@@ -51,10 +51,8 @@ export interface ContentCardProps {
     id: string;
     title: string;
     description?: string;
-    contentType: ContentType;
-    noteType?: NoteType;
-    resourceType?: ResourceContentType;
-    visibility: NoteVisibility;
+    resourceType: ResourceType;
+    visibility: ResourceVisibility;
     status?: ResourceStatus;
 
     // Engagement metrics
@@ -169,95 +167,68 @@ const ContentCard: React.FC<ContentCardProps> = ({
   canEdit = false,
   canDelete = false
 }) => {
-  const isNote = content.contentType === ContentType.NOTE;
-  const isResource = content.contentType === ContentType.RESOURCE;
-
   const getTypeIcon = () => {
-    if (isNote) {
-      switch (content.noteType) {
-        case NoteType.CHECKLIST: return <CheckCircle className="h-4 w-4" />;
-        case NoteType.MEETING: return <Calendar className="h-4 w-4" />;
-        case NoteType.CARE_PLAN: return <FileText className="h-4 w-4" />;
-        case NoteType.JOURNAL: return <FileText className="h-4 w-4" />;
-        default: return <FileText className="h-4 w-4" />;
-      }
+    switch (content.resourceType) {
+      case ResourceType.VIDEO: return <Video className="h-4 w-4" />;
+      case ResourceType.LINK: return <Link className="h-4 w-4" />;
+      case ResourceType.IMAGE: return <Image className="h-4 w-4" />;
+      case ResourceType.DOCUMENT: return <FileDown className="h-4 w-4" />;
+      case ResourceType.AUDIO: return <FileText className="h-4 w-4" />;
+      case ResourceType.TOOL: return <FileText className="h-4 w-4" />;
+      case ResourceType.CONTACT: return <FileText className="h-4 w-4" />;
+      case ResourceType.SERVICE: return <FileText className="h-4 w-4" />;
+      default: return <FileText className="h-4 w-4" />;
     }
-
-    if (isResource) {
-      switch (content.resourceType) {
-        case ResourceContentType.VIDEO: return <Video className="h-4 w-4" />;
-        case ResourceContentType.LINK: return <Link className="h-4 w-4" />;
-        case ResourceContentType.IMAGE: return <Image className="h-4 w-4" />;
-        case ResourceContentType.DOCUMENT: return <FileDown className="h-4 w-4" />;
-        default: return <FileText className="h-4 w-4" />;
-      }
-    }
-
-    return <FileText className="h-4 w-4" />;
   };
 
   const getStatusBadge = () => {
-    if (isNote) {
-      return (
-        <div className="flex flex-wrap gap-1.5 overflow-hidden">
-          {content.isPinned && (
-            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
-              <Pin className="h-3 w-3" />
-              Pinned
-            </Badge>
-          )}
-          {content.isArchived && (
-            <Badge variant="outline" className="flex items-center gap-1 text-xs">
-              <Archive className="h-3 w-3" />
-              Archived
-            </Badge>
-          )}
-          {content.hasAssignments && (
-            <Badge variant="default" className="flex items-center gap-1 text-xs">
-              <Clock className="h-3 w-3" />
-              Tasks
-            </Badge>
-          )}
-        </div>
-      );
-    }
+    const statusConfig = {
+      [ResourceStatus.DRAFT]: { color: 'bg-[var(--ppcc-gray)]', label: 'Draft' },
+      [ResourceStatus.PENDING]: { color: 'bg-[var(--ppcc-orange)]', label: 'Pending' },
+      [ResourceStatus.APPROVED]: { color: 'bg-[var(--ppcc-teal)]', label: 'Approved' },
+      [ResourceStatus.FEATURED]: { color: 'bg-[var(--ppcc-blue)]', label: 'Featured' },
+      [ResourceStatus.ARCHIVED]: { color: 'bg-[var(--ppcc-gray)]', label: 'Archived' },
+      [ResourceStatus.REJECTED]: { color: 'bg-[var(--ppcc-pink)]', label: 'Rejected' }
+    };
 
-    if (isResource && content.status) {
-      const statusConfig = {
-        [ResourceStatus.DRAFT]: { color: 'bg-[var(--ppcc-gray)]', label: 'Draft' },
-        [ResourceStatus.PENDING]: { color: 'bg-[var(--ppcc-orange)]', label: 'Pending' },
-        [ResourceStatus.APPROVED]: { color: 'bg-[var(--ppcc-teal)]', label: 'Approved' },
-        [ResourceStatus.FEATURED]: { color: 'bg-[var(--ppcc-blue)]', label: 'Featured' },
-        [ResourceStatus.ARCHIVED]: { color: 'bg-[var(--ppcc-gray)]', label: 'Archived' },
-        [ResourceStatus.REJECTED]: { color: 'bg-[var(--ppcc-pink)]', label: 'Rejected' }
-      };
-
-      const config = statusConfig[content.status];
-
-      return (
-        <div className="flex flex-wrap gap-1.5 overflow-hidden">
-          <Badge className={`${config.color} text-white text-xs`}>
-            {config.label}
+    return (
+      <div className="flex flex-wrap gap-1.5 overflow-hidden">
+        {/* General badges */}
+        {content.isPinned && (
+          <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+            <Pin className="h-3 w-3" />
+            Pinned
           </Badge>
-          {content.isVerified && (
-            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
-              <CheckCircle className="h-3 w-3" />
-              Verified
-            </Badge>
-          )}
-        </div>
-      );
-    }
+        )}
+        {content.isArchived && (
+          <Badge variant="outline" className="flex items-center gap-1 text-xs">
+            <Archive className="h-3 w-3" />
+            Archived
+          </Badge>
+        )}
+        {content.hasAssignments && (
+          <Badge variant="default" className="flex items-center gap-1 text-xs">
+            <Clock className="h-3 w-3" />
+            Tasks
+          </Badge>
+        )}
 
-    return null;
+        {/* Status badge */}
+        {content.status && (
+          <Badge className={`${statusConfig[content.status]?.color} text-white text-xs`}>
+            {statusConfig[content.status]?.label}
+          </Badge>
+        )}
+      </div>
+    );
   };
 
   const getVisibilityBadge = () => {
     const visibilityConfig = {
-      [NoteVisibility.PRIVATE]: { color: 'bg-red-100 text-red-800', label: 'Private' },
-      [NoteVisibility.FAMILY]: { color: 'bg-blue-100 text-blue-800', label: 'Family' },
-      [NoteVisibility.SHARED]: { color: 'bg-green-100 text-green-800', label: 'Shared' },
-      [NoteVisibility.PUBLIC]: { color: 'bg-gray-100 text-gray-800', label: 'Public' }
+      [ResourceVisibility.PRIVATE]: { color: 'bg-red-100 text-red-800', label: 'Private' },
+      [ResourceVisibility.FAMILY]: { color: 'bg-blue-100 text-blue-800', label: 'Family' },
+      [ResourceVisibility.SHARED]: { color: 'bg-green-100 text-green-800', label: 'Shared' },
+      [ResourceVisibility.PUBLIC]: { color: 'bg-gray-100 text-gray-800', label: 'Public' }
     };
 
     const config = visibilityConfig[content.visibility];
@@ -269,7 +240,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
   };
 
   const renderAssignmentInfo = () => {
-    if (!isNote || !showAssignments || !content.assignments?.length) return null;
+    if (!showAssignments || !content.assignments?.length) return null;
 
     const pendingAssignments = content.assignments.filter(a =>
       a.status === AssignmentStatus.ASSIGNED || a.status === AssignmentStatus.IN_PROGRESS
@@ -286,7 +257,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
   };
 
   const renderRatingInfo = () => {
-    if (!isResource || !showRatings || !content.hasRatings) return null;
+    if (!showRatings || !content.hasRatings) return null;
 
     return (
       <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -369,8 +340,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
     }
 
     // Priority 2: Content status (Resources)
-    if (isResource) {
-      if (content.status === ResourceStatus.FEATURED) {
+    if (content.status === ResourceStatus.FEATURED) {
         return {
           border: 'border-l-[var(--ppcc-blue)]',
           background: 'bg-blue-50 dark:bg-blue-950/20',
@@ -391,31 +361,16 @@ const ContentCard: React.FC<ContentCardProps> = ({
           hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
         };
       }
-      // Draft/other resource statuses
-      return {
-        border: 'border-l-[var(--ppcc-purple)]',
-        background: 'bg-purple-50 dark:bg-purple-950/20',
-        hover: 'hover:bg-purple-100 dark:hover:bg-purple-950/30'
-      };
-    }
+    // Draft/other resource statuses
+    return {
+      border: 'border-l-[var(--ppcc-purple)]',
+      background: 'bg-purple-50 dark:bg-purple-950/20',
+      hover: 'hover:bg-purple-100 dark:hover:bg-purple-950/30'
+    };
+  };
 
-    // Priority 3: Note types and states
-    if (isNote) {
-      if (content.isPinned) {
-        return {
-          border: 'border-l-[var(--ppcc-orange)]',
-          background: 'bg-orange-50 dark:bg-orange-950/20',
-          hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
-        };
-      }
-      return {
-        border: 'border-l-[var(--ppcc-teal)]',
-        background: 'bg-teal-50 dark:bg-teal-950/20',
-        hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
-      };
-    }
-
-    // Default fallback
+  // Default fallback styling function
+  const getDefaultStyling = () => {
     return {
       border: 'border-l-[var(--ppcc-blue)]',
       background: 'bg-blue-50 dark:bg-blue-950/20',
@@ -453,44 +408,44 @@ const ContentCard: React.FC<ContentCardProps> = ({
             </DropdownMenuItem>
           )}
 
-          {/* NOTE-specific actions */}
-          {isNote && onAssign && userRole !== 'MEMBER' && (
+          {/* Assignment actions */}
+          {onAssign && userRole !== 'MEMBER' && (
             <DropdownMenuItem onClick={() => onAssign(content.id)}>
               <User className="mr-2 h-4 w-4" />
               Assign Task
             </DropdownMenuItem>
           )}
 
-          {isNote && onPin && (
+          {onPin && (
             <DropdownMenuItem onClick={() => onPin(content.id)}>
               <Pin className="mr-2 h-4 w-4" />
               {content.isPinned ? 'Unpin' : 'Pin'}
             </DropdownMenuItem>
           )}
 
-          {isNote && onArchive && (
+          {onArchive && (
             <DropdownMenuItem onClick={() => onArchive(content.id)}>
               <Archive className="mr-2 h-4 w-4" />
               {content.isArchived ? 'Unarchive' : 'Archive'}
             </DropdownMenuItem>
           )}
 
-          {/* RESOURCE-specific actions */}
-          {isResource && onRate && (
+          {/* Rating actions */}
+          {onRate && (
             <DropdownMenuItem onClick={() => onRate(content.id)}>
               <Star className="mr-2 h-4 w-4" />
               Rate Resource
             </DropdownMenuItem>
           )}
 
-          {isResource && onApprove && userRole === 'ADMIN' && content.status === ResourceStatus.PENDING && (
+          {onApprove && userRole === 'ADMIN' && content.status === ResourceStatus.PENDING && (
             <DropdownMenuItem onClick={() => onApprove(content.id)}>
               <CheckCircle className="mr-2 h-4 w-4" />
               Approve
             </DropdownMenuItem>
           )}
 
-          {isResource && onFeature && userRole === 'ADMIN' && content.status === ResourceStatus.APPROVED && (
+          {onFeature && userRole === 'ADMIN' && content.status === ResourceStatus.APPROVED && (
             <DropdownMenuItem onClick={() => onFeature(content.id)}>
               <Star className="mr-2 h-4 w-4" />
               Feature

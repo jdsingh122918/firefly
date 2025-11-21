@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
 import { createResponse } from "@/lib/utils/api-response";
-import { ContentRepository } from "@/lib/db/repositories/content.repository";
+import { ResourceRepository } from "@/lib/db/repositories/resource.repository";
 import { DocumentRepository } from "@/lib/db/repositories/document.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
-import { ContentType, NoteVisibility } from "@prisma/client";
+import { ResourceType, ResourceVisibility } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 
 export async function POST(request: NextRequest) {
@@ -29,9 +29,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("🔧 Creating test content with attachments...");
+    console.log("🔧 Creating test resources with attachments...");
 
-    const contentRepository = new ContentRepository(prisma);
+    const resourceRepository = new ResourceRepository(prisma);
     const documentRepository = new DocumentRepository();
 
     // Create sample documents first
@@ -72,52 +72,51 @@ export async function POST(request: NextRequest) {
       createdDocuments.push(document);
     }
 
-    // Create sample content items with attachments
-    const sampleContent = [
+    // Create sample resource items with attachments
+    const sampleResources = [
       {
-        title: "Test Content with PDF Attachment",
-        description: "This is a test content item that has a PDF attachment to verify the attachment display functionality.",
-        content: "This content demonstrates how attachments are displayed in the content management system.",
-        type: ContentType.NOTE,
-        visibility: NoteVisibility.PUBLIC,
+        title: "Test Resource with PDF Attachment",
+        description: "This is a test resource item that has a PDF attachment to verify the attachment display functionality.",
+        body: "This resource demonstrates how attachments are displayed in the resource management system.",
+        resourceType: ResourceType.DOCUMENT,
+        visibility: ResourceVisibility.PUBLIC,
         documents: [createdDocuments[0].id] // PDF
       },
       {
-        title: "Test Content with Multiple Attachments",
-        description: "This content has multiple attachments of different types.",
-        content: "This content shows how multiple attachments are rendered in the UI.",
-        type: ContentType.RESOURCE,
-        visibility: NoteVisibility.PUBLIC,
+        title: "Test Resource with Multiple Attachments",
+        description: "This resource has multiple attachments of different types.",
+        body: "This resource shows how multiple attachments are rendered in the UI.",
+        resourceType: ResourceType.DOCUMENT,
+        visibility: ResourceVisibility.PUBLIC,
         documents: [createdDocuments[1].id, createdDocuments[2].id] // Image + Text
       },
       {
-        title: "Test Content with Image Attachment",
-        description: "This content demonstrates image attachment display.",
-        content: "This shows how image attachments are handled in the system.",
-        type: ContentType.NOTE,
-        visibility: NoteVisibility.PRIVATE,
+        title: "Test Resource with Image Attachment",
+        description: "This resource demonstrates image attachment display.",
+        body: "This shows how image attachments are handled in the system.",
+        resourceType: ResourceType.IMAGE,
+        visibility: ResourceVisibility.PRIVATE,
         documents: [createdDocuments[1].id] // Image only
       }
     ];
 
-    const createdContent = [];
-    for (const contentData of sampleContent) {
-      const { documents: documentIds, type, content, ...otherFields } = contentData;
+    const createdResources = [];
+    for (const resourceData of sampleResources) {
+      const { documents: documentIds, ...otherFields } = resourceData;
 
-      const contentItem = await contentRepository.create({
+      const resourceItem = await resourceRepository.create({
         ...otherFields,
-        contentType: type, // Map 'type' to 'contentType'
-        body: content, // Map 'content' to 'body'
         familyId: user.familyId || undefined,
         tags: ['test-data', 'attachment-test'],
-        categoryId: undefined
+        categoryId: undefined,
+        createdBy: user.id
       }, user.id, user.role);
 
-      // Link documents to content
+      // Link documents to resource
       if (documentIds && documentIds.length > 0) {
         for (let i = 0; i < documentIds.length; i++) {
-          await contentRepository.attachDocument(
-            contentItem.id,
+          await resourceRepository.attachDocument(
+            resourceItem.id,
             documentIds[i],
             user.id, // attachedBy
             i, // order
@@ -126,17 +125,17 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      createdContent.push(contentItem);
+      createdResources.push(resourceItem);
     }
 
-    console.log("✅ Test content created successfully:", {
+    console.log("✅ Test resources created successfully:", {
       documentsCreated: createdDocuments.length,
-      contentItemsCreated: createdContent.length
+      resourcesCreated: createdResources.length
     });
 
     return createResponse({
       success: true,
-      message: "Test content with attachments created successfully",
+      message: "Test resources with attachments created successfully",
       data: {
         documents: createdDocuments.map(doc => ({
           id: doc.id,
@@ -145,19 +144,19 @@ export async function POST(request: NextRequest) {
           mimeType: doc.mimeType,
           fileSize: doc.fileSize
         })),
-        content: createdContent.map(content => ({
-          id: content.id,
-          title: content.title,
-          type: content.contentType,
-          visibility: content.visibility
+        resources: createdResources.map(resource => ({
+          id: resource.id,
+          title: resource.title,
+          resourceType: resource.resourceType,
+          visibility: resource.visibility
         }))
       }
     });
 
   } catch (error) {
-    console.error("❌ Failed to create test content:", error);
+    console.error("❌ Failed to create test resources:", error);
     return createResponse(
-      { error: "Failed to create test content" },
+      { error: "Failed to create test resources" },
       { status: 500 }
     );
   }

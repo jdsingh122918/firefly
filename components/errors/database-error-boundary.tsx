@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Component, ErrorInfo, ReactNode } from "react";
-import { isDatabaseError, classifyDatabaseError, getDatabaseErrorMessage } from "@/lib/db/database-health";
+import { isDatabaseErrorClient, classifyDatabaseError, getDatabaseErrorMessage } from "@/lib/db/database-health-client";
 import { DatabaseUnavailable } from "./database-unavailable";
 
 interface DatabaseErrorBoundaryState {
@@ -41,7 +41,7 @@ export class DatabaseErrorBoundary extends Component<
   }
 
   static getDerivedStateFromError(error: Error): Partial<DatabaseErrorBoundaryState> {
-    const isDatabaseErr = isDatabaseError(error);
+    const isDatabaseErr = isDatabaseErrorClient(error);
 
     return {
       hasError: true,

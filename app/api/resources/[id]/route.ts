@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { UserRole, ResourceStatus, ResourceContentType, NoteVisibility } from "@prisma/client";
+import { UserRole, ResourceStatus, ResourceType, ResourceVisibility } from "@prisma/client";
 import { ResourceRepository } from "@/lib/db/repositories/resource.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
 import { NotificationRepository } from "@/lib/db/repositories/notification.repository";
 import { NotificationType } from "@/lib/types";
+import { prisma } from "@/lib/db/prisma";
 
-const resourceRepository = new ResourceRepository();
+const resourceRepository = new ResourceRepository(prisma);
 const userRepository = new UserRepository();
 const notificationRepository = new NotificationRepository();
 
@@ -18,23 +19,15 @@ const updateResourceSchema = z.object({
     .min(1, "Resource title is required")
     .max(200, "Resource title must be less than 200 characters")
     .optional(),
-  description: z
-    .string()
-    .min(1, "Resource description is required")
-    .max(2000, "Resource description must be less than 2,000 characters")
-    .optional(),
-  content: z
-    .string()
-    .min(1, "Resource content is required")
-    .max(50000, "Resource content must be less than 50,000 characters")
-    .optional(),
-  type: z.enum(["DOCUMENT", "LINK", "VIDEO", "AUDIO", "IMAGE", "TOOL", "CONTACT", "SERVICE"]).optional(),
+  description: z.string().max(2000, "Resource description must be less than 2,000 characters").nullable().optional(),
+  body: z.string().max(50000, "Resource content must be less than 50,000 characters").nullable().optional(),
+  resourceType: z.enum(["DOCUMENT", "LINK", "VIDEO", "AUDIO", "IMAGE", "TOOL", "CONTACT", "SERVICE"]).optional(),
   visibility: z.enum(["PRIVATE", "FAMILY", "SHARED", "PUBLIC"]).optional(),
   status: z.enum(["DRAFT", "PENDING", "APPROVED", "FEATURED", "REJECTED", "ARCHIVED"]).optional(),
-  familyId: z.string().optional(),
-  categoryId: z.string().optional(),
+  familyId: z.string().nullable().optional(),
+  categoryId: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
-  externalUrl: z.string().url().optional(),
+  url: z.string().url().nullable().optional(),
   sourceAttribution: z.string().max(200).optional(),
   expertiseLevel: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"]).optional(),
   estimatedDuration: z.number().min(1).max(10080).optional(),
@@ -45,6 +38,15 @@ const updateResourceSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
   isFeatured: z.boolean().optional(),
   rejectionReason: z.string().max(1000).optional(),
+  targetAudience: z.array(z.string()).optional(),
+  hasAssignments: z.boolean().optional(),
+  hasCuration: z.boolean().optional(),
+  hasRatings: z.boolean().optional(),
+  hasSharing: z.boolean().optional(),
+  // Legacy fields from frontend (not in Resource model - will be ignored)
+  isPinned: z.boolean().optional(),
+  allowComments: z.boolean().optional(),
+  allowEditing: z.boolean().optional(),
 });
 
 // GET /api/resources/[id] - Get resource by ID with access control
@@ -78,12 +80,12 @@ export async function GET(
       resourceId: id,
     });
 
-    // Get resource with access control
-    const resource = await resourceRepository.getResourceById(id, user.id, {
-      includeDeleted: false,
-      includeRatings,
-      includeDocuments,
-      // TODO: Implement includeBookmarks and trackView options
+    // Get resource with access control and relations
+    const resource = await resourceRepository.findById(id, user.id, user.role, {
+      includeSubmitter: true,
+      includeApprover: true,
+      includeFamily: true,
+      includeCategory: true,
     });
 
     if (!resource) {
@@ -96,7 +98,7 @@ export async function GET(
     console.log("✅ Resource retrieved:", {
       resourceId: resource.id,
       title: resource.title,
-      type: resource.contentType,
+      type: resource.resourceType,
       visibility: resource.visibility,
       status: resource.status,
       viewCount: resource.viewCount,
@@ -107,24 +109,16 @@ export async function GET(
       id: resource.id,
       title: resource.title,
       description: resource.description,
-      content: resource.content,
-      type: resource.contentType,
+      body: resource.body,
+      resourceType: resource.resourceType,
       visibility: resource.visibility,
       status: resource.status,
       familyId: resource.familyId,
-      family: resource.family ? {
-        id: resource.family.id,
-        name: resource.family.name,
-      } : null,
+      family: null, // TODO: Include family relation in repository query
       categoryId: resource.categoryId,
-      category: resource.category ? {
-        id: resource.category.id,
-        name: resource.category.name,
-        color: resource.category.color,
-        icon: resource.category.icon,
-      } : null,
+      category: null, // TODO: Include category relation in repository query
       tags: resource.tags,
-      externalUrl: resource.url,
+      url: resource.url,
       sourceAttribution: null, // TODO: Implement sourceAttribution field
       expertiseLevel: null, // TODO: Implement expertiseLevel field
       estimatedDuration: null, // TODO: Implement estimatedDuration field
@@ -146,25 +140,25 @@ export async function GET(
       createdAt: resource.createdAt,
       updatedAt: resource.updatedAt,
       publishedAt: resource.approvedAt, // Use approvedAt as publishedAt
-      creator: resource.submitter ? {
-        id: resource.submitter.id,
-        name: resource.submitter.firstName
-          ? `${resource.submitter.firstName} ${resource.submitter.lastName || ""}`.trim()
-          : resource.submitter.email,
-        email: resource.submitter.email,
-        role: resource.submitter.role,
+      creator: (resource as any).submitter ? {
+        id: (resource as any).submitter.id,
+        name: (resource as any).submitter.firstName
+          ? `${(resource as any).submitter.firstName} ${(resource as any).submitter.lastName || ""}`.trim()
+          : (resource as any).submitter.email,
+        email: (resource as any).submitter.email,
+        role: (resource as any).submitter.role,
       } : null,
-      approvedBy: resource.approver ? {
-        id: resource.approver.id,
-        name: resource.approver.firstName
-          ? `${resource.approver.firstName} ${resource.approver.lastName || ""}`.trim()
-          : resource.approver.email,
-        email: resource.approver.email,
-        role: resource.approver.role,
+      approvedBy: (resource as any).approver ? {
+        id: (resource as any).approver.id,
+        name: (resource as any).approver.firstName
+          ? `${(resource as any).approver.firstName} ${(resource as any).approver.lastName || ""}`.trim()
+          : (resource as any).approver.email,
+        email: (resource as any).approver.email,
+        role: (resource as any).approver.role,
       } : null,
       userRating: null, // TODO: Implement user rating lookup
       userBookmark: false, // TODO: Implement user bookmark lookup
-      documents: includeDocuments && resource.documents ? resource.documents.map(doc => ({
+      documents: includeDocuments && (resource as any).documents ? (resource as any).documents.map((doc: any) => ({
         id: doc.id,
         title: doc.title,
         fileName: doc.fileName,
@@ -182,7 +176,8 @@ export async function GET(
     };
 
     return NextResponse.json({
-      resource: formattedResource,
+      success: true,
+      data: formattedResource,
     });
   } catch (error) {
     console.error("❌ Error fetching resource:", error);
@@ -223,16 +218,17 @@ export async function PUT(
 
     // Parse and validate request body
     const body = await request.json();
+
     const validatedData = updateResourceSchema.parse(body);
 
     console.log("📚 Updating resource:", {
       resourceId: id,
-      data: validatedData,
+      fields: Object.keys(validatedData),
       updatedBy: user.email,
     });
 
     // Check permissions and handle status transitions
-    const currentResource = await resourceRepository.getResourceById(id, user.id);
+    const currentResource = await resourceRepository.findById(id, user.id, user.role);
     if (!currentResource) {
       return NextResponse.json(
         { error: "Resource not found or access denied" },
@@ -257,19 +253,27 @@ export async function PUT(
 
     // Handle curation actions (approve/reject)
     let approvedBy = undefined;
-    let publishedAt = undefined;
+    let approvedAt = undefined;
 
     if (validatedData.status === ResourceStatus.APPROVED && currentResource.status === ResourceStatus.PENDING) {
       approvedBy = user.id;
-      publishedAt = new Date();
+      approvedAt = new Date();
     }
 
+    // Extract only valid Resource model fields (exclude frontend-only fields)
+    const { isPinned, allowComments, allowEditing, ...resourceData } = validatedData;
+
+    // Convert null values to undefined for repository compatibility
+    const cleanedResourceData = Object.fromEntries(
+      Object.entries(resourceData).map(([key, value]) => [key, value === null ? undefined : value])
+    );
+
     // Update resource with access control
-    const updatedResource = await resourceRepository.updateResource(id, {
-      ...validatedData,
+    const updatedResource = await resourceRepository.update(id, {
+      ...cleanedResourceData,
       ...(approvedBy && { approvedBy }),
-      ...(publishedAt && { publishedAt }),
-    }, user.id);
+      ...(approvedAt && { approvedAt }),
+    }, user.id, user.role);
 
     console.log("✅ Resource updated successfully:", {
       resourceId: updatedResource.id,
@@ -278,7 +282,7 @@ export async function PUT(
     });
 
     // Create notifications for status changes
-    if (validatedData.status && validatedData.status !== currentResource.status) {
+    if (validatedData.status && currentResource.status && validatedData.status !== currentResource.status) {
       createResourceStatusNotifications(
         id,
         currentResource.status,
@@ -294,23 +298,16 @@ export async function PUT(
         id: updatedResource.id,
         title: updatedResource.title,
         description: updatedResource.description,
-        content: updatedResource.content,
-        type: updatedResource.contentType,
+        body: updatedResource.body,
+        resourceType: updatedResource.resourceType,
         visibility: updatedResource.visibility,
         status: updatedResource.status,
         familyId: updatedResource.familyId,
-        family: updatedResource.family ? {
-          id: updatedResource.family.id,
-          name: updatedResource.family.name,
-        } : null,
+        family: null, // TODO: Load family relation if needed
         categoryId: updatedResource.categoryId,
-        category: updatedResource.category ? {
-          id: updatedResource.category.id,
-          name: updatedResource.category.name,
-          color: updatedResource.category.color,
-        } : null,
+        category: null, // TODO: Load category relation if needed
         tags: updatedResource.tags,
-        externalUrl: updatedResource.url,
+        url: updatedResource.url,
         sourceAttribution: null, // TODO: Implement sourceAttribution field
         expertiseLevel: null, // TODO: Implement expertiseLevel field
         estimatedDuration: null, // TODO: Implement estimatedDuration field
@@ -347,6 +344,14 @@ export async function PUT(
     console.error("❌ Error updating resource:", error);
 
     if (error instanceof z.ZodError) {
+      console.error("❌ Resource validation error:", {
+        resourceId: id,
+        errors: error.issues.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      });
+
       return NextResponse.json(
         {
           error: "Validation failed",
@@ -413,7 +418,7 @@ export async function DELETE(
     });
 
     // Delete resource with access control (only creator or admin can delete)
-    await resourceRepository.deleteResource(id, user.id);
+    await resourceRepository.delete(id, user.id, user.role);
 
     console.log("✅ Resource deleted successfully:", {
       resourceId: id,
@@ -487,7 +492,7 @@ async function createResourceStatusNotifications(
 ): Promise<void> {
   try {
     // Get resource and status changer details
-    const resource = await resourceRepository.getResourceById(resourceId, changedByUserId);
+    const resource = await resourceRepository.findById(resourceId, changedByUserId, UserRole.ADMIN);
     const statusChanger = await userRepository.getUserById(changedByUserId);
 
     if (!resource || !statusChanger) return;
@@ -514,7 +519,7 @@ async function createResourceStatusNotifications(
       data: {
         resourceId,
         resourceTitle: resource.title,
-        resourceType: resource.contentType,
+        resourceType: resource.resourceType,
         oldStatus,
         newStatus,
         changedByUserId,

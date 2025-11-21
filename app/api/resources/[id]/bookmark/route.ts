@@ -4,8 +4,9 @@ import { z } from "zod";
 import { UserRole, ResourceStatus } from "@prisma/client";
 import { ResourceRepository } from "@/lib/db/repositories/resource.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
+import { prisma } from "@/lib/db/prisma";
 
-const resourceRepository = new ResourceRepository();
+const resourceRepository = new ResourceRepository(prisma);
 const userRepository = new UserRepository();
 
 // Validation schema for bookmarking a resource
@@ -48,7 +49,7 @@ export async function POST(
     });
 
     // Check if resource exists and is accessible
-    const resource = await resourceRepository.getResourceById(id, user.id);
+    const resource = await resourceRepository.findById(id, user.id, user.role);
     if (!resource) {
       return NextResponse.json({ error: "Resource not found or access denied" }, { status: 404 });
     }
@@ -148,7 +149,7 @@ export async function GET(
 
     // TODO: Implement bookmark functionality - includeBookmarks option not implemented
     // Get resource with bookmark details (placeholder implementation)
-    const resource = await resourceRepository.getResourceById(id, user.id);
+    const resource = await resourceRepository.findById(id, user.id, user.role);
 
     if (!resource) {
       return NextResponse.json({ error: "Resource not found or access denied" }, { status: 404 });

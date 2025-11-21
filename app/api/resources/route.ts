@@ -1,424 +1,366 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { z } from "zod";
-import { ResourceContentType, ResourceStatus, NoteVisibility } from "@prisma/client";
-import { UserRole } from "@/lib/auth/roles";
-import { ResourceRepository } from "@/lib/db/repositories/resource.repository";
-import { UserRepository } from "@/lib/db/repositories/user.repository";
-import { NotificationRepository } from "@/lib/db/repositories/notification.repository";
-import { NotificationType } from "@/lib/types";
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
+import { ResourceType, ResourceStatus, ResourceVisibility, UserRole } from '@prisma/client';
+import { prisma } from '@/lib/db/prisma';
+import { ResourceRepository, ResourceFilters, CreateResourceInput } from '@/lib/db/repositories/resource.repository';
 
-const resourceRepository = new ResourceRepository();
-const userRepository = new UserRepository();
-const notificationRepository = new NotificationRepository();
+/**
+ * Unified Resources API Endpoint
+ *
+ * This endpoint handles all resource types through the unified Resource model,
+ * providing a comprehensive API interface for all resource operations with
+ * optional features enabled via feature flags.
+ *
+ * Supported operations:
+ * - GET: Filter and paginate resources
+ * - POST: Create new resources
+ * - Supports assignments, curation, ratings, and sharing
+ */
 
-// Validation schema for creating a resource
-const createResourceSchema = z.object({
-  title: z
-    .string()
-    .min(1, "Resource title is required")
-    .max(200, "Resource title must be less than 200 characters"),
-  description: z
-    .string()
-    .min(1, "Resource description is required")
-    .max(2000, "Resource description must be less than 2,000 characters"),
-  content: z
-    .string()
-    .min(1, "Resource content is required")
-    .max(50000, "Resource content must be less than 50,000 characters"),
-  type: z.enum(["DOCUMENT", "LINK", "VIDEO", "AUDIO", "IMAGE", "TOOL", "CONTACT", "SERVICE"]).default("DOCUMENT"),
-  visibility: z.enum(["PRIVATE", "FAMILY", "SHARED", "PUBLIC"]).default("PRIVATE"),
-  familyId: z.string().optional(),
-  categoryId: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  externalUrl: z.string().url().optional(),
-  sourceAttribution: z.string().max(200).optional(),
-  expertiseLevel: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"]).default("BEGINNER"),
-  estimatedDuration: z.number().min(1).max(10080).optional(), // Duration in minutes, max 1 week
-  prerequisites: z.array(z.string()).optional(),
-  learningObjectives: z.array(z.string()).optional(),
-  relatedResources: z.array(z.string()).optional(),
-  attachments: z.array(z.string()).optional(),
-  metadata: z.record(z.string(), z.any()).optional(),
-});
+const resourceRepository = new ResourceRepository(prisma);
 
-// GET /api/resources - List resources with filtering and curation
+// GET /api/resources - Filter and paginate resources
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth();
-
+    const { userId, sessionClaims } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user from database to check role
-    const user = await userRepository.getUserByClerkId(userId);
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    // Get user role and database ID with dual-path pattern
+    const userRole = (sessionClaims?.metadata as { role?: UserRole })?.role;
+    let finalUserRole = userRole;
+    let dbUserId: string | undefined;
+
+    // Get user's database record for ID and role
+    const dbUser = await prisma.user.findUnique({
+      where: { clerkId: userId },
+      select: { id: true, role: true }
+    });
+
+    if (dbUser) {
+      dbUserId = dbUser.id;
+      if (!finalUserRole) finalUserRole = dbUser.role as UserRole;
     }
 
-    console.log("📚 GET /api/resources - User:", {
-      role: user.role,
-      email: user.email,
-    });
+    if (!finalUserRole) {
+      return NextResponse.json({ error: 'User role not found' }, { status: 403 });
+    }
 
-    // Get query parameters for filtering
-    const { searchParams } = new URL(request.url);
-    const createdBy = searchParams.get("createdBy");
-    const familyId = searchParams.get("familyId");
-    const type = searchParams.get("type") as ResourceContentType | null;
-    const visibility = searchParams.get("visibility") as NoteVisibility | null;
-    const status = searchParams.get("status") as ResourceStatus | null;
-    const categoryId = searchParams.get("categoryId");
-    const search = searchParams.get("search");
-    const tags = searchParams.get("tags")?.split(",").filter(Boolean);
-    const expertiseLevel = searchParams.get("expertiseLevel");
-    const minRating = searchParams.get("minRating") ? parseFloat(searchParams.get("minRating")!) : undefined;
-    const maxDuration = searchParams.get("maxDuration") ? parseInt(searchParams.get("maxDuration")!) : undefined;
-    const featured = searchParams.get("featured") === "true";
-    const curatedOnly = searchParams.get("curatedOnly") === "true";
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const rawSortBy = searchParams.get("sortBy") || "createdAt";
-    // Map frontend sortBy values to repository expected values
-    const sortByMap: Record<string, "createdAt" | "title" | "viewCount" | "downloadCount" | "rating"> = {
-      "createdAt": "createdAt",
-      "updatedAt": "createdAt", // Map updatedAt to createdAt
-      "title": "title",
-      "averageRating": "rating",
-      "totalViews": "viewCount",
-    };
-    const sortBy = sortByMap[rawSortBy] || "createdAt";
-    const sortOrder = searchParams.get("sortOrder") as "asc" | "desc" || "desc";
-    const includeRatings = searchParams.get("includeRatings") === "true";
-    const includeDocuments = searchParams.get("includeDocuments") === "true";
+    if (!dbUserId) {
+      return NextResponse.json({ error: 'User not found in database' }, { status: 403 });
+    }
 
-    // Build filters object
-    const filters = {
-      ...(createdBy && { createdBy }),
-      ...(familyId && { familyId }),
-      ...(type && { type }),
-      ...(visibility && { visibility }),
-      ...(status && { status }),
-      ...(categoryId && { categoryId }),
-      ...(search && { search }),
-      ...(tags && { tags }),
-      ...(expertiseLevel && { expertiseLevel }),
-      ...(minRating !== undefined && { minRating }),
-      ...(maxDuration !== undefined && { maxDuration }),
-      ...(featured && { featured }),
-      ...(curatedOnly && { curatedOnly }),
-      isDeleted: false,
+    // Parse query parameters
+    const searchParams = request.nextUrl.searchParams;
+    const filters: ResourceFilters = parseResourceFilters(searchParams);
+
+    // Get content with options
+    const options = {
+      includeCreator: searchParams.get('includeCreator') === 'true',
+      includeFamily: searchParams.get('includeFamily') === 'true',
+      includeCategory: searchParams.get('includeCategory') === 'true',
+      includeDocuments: searchParams.get('includeDocuments') === 'true',
+      includeShares: searchParams.get('includeShares') === 'true',
+      includeAssignments: searchParams.get('includeAssignments') === 'true',
+      includeStructuredTags: searchParams.get('includeStructuredTags') === 'true',
+      includeRatings: searchParams.get('includeRatings') === 'true'
     };
 
-    console.log("🔍 Resource filters applied:", filters);
-
-    // Get resources with access control and pagination
-    const result = await resourceRepository.getResources(filters, {
-      page,
-      limit,
-      sortBy,
-      sortOrder,
-      includeRatings,
-    });
-
-    console.log("✅ Resources retrieved:", {
-      total: result.total,
-      page: result.page,
-      filters
-    });
-
-    // Format response
-    const formattedResources = result.items.map(resource => ({
-      id: resource.id,
-      title: resource.title,
-      description: resource.description,
-      content: resource.content?.substring(0, 1000) || '', // Truncate for list view
-      type: resource.contentType,
-      visibility: resource.visibility,
-      status: resource.status,
-      familyId: resource.familyId,
-      family: resource.family ? {
-        id: resource.family.id,
-        name: resource.family.name,
-      } : null,
-      categoryId: resource.categoryId,
-      category: resource.category ? {
-        id: resource.category.id,
-        name: resource.category.name,
-        color: resource.category.color,
-        icon: resource.category.icon,
-      } : null,
-      tags: resource.tags,
-      externalUrl: resource.url,
-      sourceAttribution: null, // TODO: Implement sourceAttribution field
-      expertiseLevel: null, // TODO: Implement expertiseLevel field
-      estimatedDuration: null, // TODO: Implement estimatedDuration field
-      prerequisites: [], // TODO: Implement prerequisites field
-      learningObjectives: [], // TODO: Implement learningObjectives field
-      relatedResources: [], // TODO: Implement relatedResources field
-      attachments: resource.attachments,
-      isFeatured: resource.status === ResourceStatus.FEATURED,
-      isApproved: resource.status === ResourceStatus.APPROVED || resource.status === ResourceStatus.FEATURED,
-      approvedAt: resource.approvedAt,
-      averageRating: resource.rating || 0,
-      totalRatings: resource.ratingCount || 0,
-      totalViews: resource.viewCount,
-      totalShares: resource.shareCount,
-      totalBookmarks: 0, // TODO: Implement totalBookmarks field
-      createdAt: resource.createdAt,
-      updatedAt: resource.updatedAt,
-      publishedAt: resource.approvedAt, // Use approvedAt as publishedAt
-      creator: resource.submitter ? {
-        id: resource.submitter.id,
-        name: resource.submitter.firstName
-          ? `${resource.submitter.firstName} ${resource.submitter.lastName || ""}`.trim()
-          : resource.submitter.email,
-        email: resource.submitter.email,
-        role: resource.submitter.role,
-      } : null,
-      approvedBy: resource.approver ? {
-        id: resource.approver.id,
-        name: resource.approver.firstName
-          ? `${resource.approver.firstName} ${resource.approver.lastName || ""}`.trim()
-          : resource.approver.email,
-        email: resource.approver.email,
-        role: resource.approver.role,
-      } : null,
-      userRating: null, // TODO: Implement user rating lookup
-      userBookmark: false, // TODO: Implement user bookmark lookup
-      documents: [], // TODO: Implement document inclusion
-    }));
+    const result = await resourceRepository.filter(
+      filters,
+      dbUserId, // Pass database ID instead of Clerk ID
+      finalUserRole,
+      options
+    );
 
     return NextResponse.json({
-      resources: formattedResources,
+      resources: result.resources,
       total: result.total,
       page: result.page,
       limit: result.limit,
-      hasNextPage: result.hasNextPage,
-      hasPrevPage: result.hasPrevPage,
+      totalPages: result.totalPages,
+      hasNextPage: result.page < result.totalPages,
+      hasPrevPage: result.page > 1,
       filters: {
-        createdBy: createdBy || null,
-        familyId: familyId || null,
-        type: type || null,
-        visibility: visibility || null,
-        status: status || null,
-        categoryId: categoryId || null,
-        search: search || null,
-        tags: tags || null,
-        expertiseLevel: expertiseLevel || null,
-        minRating,
-        maxDuration,
-        featured,
-        curatedOnly,
-      },
+        resourceTypes: filters.resourceType,
+        search: filters.search,
+        tags: filters.tags,
+        healthcareCategories: filters.healthcareCategories
+      }
     });
+
   } catch (error) {
-    console.error("❌ Error fetching resources:", error);
+    console.error('Resources API GET error:', error);
     return NextResponse.json(
-      { error: "Failed to fetch resources" },
-      { status: 500 },
+      { error: 'Failed to fetch resources', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
     );
   }
 }
 
-// POST /api/resources - Create a new resource
+// POST /api/resources - Create new resource
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
+    console.log('📝 POST /api/resources - Starting resource creation');
+
+    const { userId, sessionClaims } = await auth();
+    console.log('📝 Auth result:', { userId: userId ? 'present' : 'missing', sessionClaims: sessionClaims ? 'present' : 'missing' });
 
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      console.error('❌ No userId from auth');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user from database to check role
-    const user = await userRepository.getUserByClerkId(userId);
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    // Get user role and database ID with dual-path pattern
+    const userRole = (sessionClaims?.metadata as { role?: UserRole })?.role;
+    let finalUserRole = userRole;
+    let dbUserId: string | undefined;
+
+    console.log('📝 User role from session:', userRole);
+
+    // Get user's database record for ID and role
+    const dbUser = await prisma.user.findUnique({
+      where: { clerkId: userId },
+      select: { id: true, role: true }
+    });
+
+    console.log('📝 Database user:', dbUser);
+
+    if (dbUser) {
+      dbUserId = dbUser.id;
+      if (!finalUserRole) finalUserRole = dbUser.role as UserRole;
     }
 
-    // Parse and validate request body
+    console.log('📝 Final user details:', { finalUserRole, dbUserId });
+
+    if (!finalUserRole) {
+      console.error('❌ User role not found');
+      return NextResponse.json({ error: 'User role not found' }, { status: 403 });
+    }
+
+    if (!dbUserId) {
+      console.error('❌ User not found in database');
+      return NextResponse.json({ error: 'User not found in database' }, { status: 403 });
+    }
+
+    // Parse request body
+    console.log('📝 Parsing request body...');
     const body = await request.json();
-    const validatedData = createResourceSchema.parse(body);
+    console.log('📝 Request body:', body);
 
-    console.log("📚 Creating resource:", {
-      data: validatedData,
-      createdBy: user.email,
-    });
+    console.log('📝 Validating content input...');
+    const contentData = validateCreateContentInput(body);
+    console.log('📝 Validated content data:', contentData);
 
-    // Determine initial status based on visibility and user role
-    let initialStatus: ResourceStatus = ResourceStatus.DRAFT;
-
-    if (validatedData.visibility === "SHARED" || validatedData.visibility === "PUBLIC") {
-      // Resources requiring curation start as pending unless created by admin/curator
-      if (user.role === UserRole.ADMIN) {
-        initialStatus = ResourceStatus.APPROVED;
-      } else {
-        initialStatus = ResourceStatus.PENDING;
-      }
-    } else {
-      // Private and family resources are approved immediately
-      initialStatus = ResourceStatus.APPROVED;
-    }
-
-    // Create resource
-    const resource = await resourceRepository.createResource({
-      title: validatedData.title,
-      description: validatedData.description,
-      content: validatedData.content,
-      contentType: validatedData.type as ResourceContentType,
-      visibility: validatedData.visibility as NoteVisibility,
-      status: initialStatus,
-      submittedBy: user.id,
-      familyId: validatedData.familyId,
-      categoryId: validatedData.categoryId,
-      tags: validatedData.tags || [],
-      url: validatedData.externalUrl,
-      attachments: validatedData.attachments || [],
-    });
-
-    console.log("✅ Resource created successfully:", {
-      resourceId: resource.id,
-      title: resource.title,
-      type: resource.contentType,
-      visibility: resource.visibility,
-      status: resource.status,
-    });
-
-    // Create curation notifications for pending resources
-    if (initialStatus === ResourceStatus.PENDING) {
-      createCurationNotifications(resource.id, user.id);
-    }
-
-    return NextResponse.json(
-      {
-        success: true,
-        resource: {
-          id: resource.id,
-          title: resource.title,
-          description: resource.description,
-          content: resource.content,
-          type: resource.contentType,
-          visibility: resource.visibility,
-          status: resource.status,
-          familyId: resource.familyId,
-          family: resource.family ? {
-            id: resource.family.id,
-            name: resource.family.name,
-          } : null,
-          categoryId: resource.categoryId,
-          category: resource.category ? {
-            id: resource.category.id,
-            name: resource.category.name,
-            color: resource.category.color,
-          } : null,
-          tags: resource.tags,
-          externalUrl: resource.url,
-          sourceAttribution: null, // TODO: Add to database schema
-          expertiseLevel: null, // TODO: Add to database schema
-          estimatedDuration: null, // TODO: Add to database schema
-          prerequisites: [], // TODO: Add to database schema
-          learningObjectives: [], // TODO: Add to database schema
-          attachments: resource.attachments,
-          averageRating: resource.rating || 0,
-          totalRatings: resource.ratingCount,
-          createdAt: resource.createdAt,
-          creator: resource.submitter ? {
-            id: resource.submitter.id,
-            name: resource.submitter.firstName
-              ? `${resource.submitter.firstName} ${resource.submitter.lastName || ""}`.trim()
-              : resource.submitter.email,
-            email: resource.submitter.email,
-          } : null,
-        },
-      },
-      { status: 201 },
+    // Create content
+    console.log('📝 Creating content with repository...');
+    const content = await resourceRepository.create(
+      contentData,
+      dbUserId, // Pass database ID instead of Clerk ID
+      finalUserRole
     );
+
+    console.log('✅ Content created successfully:', { id: content.id, title: content.title });
+
+    return NextResponse.json({
+      success: true,
+      data: content,
+      message: `${contentData.resourceType} created successfully`
+    }, { status: 201 });
+
   } catch (error) {
-    console.error("❌ Error creating resource:", error);
-
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: error.issues.map((err) => ({
-            field: err.path.join("."),
-            message: err.message,
-          })),
-        },
-        { status: 400 },
-      );
-    }
-
-    // Handle specific repository errors
-    if (error instanceof Error) {
-      if (error.message.includes("Category not found")) {
-        return NextResponse.json(
-          { error: "Category not found or not active" },
-          { status: 400 },
-        );
-      }
-      if (error.message.includes("Family not found")) {
-        return NextResponse.json(
-          { error: "Family not found or access denied" },
-          { status: 400 },
-        );
-      }
-    }
-
+    console.error('Content API POST error:', error);
     return NextResponse.json(
-      { error: "Failed to create resource" },
-      { status: 500 },
+      { error: 'Failed to create content', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
     );
   }
 }
 
-// Helper function to create curation notifications for pending resources
-async function createCurationNotifications(
-  resourceId: string,
-  authorId: string
-): Promise<void> {
-  try {
-    // Get resource and author details
-    const resource = await resourceRepository.getResourceById(resourceId, authorId);
-    const author = await userRepository.getUserById(authorId);
+// ========================================
+// HELPER FUNCTIONS
+// ========================================
 
-    if (!resource || !author) return;
+function parseResourceFilters(searchParams: URLSearchParams): ResourceFilters {
+  const filters: ResourceFilters = {};
 
-    // Get admin users who can approve resources
-    const adminUsers = await userRepository.getUsersByRole(UserRole.ADMIN);
-
-    // Create notifications for admin users
-    const notifications = adminUsers.map((admin) => ({
-      userId: admin.id,
-      type: NotificationType.FAMILY_ACTIVITY,
-      title: "New resource pending approval",
-      message: `${author.firstName} ${author.lastName || ""} submitted a resource for curation: "${resource.title}"`,
-      data: {
-        resourceId,
-        resourceTitle: resource.title,
-        resourceType: resource.contentType,
-        authorId,
-        authorName: `${author.firstName} ${author.lastName || ""}`,
-        activityType: "resource_submitted"
-      },
-      actionUrl: `/admin/resources/${resourceId}`,
-      isActionable: true
-    }));
-
-    // Create notifications in parallel
-    await Promise.all(
-      notifications.map((notification) =>
-        notificationRepository.createNotification(notification),
-      ),
-    );
-
-    console.log("✅ Curation notifications sent:", {
-      resourceId,
-      notificationCount: notifications.length
-    });
-  } catch (error) {
-    console.error("❌ Failed to create curation notifications:", error);
-    // Don't throw error as this is not critical for resource creation
+  // Resource type filters
+  const resourceType = searchParams.get('resourceType') || searchParams.get('type');
+  if (resourceType) {
+    const types = resourceType.split(',').map(t => t.trim().toUpperCase());
+    filters.resourceType = types.filter(t =>
+      Object.values(ResourceType).includes(t as ResourceType)
+    ) as ResourceType[];
   }
+
+  const status = searchParams.get('status');
+  if (status) {
+    const statuses = status.split(',').map(s => s.trim().toUpperCase());
+    filters.status = statuses.filter(s =>
+      Object.values(ResourceStatus).includes(s as ResourceStatus)
+    ) as ResourceStatus[];
+  }
+
+  // Ownership and organization
+  const createdBy = searchParams.get('createdBy');
+  if (createdBy) filters.createdBy = createdBy;
+
+  const familyId = searchParams.get('familyId');
+  if (familyId) filters.familyId = familyId;
+
+  const categoryId = searchParams.get('categoryId');
+  if (categoryId) filters.categoryId = categoryId;
+
+  const tags = searchParams.get('tags');
+  if (tags) {
+    filters.tags = tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+  }
+
+  // Healthcare-specific filters
+  const healthcareCategories = searchParams.get('healthcareCategories');
+  if (healthcareCategories) {
+    filters.healthcareCategories = healthcareCategories.split(',').map(t => t.trim()).filter(t => t.length > 0);
+  }
+
+  const healthcareTags = searchParams.get('healthcareTags');
+  if (healthcareTags) {
+    filters.healthcareTags = healthcareTags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+  }
+
+  const visibility = searchParams.get('visibility');
+  if (visibility) {
+    const visibilities = visibility.split(',').map(v => v.trim().toUpperCase());
+    filters.visibility = visibilities.filter(v =>
+      Object.values(ResourceVisibility).includes(v as ResourceVisibility)
+    ) as ResourceVisibility[];
+  }
+
+  // Search and feature flags
+  const search = searchParams.get('search');
+  if (search) filters.search = search;
+
+  const hasAssignments = searchParams.get('hasAssignments');
+  if (hasAssignments) filters.hasAssignments = hasAssignments === 'true';
+
+  const hasCuration = searchParams.get('hasCuration');
+  if (hasCuration) filters.hasCuration = hasCuration === 'true';
+
+  const hasRatings = searchParams.get('hasRatings');
+  if (hasRatings) filters.hasRatings = hasRatings === 'true';
+
+  const featured = searchParams.get('featured');
+  if (featured) filters.featured = featured === 'true';
+
+  const verified = searchParams.get('verified');
+  if (verified) filters.verified = verified === 'true';
+
+  // Template filtering
+  const isTemplate = searchParams.get('isTemplate');
+  if (isTemplate) filters.isTemplate = isTemplate === 'true';
+
+  const templateType = searchParams.get('templateType');
+  if (templateType) filters.templateType = templateType;
+
+  const minRating = searchParams.get('minRating');
+  if (minRating) {
+    const rating = parseFloat(minRating);
+    if (!isNaN(rating) && rating >= 1 && rating <= 5) {
+      filters.minRating = rating;
+    }
+  }
+
+  // Pagination
+  const page = searchParams.get('page');
+  if (page) {
+    const pageNum = parseInt(page, 10);
+    if (!isNaN(pageNum) && pageNum > 0) {
+      filters.page = pageNum;
+    }
+  }
+
+  const limit = searchParams.get('limit');
+  if (limit) {
+    const limitNum = parseInt(limit, 10);
+    if (!isNaN(limitNum) && limitNum > 0 && limitNum <= 100) {
+      filters.limit = limitNum;
+    }
+  }
+
+  // Sorting
+  const sortBy = searchParams.get('sortBy');
+  if (sortBy && ['createdAt', 'updatedAt', 'title', 'viewCount', 'rating'].includes(sortBy)) {
+    filters.sortBy = sortBy as any;
+  }
+
+  const sortOrder = searchParams.get('sortOrder');
+  if (sortOrder && ['asc', 'desc'].includes(sortOrder)) {
+    filters.sortOrder = sortOrder as 'asc' | 'desc';
+  }
+
+  return filters;
+}
+
+function validateCreateContentInput(body: any): CreateResourceInput {
+  const { title, description, content, body: bodyContent, resourceType } = body;
+
+  // Validate required fields
+  if (!title || typeof title !== 'string' || title.trim().length === 0) {
+    throw new Error('Title is required');
+  }
+
+  if (!resourceType || !Object.values(ResourceType).includes(resourceType)) {
+    throw new Error('Valid resource type is required');
+  }
+
+  // ResourceType validation is already done above - no additional validation needed here
+
+  // Validate visibility
+  const visibility = body.visibility;
+  if (visibility && !Object.values(ResourceVisibility).includes(visibility)) {
+    throw new Error('Invalid visibility value');
+  }
+
+  // Validate arrays
+  const tags = body.tags;
+  if (tags && !Array.isArray(tags)) {
+    throw new Error('Tags must be an array');
+  }
+
+  const targetAudience = body.targetAudience;
+  if (targetAudience && !Array.isArray(targetAudience)) {
+    throw new Error('Target audience must be an array');
+  }
+
+  // Validate URL for certain resource types
+  if (['LINK', 'VIDEO'].includes(resourceType) && !body.url) {
+    throw new Error('URL is required for LINK and VIDEO resources');
+  }
+
+  if (body.url && typeof body.url !== 'string') {
+    throw new Error('URL must be a string');
+  }
+
+  return {
+    title: title.trim(),
+    description: description?.trim(),
+    body: bodyContent?.trim() || content?.trim(), // Support both 'body' and 'content' fields
+    resourceType,
+    visibility,
+    familyId: body.familyId || null, // Ensure empty strings become null
+    categoryId: body.categoryId || null, // Ensure empty strings become null
+    tags: tags?.filter((tag: any) => typeof tag === 'string' && tag.trim().length > 0),
+    url: body.url,
+    targetAudience: targetAudience?.filter((audience: any) => typeof audience === 'string'),
+    externalMeta: body.externalMeta,
+    submittedBy: body.submittedBy,
+    hasAssignments: body.hasAssignments,
+    hasCuration: body.hasCuration,
+    hasRatings: body.hasRatings,
+    hasSharing: body.hasSharing,
+    documentIds: body.documentIds,
+    createdBy: body.createdBy, // Required field
+    sharedWith: body.sharedWith,
+    attachments: body.attachments
+  };
 }

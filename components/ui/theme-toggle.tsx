@@ -65,7 +65,7 @@ export function SimpleThemeToggle() {
 
   return (
     <Button
-      variant="ghost"
+      variant="default"
       size="icon"
       onClick={toggleTheme}
       className="h-9 w-9 border-2 border-transparent hover:border-accent/30 backdrop-blur-sm"

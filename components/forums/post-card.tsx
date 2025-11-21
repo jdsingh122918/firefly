@@ -14,10 +14,17 @@ import {
   ArrowRight,
   Paperclip
 } from "lucide-react"
+import {
+  getPostTypeConfig,
+  getPostTypeBadgeClasses,
+  getPostTypeCardClasses,
+  getLegacyPostTypeColors
+} from "@/lib/forum/post-types"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { PostModerationActions } from "./post-moderation-actions"
 
 interface Post {
   id: string
@@ -62,22 +69,29 @@ interface PostCardProps {
   onPostClick?: (post: Post) => void
   showContent?: boolean
   className?: string
+  onUpdate?: () => void
 }
 
-const postTypeColors = {
-  DISCUSSION: "bg-[hsl(var(--status-pending)/0.1)] text-[hsl(var(--status-pending))]",
-  QUESTION: "bg-[hsl(var(--healthcare-mental)/0.1)] text-[hsl(var(--healthcare-mental))]",
-  ANNOUNCEMENT: "bg-[hsl(var(--status-error)/0.1)] text-[hsl(var(--status-error))]",
-  RESOURCE: "bg-[hsl(var(--status-success)/0.1)] text-[hsl(var(--status-success))]",
-  POLL: "bg-[hsl(var(--status-warning)/0.1)] text-[hsl(var(--status-warning))]"
+// Enhanced Post Type Badge Component
+interface PostTypeBadgeProps {
+  type: string
+  size?: "sm" | "md" | "lg"
+  showIcon?: boolean
 }
 
-const postTypeLabels = {
-  DISCUSSION: "Discussion",
-  QUESTION: "Question",
-  ANNOUNCEMENT: "Announcement",
-  RESOURCE: "Resource",
-  POLL: "Poll"
+const PostTypeBadge = ({ type, size = "sm", showIcon = true }: PostTypeBadgeProps) => {
+  const config = getPostTypeConfig(type)
+  const Icon = config.icon
+
+  return (
+    <div className={getPostTypeBadgeClasses(type, size)}>
+      {showIcon && <Icon className={cn(
+        "shrink-0",
+        size === "sm" ? "h-3 w-3" : size === "md" ? "h-4 w-4" : "h-5 w-5"
+      )} />}
+      <span>{config.label}</span>
+    </div>
+  )
 }
 
 const getPostCardColors = (post: Post) => {
@@ -135,40 +149,9 @@ const getPostCardColors = (post: Post) => {
     }
   }
 
-  // Priority 2: Post type mapping to healthcare categories
-  switch (post.type) {
-    case 'QUESTION':
-      return {
-        border: 'border-l-[var(--healthcare-mental)]',
-        background: 'bg-purple-50 dark:bg-purple-950/20',
-        hover: 'hover:bg-purple-100 dark:hover:bg-purple-950/30'
-      };
-    case 'RESOURCE':
-      return {
-        border: 'border-l-[var(--healthcare-education)]',
-        background: 'bg-blue-50 dark:bg-blue-950/20',
-        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
-      };
-    case 'ANNOUNCEMENT':
-      return {
-        border: 'border-l-[var(--healthcare-basic)]',
-        background: 'bg-orange-50 dark:bg-orange-950/20',
-        hover: 'hover:bg-orange-100 dark:hover:bg-orange-950/30'
-      };
-    case 'DISCUSSION':
-      return {
-        border: 'border-l-[var(--healthcare-home)]',
-        background: 'bg-teal-50 dark:bg-teal-950/20',
-        hover: 'hover:bg-teal-100 dark:hover:bg-teal-950/30'
-      };
-    case 'POLL':
-      return {
-        border: 'border-l-[var(--healthcare-equipment)]',
-        background: 'bg-blue-50 dark:bg-blue-950/20',
-        hover: 'hover:bg-blue-100 dark:hover:bg-blue-950/30'
-      };
-    default:
-      break;
+  // Priority 2: Enhanced post type styling
+  if (post.type) {
+    return getLegacyPostTypeColors(post.type);
   }
 
   // Priority 3: Post states (pinned gets special treatment)
@@ -193,11 +176,15 @@ export function PostCard({
   forumSlug,
   onPostClick,
   showContent = false,
-  className
+  className,
+  onUpdate
 }: PostCardProps) {
   const router = useRouter()
-  const { sessionClaims } = useAuth()
+  const { sessionClaims, userId } = useAuth()
   const cardColors = getPostCardColors(post)
+
+  // Check if current user is the author
+  const isAuthor = userId ? post.author.id === userId : false
 
   const handleClick = () => {
     if (onPostClick) {
@@ -243,7 +230,7 @@ export function PostCard({
   return (
     <Card
       className={cn(
-        "border-l-4 transition-colors cursor-pointer",
+        "border-l-4 transition-colors cursor-pointer group",
         cardColors.border,
         cardColors.background,
         cardColors.hover,
@@ -269,12 +256,7 @@ export function PostCard({
                   Locked
                 </Badge>
               )}
-              <Badge
-                variant="outline"
-                className={cn("text-xs", postTypeColors[post.type as keyof typeof postTypeColors] || "bg-gray-100 text-gray-800")}
-              >
-                {postTypeLabels[post.type as keyof typeof postTypeLabels] || post.type}
-              </Badge>
+              <PostTypeBadge type={post.type} />
             </div>
 
             {/* Title */}
@@ -359,8 +341,18 @@ export function PostCard({
             )}
           </div>
 
-          {/* Arrow */}
-          <ArrowRight className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-1 hidden sm:block" />
+          {/* Moderation Actions / Arrow */}
+          <div className="flex-shrink-0 mt-1 flex items-center gap-2">
+            <PostModerationActions
+              postId={post.id}
+              isPinned={post.isPinned}
+              isLocked={post.isLocked}
+              isAuthor={isAuthor}
+              onUpdate={onUpdate}
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+            />
+            <ArrowRight className="h-5 w-5 text-muted-foreground hidden sm:block" />
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -58,9 +58,9 @@ export function EmojiPicker({ onEmojiSelect, disabled = false, size = 'sm', alig
   const [selectedCategory, setSelectedCategory] = useState(0)
 
   const buttonSize = {
-    sm: 'h-10 w-10 sm:h-8 sm:w-8',
-    md: 'h-12 w-12 sm:h-10 sm:w-10',
-    lg: 'h-14 w-14 sm:h-12 sm:w-12'
+    sm: 'h-11 w-11 min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 sm:min-h-[32px] sm:min-w-[32px]',
+    md: 'h-12 w-12 min-h-[44px] min-w-[44px] sm:h-10 sm:w-10',
+    lg: 'h-14 w-14 min-h-[44px] min-w-[44px] sm:h-12 sm:w-12'
   }[size]
 
   const iconSize = {
@@ -87,7 +87,7 @@ export function EmojiPicker({ onEmojiSelect, disabled = false, size = 'sm', alig
         align={align}
         side="top"
         sideOffset={12}
-        collisionPadding={25}
+        collisionPadding={10}
         avoidCollisions={true}
         sticky="always"
       >
@@ -109,13 +109,20 @@ export function EmojiPicker({ onEmojiSelect, disabled = false, size = 'sm', alig
             ))}
           </div>
 
-          {/* Emoji Grid */}
+          {/* Emoji Grid - Optimized for touch */}
           <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto">
             {EMOJI_CATEGORIES[selectedCategory].emojis.map((emoji) => (
               <button
                 key={emoji}
-                onClick={() => onEmojiSelect(emoji)}
-                className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center text-lg hover:bg-accent rounded-md transition-colors active:bg-accent/80"
+                onClick={() => {
+                  console.log('😀 Emoji button clicked:', {
+                    emoji,
+                    timestamp: new Date().toISOString(),
+                    hasCallback: typeof onEmojiSelect === 'function'
+                  });
+                  onEmojiSelect(emoji);
+                }}
+                className="w-12 h-12 min-h-[44px] min-w-[44px] sm:w-8 sm:h-8 sm:min-h-[32px] sm:min-w-[32px] flex items-center justify-center text-lg hover:bg-accent rounded-md transition-colors active:bg-accent/80 touch-manipulation"
                 title={`React with ${emoji}`}
               >
                 {emoji}

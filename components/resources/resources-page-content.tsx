@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { UserRole } from "@prisma/client";
-import { Plus, Search, Filter, BookOpen, Star, TrendingUp, Clock } from "lucide-react";
+import { Plus, Search, Filter, BookOpen, Star } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResourceCard } from "./resource-card";
 import { ResourceFilters } from "./resource-filters";
 
@@ -49,6 +48,7 @@ interface Resource {
   totalViews: number;
   totalShares: number;
   totalBookmarks: number;
+  externalMeta?: any; // For template metadata
   createdAt: string;
   updatedAt: string;
   creator?: {
@@ -84,9 +84,9 @@ export function ResourcesPageContent({ userRole, userId }: ResourcesPageContentP
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
+  const [selectedContentFilter, setSelectedContentFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState("desc");
-  const [activeTab, setActiveTab] = useState("all");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
@@ -96,19 +96,29 @@ export function ResourcesPageContent({ userRole, userId }: ResourcesPageContentP
       setLoading(true);
       setError(null);
 
+      // Handle content filter to API parameters
+      const contentFilterParams: Record<string, string> = {};
+      if (selectedContentFilter === "templates") {
+        contentFilterParams.isTemplate = "true";
+      } else if (selectedContentFilter === "resources") {
+        contentFilterParams.isTemplate = "false";
+      }
+
       const params = new URLSearchParams({
         page: page.toString(),
         limit: "20",
         sortBy,
         sortOrder,
+        includeCreator: 'true',
+        ...contentFilterParams,
         ...(searchQuery && { search: searchQuery }),
         ...(selectedCategory !== "all" && { categoryId: selectedCategory }),
         ...(selectedType !== "all" && { type: selectedType }),
-        ...(activeTab === "featured" && { featured: "true" }),
-        ...(activeTab === "bookmarked" && { /* TODO: Add bookmarked filter */ }),
       });
 
-      const response = await fetch(`/api/resources?${params}`);
+      const response = await fetch(`/api/resources?${params}`, {
+        credentials: 'include'
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch resources");
       }
@@ -122,7 +132,7 @@ export function ResourcesPageContent({ userRole, userId }: ResourcesPageContentP
     } finally {
       setLoading(false);
     }
-  }, [page, searchQuery, selectedCategory, selectedType, sortBy, sortOrder, activeTab]);
+  }, [page, searchQuery, selectedCategory, selectedType, selectedContentFilter, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchResources();
@@ -136,6 +146,7 @@ export function ResourcesPageContent({ userRole, userId }: ResourcesPageContentP
   const handleFilterChange = useCallback((filters: Record<string, any>) => {
     setSelectedCategory(filters.category || "all");
     setSelectedType(filters.type || "all");
+    setSelectedContentFilter(filters.contentFilter || "all");
     setSortBy(filters.sortBy || "createdAt");
     setSortOrder(filters.sortOrder || "desc");
     setPage(1);
@@ -197,6 +208,7 @@ export function ResourcesPageContent({ userRole, userId }: ResourcesPageContentP
             <ResourceFilters
               selectedCategory={selectedCategory}
               selectedType={selectedType}
+              selectedContentFilter={selectedContentFilter}
               sortBy={sortBy}
               sortOrder={sortOrder}
               onChange={handleFilterChange}
@@ -205,138 +217,120 @@ export function ResourcesPageContent({ userRole, userId }: ResourcesPageContentP
         </div>
       </Card>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="all">All Resources</TabsTrigger>
-          <TabsTrigger value="featured">
-            <Star className="h-3 w-3 mr-1" />
-            Featured
-          </TabsTrigger>
-          <TabsTrigger value="trending">
-            <TrendingUp className="h-3 w-3 mr-1" />
-            Trending
-          </TabsTrigger>
-          <TabsTrigger value="recent">
-            <Clock className="h-3 w-3 mr-1" />
-            Recent
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value={activeTab} className="space-y-4 mt-4">
-          {/* Results Summary */}
-          {!loading && (
+      {/* Content */}
+      <div className="space-y-4">
+        {/* Results Summary */}
+        {!loading && (
             <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>
-                {resources.length} resources found
-                {searchQuery && ` for "${searchQuery}"`}
-              </span>
-              <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
-                const [newSortBy, newSortOrder] = value.split('-');
-                setSortBy(newSortBy);
-                setSortOrder(newSortOrder);
-                setPage(1);
-              }}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="createdAt-desc">Newest First</SelectItem>
-                  <SelectItem value="createdAt-asc">Oldest First</SelectItem>
-                  <SelectItem value="title-asc">Title A-Z</SelectItem>
-                  <SelectItem value="title-desc">Title Z-A</SelectItem>
-                  <SelectItem value="averageRating-desc">Highest Rated</SelectItem>
-                  <SelectItem value="totalViews-desc">Most Viewed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+            <span>
+              {resources.length} resources found
+              {searchQuery && ` for "${searchQuery}"`}
+            </span>
+            <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
+              const [newSortBy, newSortOrder] = value.split('-');
+              setSortBy(newSortBy);
+              setSortOrder(newSortOrder);
+              setPage(1);
+            }}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="createdAt-desc">Newest First</SelectItem>
+                <SelectItem value="createdAt-asc">Oldest First</SelectItem>
+                <SelectItem value="title-asc">Title A-Z</SelectItem>
+                <SelectItem value="title-desc">Title Z-A</SelectItem>
+                <SelectItem value="averageRating-desc">Highest Rated</SelectItem>
+                <SelectItem value="totalViews-desc">Most Viewed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
-          {/* Content */}
-          {loading && (
+        {/* Loading State */}
+        {loading && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="p-4">
+                <div className="animate-pulse space-y-3">
+                  <div className="h-4 bg-muted rounded" />
+                  <div className="h-3 bg-muted rounded w-3/4" />
+                  <div className="h-3 bg-muted rounded w-1/2" />
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <Card className="p-4">
+            <div className="text-center text-muted-foreground">
+              <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>{error}</p>
+              <Button variant="outline" onClick={fetchResources} className="mt-2">
+                Try Again
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {!loading && !error && resources.length === 0 && (
+          <Card className="p-4">
+            <div className="text-center text-muted-foreground">
+              <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>No resources found</p>
+              {canCreateResources && (
+                <Link href={`/${userRole.toLowerCase()}/resources/new`}>
+                  <Button variant="outline" className="mt-2">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add First Resource
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {!loading && !error && resources.length > 0 && (
+          <>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="p-4">
-                  <div className="animate-pulse space-y-3">
-                    <div className="h-4 bg-muted rounded" />
-                    <div className="h-3 bg-muted rounded w-3/4" />
-                    <div className="h-3 bg-muted rounded w-1/2" />
-                  </div>
-                </Card>
+              {resources.map((resource) => (
+                <ResourceCard
+                  key={resource.id}
+                  resource={resource}
+                  userRole={userRole}
+                  showActions={userRole === UserRole.ADMIN}
+                />
               ))}
             </div>
-          )}
 
-          {error && (
-            <Card className="p-4">
-              <div className="text-center text-muted-foreground">
-                <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>{error}</p>
-                <Button variant="outline" onClick={fetchResources} className="mt-2">
-                  Try Again
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <span className="flex items-center px-4 text-sm text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                >
+                  Next
                 </Button>
               </div>
-            </Card>
-          )}
-
-          {!loading && !error && resources.length === 0 && (
-            <Card className="p-4">
-              <div className="text-center text-muted-foreground">
-                <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No resources found</p>
-                {canCreateResources && (
-                  <Link href={`/${userRole.toLowerCase()}/resources/new`}>
-                    <Button variant="outline" className="mt-2">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add First Resource
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            </Card>
-          )}
-
-          {!loading && !error && resources.length > 0 && (
-            <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {resources.map((resource) => (
-                  <ResourceCard
-                    key={resource.id}
-                    resource={resource}
-                    userRole={userRole}
-                    showActions={userRole === UserRole.ADMIN}
-                  />
-                ))}
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex justify-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                  >
-                    Previous
-                  </Button>
-                  <span className="flex items-center px-4 text-sm text-muted-foreground">
-                    Page {page} of {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  >
-                    Next
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
-        </TabsContent>
-      </Tabs>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

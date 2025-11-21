@@ -262,7 +262,7 @@ export default function UserDetailPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="default" size="icon" asChild>
             <Link href="/volunteer/users">
               <ArrowLeft className="h-4 w-4" />
             </Link>
@@ -324,7 +324,7 @@ export default function UserDetailPage() {
       {/* Header */}
       <div className="flex flex-col space-y-4 sm:flex-row sm:items-start sm:justify-between sm:space-y-0">
         <div className="flex items-start space-x-3 sm:space-x-4">
-          <Button variant="ghost" size="icon" asChild className="shrink-0">
+          <Button variant="default" size="icon" asChild className="shrink-0">
             <Link href="/volunteer/users">
               <ArrowLeft className="h-4 w-4" />
             </Link>

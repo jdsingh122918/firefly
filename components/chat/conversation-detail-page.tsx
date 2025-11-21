@@ -29,7 +29,7 @@ import { formatDistanceToNow } from "date-fns";
 import { MessageList } from "./message-list";
 import { useChatRealtime } from "@/hooks/use-chat-realtime";
 import { useMessageReactions } from "@/components/chat/message-reactions";
-import { MessageMetadata } from "@/lib/types/api";
+import { MessageMetadata, MessageReaction } from "@/lib/types/api";
 import {
   Dialog,
   DialogContent,
@@ -148,12 +148,147 @@ export function ConversationDetailPage({
     getMessageReactions
   } = useMessageReactions();
 
-  // API functions for reactions
-  const handleAddReaction = useCallback(async (messageId: string, emoji: string) => {
-    if (!userId) return;
+  // API functions for reactions - Define handleRemoveReaction first to avoid circular dependency
+  const handleRemoveReaction = useCallback(async (messageId: string, emoji: string) => {
+    console.log('🗑️ Remove Reaction Debug:', {
+      messageId,
+      emoji,
+      userId,
+      conversationId,
+      timestamp: new Date().toISOString()
+    });
+
+    if (!userId) {
+      console.error('❌ No userId available for removing reaction');
+      setError("You must be signed in to remove reactions");
+      return;
+    }
+
+    if (!messageId || !emoji) {
+      console.error('❌ Missing messageId or emoji for removal:', { messageId, emoji });
+      setError("Invalid reaction removal request");
+      return;
+    }
+
+    const apiUrl = `/api/conversations/${conversationId}/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`;
+    console.log('📡 Making DELETE API request:', {
+      url: apiUrl,
+      method: 'DELETE',
+      encodedEmoji: encodeURIComponent(emoji)
+    });
+
+    // Remove optimistically for better UX
+    console.log('⚡ Removing reaction optimistically');
+    const userName = 'You'; // Simple fallback since this is the current user's action
+    removeReaction(messageId, emoji, userId, userName);
 
     try {
-      const response = await fetch(`/api/conversations/${conversationId}/messages/${messageId}/reactions`, {
+      const response = await fetch(apiUrl, {
+        method: 'DELETE',
+      });
+
+      console.log('📊 DELETE API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          console.error('❌ Failed to parse delete error response:', parseError);
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+        }
+
+        console.error('❌ Delete API Error Response:', errorData);
+
+        // Rollback optimistic removal - add the reaction back
+        console.log('🔄 Rolling back optimistic removal due to API error');
+        addReaction(messageId, emoji, userId, userName);
+
+        setError(`Failed to remove reaction: ${errorData.error || 'Unknown error'}`);
+        return;
+      }
+
+      console.log('✅ Delete API Success - Optimistic removal confirmed');
+      // Reaction already removed optimistically, just clear any errors
+      setError(null);
+
+      console.log('✨ Reaction removed successfully:', { messageId, emoji, userId });
+    } catch (error) {
+      console.error('💥 Delete Network/JavaScript Error:', error);
+
+      // Rollback optimistic removal on network error - add the reaction back
+      console.log('🔄 Rolling back optimistic removal due to network error');
+      addReaction(messageId, emoji, userId, userName);
+
+      // Provide user feedback for network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        setError("Network error: Please check your connection and try again");
+      } else {
+        setError(`Failed to remove reaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+  }, [conversationId, userId, removeReaction, addReaction, setError]);
+
+  // API functions for reactions - Toggle behavior (add if not present, remove if present)
+  const handleAddReaction = useCallback(async (messageId: string, emoji: string) => {
+    console.log('🎭 Emoji Click Debug:', {
+      messageId,
+      emoji,
+      userId,
+      conversationId,
+      timestamp: new Date().toISOString()
+    });
+
+    if (!userId) {
+      console.error('❌ No userId available for reaction');
+      setError("You must be signed in to react to messages");
+      return;
+    }
+
+    if (!messageId || !emoji) {
+      console.error('❌ Missing messageId or emoji:', { messageId, emoji });
+      setError("Invalid reaction request");
+      return;
+    }
+
+    // Check if user already reacted with this emoji
+    const messageReactions = getMessageReactions(messageId);
+    const emojiReactions = messageReactions[emoji] || [];
+    const userAlreadyReacted = emojiReactions.some(reaction => reaction.userId === userId);
+
+    console.log('🔍 Reaction State Check:', {
+      messageReactions,
+      emojiReactions,
+      userAlreadyReacted,
+      currentUserId: userId
+    });
+
+    if (userAlreadyReacted) {
+      console.log('👤 User already reacted, removing reaction instead');
+      // If user already reacted, remove the reaction instead
+      handleRemoveReaction(messageId, emoji);
+      return;
+    }
+
+    const apiUrl = `/api/conversations/${conversationId}/messages/${messageId}/reactions`;
+    console.log('📡 Making API request:', {
+      url: apiUrl,
+      method: 'POST',
+      body: { emoji }
+    });
+
+    // Add optimistic reaction immediately for better UX
+    console.log('⚡ Adding optimistic reaction');
+    const userName = 'You'; // Simple fallback since this is the current user's action
+    addReaction(messageId, emoji, userId, userName);
+
+    try {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -161,43 +296,61 @@ export function ConversationDetailPage({
         body: JSON.stringify({ emoji }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Failed to add reaction:', errorData.error);
-        return;
-      }
-
-      // Optimistically update local state (real-time will also update via SSE)
-      const userName = 'You'; // Simple fallback since this is the current user's action
-
-      addReaction(messageId, emoji, userId, userName);
-    } catch (error) {
-      console.error('Error adding reaction:', error);
-    }
-  }, [conversationId, userId, addReaction]);
-
-  const handleRemoveReaction = useCallback(async (messageId: string, emoji: string) => {
-    if (!userId) return;
-
-    try {
-      const response = await fetch(`/api/conversations/${conversationId}/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`, {
-        method: 'DELETE',
+      console.log('📊 API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        headers: Object.fromEntries(response.headers.entries())
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Failed to remove reaction:', errorData.error);
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          console.error('❌ Failed to parse error response:', parseError);
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+        }
+
+        console.error('❌ API Error Response:', errorData);
+
+        // Rollback optimistic update
+        console.log('🔄 Rolling back optimistic reaction due to API error');
+        removeReaction(messageId, emoji, userId, userName);
+
+        // Handle "already reacted" case gracefully
+        if (errorData.error?.includes('Already reacted')) {
+          console.log('🔄 Server says already reacted, trying to remove reaction instead');
+          // Try to remove the reaction instead (server state and local state are out of sync)
+          handleRemoveReaction(messageId, emoji);
+          return;
+        }
+
+        // Show user-friendly error
+        setError(`Failed to add reaction: ${errorData.error || 'Unknown error'}`);
         return;
       }
 
-      // Optimistically update local state (real-time will also update via SSE)
-      const userName = 'You'; // Simple fallback since this is the current user's action
+      console.log('✅ API Success - Optimistic reaction confirmed');
+      // Reaction already added optimistically, just clear any errors
+      setError(null);
 
-      removeReaction(messageId, emoji, userId, userName);
+      console.log('✨ Reaction added successfully:', { messageId, emoji, userId });
     } catch (error) {
-      console.error('Error removing reaction:', error);
+      console.error('💥 Network/JavaScript Error:', error);
+
+      // Rollback optimistic update on network error
+      console.log('🔄 Rolling back optimistic reaction due to network error');
+      removeReaction(messageId, emoji, userId, userName);
+
+      // Provide user feedback for network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        setError("Network error: Please check your connection and try again");
+      } else {
+        setError(`Failed to add reaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }
-  }, [conversationId, userId, removeReaction]);
+  }, [conversationId, userId, addReaction, removeReaction, getMessageReactions, handleRemoveReaction, setError]);
 
   // Real-time chat functionality
   const {
@@ -244,15 +397,59 @@ export function ConversationDetailPage({
     },
   });
 
+  // Clear reactions when navigating to a new conversation
+  useEffect(() => {
+    // Reset reaction state when conversation changes
+    setMessages([]);
+    initializedMessagesRef.current.clear();
+    // Note: reaction state will be reinitialized when new messages load
+  }, [conversationId]);
+
+  // Auto-dismiss error messages after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timeout = setTimeout(() => {
+        setError(null);
+      }, 5000); // Clear error after 5 seconds
+
+      return () => clearTimeout(timeout);
+    }
+  }, [error]);
+
+  // Initialize reactions from database when messages are loaded
+  const initializedMessagesRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    messages.forEach(msg => {
+      // Only initialize if we haven't already for this message
+      if (
+        msg.metadata?.reactions &&
+        Object.keys(msg.metadata.reactions).length > 0 &&
+        !initializedMessagesRef.current.has(msg.id)
+      ) {
+        setMessageReactions(msg.id, msg.metadata.reactions as Record<string, MessageReaction[]>);
+        initializedMessagesRef.current.add(msg.id);
+      }
+    });
+  }, [messages]);
+
   // Memoize messages with reactions to prevent infinite render loops
   const messagesWithReactions = useMemo(() => {
-    return messages.map(msg => ({
-      ...msg,
-      metadata: {
-        ...msg.metadata,
-        reactions: getMessageReactions(msg.id)
-      }
-    }));
+    return messages.map(msg => {
+      const localReactions = getMessageReactions(msg.id);
+      const databaseReactions = (msg.metadata?.reactions as Record<string, MessageReaction[]>) || {};
+
+      // Merge database reactions with local reactions (local takes precedence for optimistic updates)
+      const mergedReactions = { ...databaseReactions, ...localReactions };
+
+      return {
+        ...msg,
+        metadata: {
+          ...msg.metadata,
+          reactions: mergedReactions
+        }
+      };
+    });
   }, [messages, getMessageReactions]);
 
   // Fetch conversation and initial messages
@@ -689,8 +886,27 @@ export function ConversationDetailPage({
             </CardContent>
           </Card>
 
-          {/* Messages Area */}
-          <div className="flex-1 min-h-0 overflow-hidden">
+          {/* Error Notification Area */}
+          {error && !loading && (
+            <div className="px-4 py-2">
+              <Alert variant="destructive" className="border-red-200 bg-red-50">
+                <AlertDescription className="text-red-800">
+                  {error}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-2 h-auto p-1 text-red-600 hover:text-red-800"
+                    onClick={() => setError(null)}
+                  >
+                    ✕
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+
+          {/* Messages Area - Accounts for sticky input */}
+          <div className="flex-1 min-h-0 overflow-hidden pb-2">
             <MessageList
               messages={messagesWithReactions}
               currentUserId={userId}
@@ -702,9 +918,9 @@ export function ConversationDetailPage({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Message Input */}
+          {/* Message Input - Sticky at bottom */}
           {canWrite ? (
-            <div className="flex-shrink-0">
+            <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-border flex-shrink-0 z-10">
               <SlackStyleInput
                 content={messageInput}
                 onChange={handleInputChange}
@@ -718,7 +934,7 @@ export function ConversationDetailPage({
               />
             </div>
           ) : (
-            <Card className="flex-shrink-0 p-3">
+            <Card className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-border flex-shrink-0 z-10 p-3">
               <div className="text-center text-muted-foreground">
                 <p className="text-sm">You don't have permission to send messages in this conversation.</p>
               </div>

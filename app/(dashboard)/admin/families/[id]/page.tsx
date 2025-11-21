@@ -96,6 +96,14 @@ export default function FamilyDetailPage() {
   const [creatingNewMember, setCreatingNewMember] = useState(false)
   const [createMemberError, setCreateMemberError] = useState<string | null>(null)
 
+  // Manage Volunteers Modal State
+  const [showVolunteerModal, setShowVolunteerModal] = useState(false)
+  const [availableVolunteers, setAvailableVolunteers] = useState<UnassignedMember[]>([])
+  const [loadingAvailableVolunteers, setLoadingAvailableVolunteers] = useState(false)
+  const [volunteerManageError, setVolunteerManageError] = useState<string | null>(null)
+  const [assigningVolunteer, setAssigningVolunteer] = useState(false)
+  const [removingVolunteer, setRemovingVolunteer] = useState<string | null>(null)
+
   // Fetch family details
   const fetchFamily = useCallback(async () => {
     try {
@@ -141,6 +149,99 @@ export default function FamilyDetailPage() {
       setLoadingVolunteers(false)
     }
   }, [familyId])
+
+  // Fetch available volunteers (not assigned to this family)
+  const fetchAvailableVolunteers = useCallback(async () => {
+    try {
+      setLoadingAvailableVolunteers(true)
+      setVolunteerManageError(null)
+
+      const response = await fetch('/api/users?role=VOLUNTEER')
+      if (!response.ok) {
+        throw new Error('Failed to fetch available volunteers')
+      }
+
+      const data = await response.json()
+      const volunteers = data.users || []
+
+      // Filter out volunteers already assigned to this family
+      const assignedVolunteerIds = new Set(assignedVolunteers.map(v => v.id))
+      const availableVolunteers = volunteers.filter((volunteer: UnassignedMember) => !assignedVolunteerIds.has(volunteer.id))
+
+      setAvailableVolunteers(availableVolunteers)
+    } catch (err) {
+      console.error('Error fetching available volunteers:', err)
+      setVolunteerManageError(err instanceof Error ? err.message : 'Failed to load available volunteers')
+    } finally {
+      setLoadingAvailableVolunteers(false)
+    }
+  }, [assignedVolunteers])
+
+  // Assign volunteer to family
+  const assignVolunteerToFamily = useCallback(async (volunteerId: string) => {
+    try {
+      setAssigningVolunteer(true)
+      setVolunteerManageError(null)
+
+      const response = await fetch(`/api/families/${familyId}/volunteers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ volunteerId }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to assign volunteer to family')
+      }
+
+      // Refresh assigned volunteers and available volunteers
+      await fetchAssignedVolunteers()
+      await fetchAvailableVolunteers()
+
+      toast.success('Volunteer assigned successfully!')
+    } catch (error) {
+      console.error('Error assigning volunteer to family:', error)
+      setVolunteerManageError(error instanceof Error ? error.message : 'Failed to assign volunteer')
+    } finally {
+      setAssigningVolunteer(false)
+    }
+  }, [familyId, fetchAssignedVolunteers, fetchAvailableVolunteers])
+
+  // Remove volunteer from family
+  const removeVolunteerFromFamily = useCallback(async (volunteerId: string) => {
+    try {
+      setRemovingVolunteer(volunteerId)
+      setVolunteerManageError(null)
+
+      const response = await fetch(`/api/families/${familyId}/volunteers/${volunteerId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to remove volunteer from family')
+      }
+
+      // Refresh assigned volunteers and available volunteers
+      await fetchAssignedVolunteers()
+      await fetchAvailableVolunteers()
+
+      toast.success('Volunteer removed successfully!')
+    } catch (error) {
+      console.error('Error removing volunteer from family:', error)
+      setVolunteerManageError(error instanceof Error ? error.message : 'Failed to remove volunteer')
+    } finally {
+      setRemovingVolunteer(null)
+    }
+  }, [familyId, fetchAssignedVolunteers, fetchAvailableVolunteers])
+
+  // Handle volunteer modal open
+  const handleManageVolunteersClick = useCallback(() => {
+    setShowVolunteerModal(true)
+    fetchAvailableVolunteers()
+  }, [fetchAvailableVolunteers])
 
   // Handle family deletion
   const handleDeleteFamily = async () => {
@@ -390,7 +491,7 @@ export default function FamilyDetailPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" asChild className="min-h-[44px]">
+          <Button variant="default" size="icon" asChild className="min-h-[44px]">
             <Link href="/admin/families">
               <ArrowLeft className="h-4 w-4" />
             </Link>
@@ -772,10 +873,173 @@ export default function FamilyDetailPage() {
                 Volunteers who can manage this family ({assignedVolunteers.length})
               </CardDescription>
             </div>
-            <Button size="sm" variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
-              Manage Volunteers
-            </Button>
+            <Dialog open={showVolunteerModal} onOpenChange={(open) => {
+              setShowVolunteerModal(open)
+              if (!open) {
+                // Reset state when modal closes
+                setVolunteerManageError(null)
+                setAvailableVolunteers([])
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" onClick={handleManageVolunteersClick}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Manage Volunteers
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-hidden flex flex-col backdrop-blur-sm bg-background/95 border shadow-md">
+                <DialogHeader className="pb-3 border-b">
+                  <DialogTitle className="text-xl font-semibold">Volunteer Management</DialogTitle>
+                  <DialogDescription className="text-sm text-muted-foreground">
+                    Manage volunteer access for <span className="font-medium text-foreground">{family.name}</span>
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-6 lg:grid-cols-2 overflow-y-auto flex-1 pt-4">
+                  {/* Currently Assigned Volunteers */}
+                  <div className="space-y-3 flex flex-col min-h-0">
+                    {/* Section Header - Minimalist */}
+                    <div className="flex items-center justify-between pb-2 border-b">
+                      <h3 className="text-sm font-medium text-muted-foreground">Currently Assigned</h3>
+                      <Badge variant="outline" className="text-xs tabular-nums">
+                        {assignedVolunteers.length}
+                      </Badge>
+                    </div>
+
+                    {/* Empty State */}
+                    {assignedVolunteers.length === 0 ? (
+                      <div className="flex-1 flex items-center justify-center">
+                        <div className="text-center py-8 px-4">
+                          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted/50 mb-3">
+                            <UserPlus className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <p className="text-sm text-muted-foreground">No volunteers assigned</p>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Assigned Volunteers List */
+                      <div className="space-y-1.5 overflow-y-auto flex-1 pr-1">
+                        {assignedVolunteers.map((volunteer) => (
+                          <div
+                            key={volunteer.id}
+                            className="group relative flex items-center gap-3 p-2.5 rounded-md border hover:bg-accent/50 transition-colors"
+                          >
+                            {/* Avatar - Simplified */}
+                            <Avatar className="h-9 w-9 shrink-0">
+                              <AvatarFallback className="text-xs font-medium bg-primary/10 text-primary">
+                                {volunteer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+
+                            {/* Information - Clean Layout */}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm text-foreground truncate">{volunteer.name}</p>
+                              <p className="text-xs text-muted-foreground truncate">{volunteer.email}</p>
+                            </div>
+
+                            {/* Action Button - Minimal */}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => removeVolunteerFromFamily(volunteer.id)}
+                              disabled={removingVolunteer === volunteer.id}
+                              className="h-7 px-2 text-xs shrink-0 text-muted-foreground hover:text-destructive"
+                            >
+                              {removingVolunteer === volunteer.id ? 'Removing...' : 'Remove'}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Available Volunteers */}
+                  <div className="space-y-3 flex flex-col min-h-0">
+                    {/* Section Header - Minimalist */}
+                    <div className="flex items-center justify-between pb-2 border-b">
+                      <h3 className="text-sm font-medium text-muted-foreground">Available Volunteers</h3>
+                      <Badge variant="outline" className="text-xs tabular-nums">
+                        {availableVolunteers.length}
+                      </Badge>
+                    </div>
+
+                    {/* Error State - Clean */}
+                    {volunteerManageError && (
+                      <div className="flex items-start gap-2 p-2.5 bg-destructive/5 border border-destructive/20 rounded-md">
+                        <span className="text-xs text-destructive flex-1">{volunteerManageError}</span>
+                      </div>
+                    )}
+
+                    {/* Loading State - Minimal */}
+                    {loadingAvailableVolunteers && (
+                      <div className="space-y-1.5 flex-1">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="flex items-center gap-3 p-2.5 rounded-md border">
+                            <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                            <div className="flex-1 space-y-1.5">
+                              <Skeleton className="h-3.5 w-2/3" />
+                              <Skeleton className="h-3 w-1/2" />
+                            </div>
+                            <Skeleton className="h-7 w-14 shrink-0" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Available volunteers list */}
+                    {!loadingAvailableVolunteers && (
+                      <div className="overflow-y-auto space-y-1.5 flex-1 pr-1">
+                        {/* Empty State */}
+                        {availableVolunteers.length === 0 ? (
+                          <div className="flex items-center justify-center h-full min-h-[200px]">
+                            <div className="text-center py-8 px-4">
+                              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted/50 mb-3">
+                                <UserPlus className="h-5 w-5 text-muted-foreground" />
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                No volunteers available
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Available Volunteers List */
+                          availableVolunteers.map((volunteer) => (
+                            <div
+                              key={volunteer.id}
+                              className="group relative flex items-center gap-3 p-2.5 rounded-md border hover:bg-accent/50 transition-colors"
+                            >
+                              {/* Avatar - Simplified */}
+                              <Avatar className="h-9 w-9 shrink-0">
+                                <AvatarFallback className="text-xs font-medium bg-primary/10 text-primary">
+                                  {volunteer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+
+                              {/* Information - Clean Layout */}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm text-foreground truncate">{volunteer.name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{volunteer.email}</p>
+                              </div>
+
+                              {/* Action Button - Minimal */}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => assignVolunteerToFamily(volunteer.id)}
+                                disabled={assigningVolunteer}
+                                className="h-7 px-2 text-xs shrink-0"
+                              >
+                                {assigningVolunteer ? 'Assigning...' : 'Assign'}
+                              </Button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
         <CardContent>
@@ -805,7 +1069,7 @@ export default function FamilyDetailPage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 This family doesn't have any volunteers assigned to manage it yet.
               </p>
-              <Button variant="outline" className="mt-4">
+              <Button variant="outline" className="mt-4" onClick={handleManageVolunteersClick}>
                 <Plus className="h-4 w-4 mr-2" />
                 Assign First Volunteer
               </Button>

@@ -6,9 +6,6 @@ import {
   BookOpen,
   ArrowLeft,
   Star,
-  Eye,
-  Share2,
-  Bookmark,
   ExternalLink,
   Calendar,
   User,
@@ -25,6 +22,9 @@ import {
   Phone,
   Briefcase,
   AlertTriangle,
+  ScrollText,
+  Play,
+  Eye,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -45,6 +45,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { formatDistanceToNow } from "date-fns";
+import { getResourceTypeIcon, isTemplate } from "@/lib/utils/resource-utils";
 
 interface Resource {
   id: string;
@@ -70,6 +71,7 @@ interface Resource {
   externalUrl?: string;
   attachments: string[];
   metadata: Record<string, any>;
+  externalMeta?: any; // For template metadata
   isFeatured: boolean;
   isApproved: boolean;
   approvedAt?: string;
@@ -77,15 +79,13 @@ interface Resource {
   isDeleted: boolean;
   averageRating: number;
   totalRatings: number;
-  totalViews: number;
-  totalShares: number;
-  totalBookmarks: number;
   createdAt: string;
   updatedAt: string;
   publishedAt?: string;
   creator?: {
     id: string;
-    name: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     role: string;
   };
@@ -96,7 +96,6 @@ interface Resource {
     role: string;
   };
   userRating?: number;
-  userBookmark: boolean;
   documents: any[];
 }
 
@@ -106,28 +105,7 @@ interface ResourceDetailPageProps {
   userId: string;
 }
 
-const getResourceTypeIcon = (type: string) => {
-  switch (type) {
-    case 'DOCUMENT':
-      return FileText;
-    case 'LINK':
-      return LinkIcon;
-    case 'VIDEO':
-      return Video;
-    case 'AUDIO':
-      return Headphones;
-    case 'IMAGE':
-      return ImageIcon;
-    case 'TOOL':
-      return Wrench;
-    case 'CONTACT':
-      return Phone;
-    case 'SERVICE':
-      return Briefcase;
-    default:
-      return BookOpen;
-  }
-};
+
 
 const getStatusColor = (status: string, isFeatured: boolean) => {
   if (isFeatured) return "bg-yellow-100 text-yellow-800 border-yellow-200";
@@ -149,9 +127,8 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
   const [resource, setResource] = useState<Resource | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [bookmarkLoading, setBookmarkLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [startWorkingLoading, setStartWorkingLoading] = useState(false);
 
   const router = useRouter();
 
@@ -161,7 +138,9 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`/api/resources/${resourceId}?includeRatings=true&includeDocuments=true&trackView=true`);
+        const response = await fetch(`/api/resources/${resourceId}?includeRatings=true&includeDocuments=true&trackView=true`, {
+          credentials: 'include'
+        });
         if (!response.ok) {
           if (response.status === 404) {
             setError("Resource not found");
@@ -174,8 +153,7 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
         }
 
         const data = await response.json();
-        setResource(data.resource);
-        setIsBookmarked(data.resource.userBookmark);
+        setResource(data.data);
       } catch (error) {
         console.error("Error fetching resource:", error);
         setError("Failed to load resource");
@@ -187,37 +165,6 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
     fetchResource();
   }, [resourceId]);
 
-  const handleBookmark = async () => {
-    try {
-      setBookmarkLoading(true);
-      const response = await fetch(`/api/resources/${resourceId}/bookmark`, {
-        method: isBookmarked ? 'DELETE' : 'POST',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update bookmark');
-      }
-
-      setIsBookmarked(!isBookmarked);
-    } catch (error) {
-      console.error('Error updating bookmark:', error);
-    } finally {
-      setBookmarkLoading(false);
-    }
-  };
-
-  const handleShare = async () => {
-    try {
-      await navigator.share({
-        title: resource?.title,
-        text: resource?.description,
-        url: window.location.href,
-      });
-    } catch (error) {
-      // Fallback to clipboard
-      navigator.clipboard.writeText(window.location.href);
-    }
-  };
 
   const handleDelete = async () => {
     if (!resource) return;
@@ -226,6 +173,7 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
       setDeleteLoading(true);
       const response = await fetch(`/api/resources/${resourceId}`, {
         method: 'DELETE',
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -238,6 +186,46 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
     } finally {
       setDeleteLoading(false);
     }
+  };
+
+  const handleStartWorking = async () => {
+    if (!resource) return;
+
+    try {
+      setStartWorkingLoading(true);
+      const response = await fetch(`/api/resources/${resourceId}/start-template`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to start template workflow');
+      }
+
+      const data = await response.json();
+      console.log('Template workflow started:', data);
+
+      // Navigate to the assignment completion page to fill out the form
+      if (data.success && data.data.assignment?.id) {
+        router.push(`/${userRole.toLowerCase()}/assignments/${data.data.assignment.id}/complete`);
+      } else {
+        throw new Error('Assignment ID not received from server');
+      }
+    } catch (error) {
+      console.error('Error starting template workflow:', error);
+      alert(error instanceof Error ? error.message : 'Failed to start template workflow');
+    } finally {
+      setStartWorkingLoading(false);
+    }
+  };
+
+  const handlePreviewTemplate = () => {
+    if (!resource) return;
+
+    // Navigate to preview mode without creating an assignment
+    // Use a dummy ID 'preview' since we're not loading a real assignment
+    router.push(`/${userRole.toLowerCase()}/assignments/preview/complete?preview=true&resourceId=${resourceId}`);
   };
 
   if (loading) {
@@ -268,7 +256,7 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Link href={`/${userRole.toLowerCase()}/resources`}>
-            <Button variant="ghost" size="sm">
+            <Button variant="default" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Resources
             </Button>
@@ -284,7 +272,8 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
     );
   }
 
-  const TypeIcon = getResourceTypeIcon(resource.type);
+  const isTemplateResource = isTemplate(resource);
+  const TypeIcon = getResourceTypeIcon(resource.type, isTemplateResource);
   const statusColor = getStatusColor(resource.status, resource.isFeatured);
   const canEdit = userRole === UserRole.ADMIN || (resource.creator?.id === userId);
   const canDelete = userRole === UserRole.ADMIN || (resource.creator?.id === userId);
@@ -295,7 +284,7 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Link href={`/${userRole.toLowerCase()}/resources`}>
-            <Button variant="ghost" size="sm" className="min-h-[44px]">
+            <Button variant="default" size="sm" className="min-h-[44px]">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Resources
             </Button>
@@ -303,20 +292,28 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBookmark}
-            disabled={bookmarkLoading}
-            className="min-h-[44px]"
-          >
-            <Bookmark className={`h-4 w-4 mr-2 ${isBookmarked ? 'fill-current' : ''}`} />
-            {isBookmarked ? 'Saved' : 'Save'}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleShare} className="min-h-[44px]">
-            <Share2 className="h-4 w-4 mr-2" />
-            Share
-          </Button>
+          {isTemplateResource && (
+            <>
+              <Button
+                onClick={handleStartWorking}
+                disabled={startWorkingLoading}
+                size="sm"
+                className="min-h-[44px] bg-[hsl(var(--ppcc-purple))] hover:bg-[hsl(var(--ppcc-purple)/0.9)] text-white"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                {startWorkingLoading ? "Starting..." : "Start Working"}
+              </Button>
+              <Button
+                onClick={handlePreviewTemplate}
+                variant="outline"
+                size="sm"
+                className="min-h-[44px] border-[hsl(var(--ppcc-purple)/0.3)] text-[hsl(var(--ppcc-purple))] hover:bg-[hsl(var(--ppcc-purple)/0.1)]"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Preview Template
+              </Button>
+            </>
+          )}
           {canEdit && (
             <Link href={`/${userRole.toLowerCase()}/resources/${resourceId}/edit`}>
               <Button variant="outline" size="sm" className="min-h-[44px]">
@@ -374,6 +371,12 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
 
               {/* Status and Badges */}
               <div className="flex items-center gap-2 flex-wrap">
+                {isTemplateResource && (
+                  <Badge className="bg-[hsl(var(--ppcc-purple)/0.1)] text-[hsl(var(--ppcc-purple))] border-[hsl(var(--ppcc-purple)/0.3)]">
+                    <ScrollText className="h-3 w-3 mr-1" />
+                    Advance Directive Template
+                  </Badge>
+                )}
                 {resource.isFeatured && (
                   <Badge className={statusColor}>
                     <Star className="h-3 w-3 mr-1" />
@@ -453,7 +456,11 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
                             {doc.fileSize && `${(doc.fileSize / 1024 / 1024).toFixed(1)} MB`}
                           </p>
                         </div>
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Download ${doc.title || doc.fileName}`}
+                        >
                           <Download className="h-3 w-3" />
                         </Button>
                       </div>
@@ -467,39 +474,6 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
 
         {/* Sidebar */}
         <div className="space-y-4">
-          {/* Metrics */}
-          <Card className="p-3">
-            <CardHeader>
-              <h3 className="font-medium text-sm">Resource Stats</h3>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {resource.averageRating > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Rating</span>
-                  <div className="flex items-center gap-1">
-                    <Star className="h-3 w-3 fill-current text-yellow-500" />
-                    <span className="text-sm font-medium">
-                      {resource.averageRating.toFixed(1)} ({resource.totalRatings})
-                    </span>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Views</span>
-                <span className="text-sm font-medium">{resource.totalViews}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Shares</span>
-                <span className="text-sm font-medium">{resource.totalShares}</span>
-              </div>
-              {resource.totalBookmarks > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Bookmarks</span>
-                  <span className="text-sm font-medium">{resource.totalBookmarks}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
           {/* Creator Info */}
           <Card className="p-3">
@@ -511,7 +485,11 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4" />
                   <div>
-                    <p className="text-sm font-medium">{resource.creator.name}</p>
+                    <p className="text-sm font-medium">
+                      {resource.creator.firstName || resource.creator.lastName
+                        ? `${resource.creator.firstName || ''} ${resource.creator.lastName || ''}`.trim()
+                        : resource.creator.email.split('@')[0]}
+                    </p>
                     <p className="text-xs text-muted-foreground">{resource.creator.role}</p>
                   </div>
                 </div>
