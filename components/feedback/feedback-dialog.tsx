@@ -46,6 +46,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
   const { getToken, sessionClaims } = useAuth()
   const { user } = useUser()
   const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const { uploadFile, uploads, validateFile, clearUploads, removeUpload } = useFileUpload()
 
@@ -67,6 +68,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
       setUploadedFiles([])
       clearUploads()
       setError(null)
+      setRetryCount(0)
     }
   }, [open, form, clearUploads])
 
@@ -91,6 +93,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 
         if (result) {
           setUploadedFiles(prev => [...prev, result])
+          removeUpload(file) // Remove from uploads state to prevent duplicate display
           toast.success(`${file.name} uploaded successfully`)
         }
       } catch (error) {
@@ -143,8 +146,24 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(errorData.error || `Server error (${response.status})`)
+        const errorData = await response.json().catch(() => ({
+          error: 'Network error',
+          details: `Unable to connect to server (${response.status})`
+        }))
+
+        // Use the server's user-friendly error message with details for logging
+        const errorMessage = errorData?.error || `Server error (${response.status})`
+        const errorDetails = errorData?.details || 'No additional details available'
+
+        console.error('Feedback submission failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorMessage,
+          details: errorDetails,
+          rawErrorData: errorData
+        })
+
+        throw new Error(errorMessage)
       }
 
       // Success
@@ -154,8 +173,27 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
     } catch (error) {
       console.error('Feedback submission error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to submit feedback'
-      setError(errorMessage)
-      toast.error(errorMessage)
+
+      // Increment retry count
+      setRetryCount(prev => prev + 1)
+
+      // Set error with retry information
+      const finalErrorMessage = retryCount > 0
+        ? `${errorMessage} (Attempt ${retryCount + 1})`
+        : errorMessage
+
+      setError(finalErrorMessage)
+
+      // Show appropriate toast message
+      if (errorMessage.includes('temporarily unavailable') || errorMessage.includes('Email delivery failed')) {
+        toast.error('Service temporarily unavailable. Please try again later.')
+      } else if (errorMessage.includes('Authentication required')) {
+        toast.error('Please sign in again and try submitting your feedback.')
+      } else if (errorMessage.includes('Attachment processing failed')) {
+        toast.error('There was an issue with your attachments. Please try removing them and submitting again.')
+      } else {
+        toast.error(retryCount < 2 ? 'Submission failed. Please try again.' : errorMessage)
+      }
     }
   }
 

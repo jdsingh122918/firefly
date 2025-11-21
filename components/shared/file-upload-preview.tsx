@@ -109,7 +109,9 @@ const FileItem: React.FC<FileItemProps> = ({
   const upload = isUpload ? (file as UploadProgress) : null
   const attachment = !isUpload ? (file as UploadedFile) : null
 
-  const fileName = isUpload ? upload!.file.name : attachment!.fileName
+  const fileName = isUpload
+    ? upload!.file.name
+    : attachment!.originalName || attachment!.fileName
   const fileSize = isUpload ? upload!.file.size : attachment!.size
   const mimeType = isUpload ? upload!.file.type : attachment!.mimeType
   const fileId = isUpload ? upload!.file : attachment!.fileId

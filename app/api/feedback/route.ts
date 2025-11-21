@@ -217,18 +217,20 @@ Generated on ${new Date().toLocaleString()}
     // 6. Send email via Resend
     const feedbackEmail = process.env.FEEDBACK_EMAIL;
     if (!feedbackEmail) {
-      throw new Error("FEEDBACK_EMAIL environment variable is not configured");
+      console.error("❌ Missing FEEDBACK_EMAIL environment variable");
+      throw new Error("Email service configuration error: Missing recipient email address");
     }
 
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY environment variable is not configured");
+      console.error("❌ Missing RESEND_API_KEY environment variable");
+      throw new Error("Email service configuration error: Missing API credentials");
     }
 
     const resendProvider = new ResendProvider({
       provider: "resend",
       apiKey: resendApiKey,
-      fromEmail: `noreply@${feedbackEmail.split("@")[1] || "firefly.com"}`,
+      fromEmail: "noreply@feedback.thanacare.org",
       fromName: "Firefly Feedback",
       baseUrl: "https://api.resend.com",
       supportEmail: feedbackEmail,
@@ -248,7 +250,8 @@ Generated on ${new Date().toLocaleString()}
     });
 
     if (!emailResult.success) {
-      throw new Error(`Failed to send email: ${emailResult.error}`);
+      console.error("❌ Email sending failed:", emailResult.error);
+      throw new Error(`Email delivery failed: ${emailResult.error || 'Unknown email service error'}`);
     }
 
     console.log("✅ Feedback email sent successfully:", {
@@ -269,24 +272,43 @@ Generated on ${new Date().toLocaleString()}
   } catch (error) {
     console.error("❌ Feedback submission error:", error);
 
+    // Handle validation errors
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
           error: "Invalid request data",
-          details: error.issues,
+          details: error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', '),
         },
         { status: 400 },
       );
     }
 
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+    // Categorize errors for better user experience
+    let statusCode = 500;
+    let userFriendlyError = "Failed to submit feedback";
+
+    if (errorMessage.includes("configuration error") || errorMessage.includes("environment variable")) {
+      statusCode = 503;
+      userFriendlyError = "Feedback service is temporarily unavailable";
+    } else if (errorMessage.includes("Email delivery failed")) {
+      statusCode = 502;
+      userFriendlyError = "Unable to send feedback email";
+    } else if (errorMessage.includes("User not found") || errorMessage.includes("Unauthorized")) {
+      statusCode = 401;
+      userFriendlyError = "Authentication required";
+    } else if (errorMessage.includes("Document not found") || errorMessage.includes("attachment")) {
+      statusCode = 400;
+      userFriendlyError = "Attachment processing failed";
+    }
+
     return NextResponse.json(
       {
-        error: "Failed to submit feedback",
+        error: userFriendlyError,
         details: errorMessage,
       },
-      { status: 500 },
+      { status: statusCode },
     );
   }
 }
