@@ -11,7 +11,8 @@ import {
   Eye,
   Edit,
   Trash2,
-  FileText
+  FileText,
+  UserCheck
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,12 +29,16 @@ interface Family {
   id: string;
   name: string;
   description?: string;
-  createdAt: string;
   createdBy?: {
     id: string;
     name: string;
     email: string;
   };
+  assignedVolunteer?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
   members: Array<{
     id: string;
     name: string;
@@ -110,18 +115,34 @@ export function FamilyTile({ family, onDelete, basePath = "/admin/families" }: F
             </div>
           </div>
 
-          {/* Middle Section: Description */}
-          {family.description && (
-            <div className="flex items-start gap-1 sm:gap-2 min-w-0">
-              <FileText className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 text-muted-foreground mt-0.5" />
-              <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                {family.description}
-              </p>
-            </div>
-          )}
-
           {/* Bottom Section: Metadata Grid */}
           <div className="grid grid-cols-1 gap-2 text-sm">
+            {/* Assigned Volunteer Section */}
+            <div className="flex items-start gap-2 min-w-0">
+              <UserCheck className="h-3 w-3 shrink-0 text-muted-foreground mt-1" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1">
+                  {family.assignedVolunteer ? (
+                    <>
+                      <span className="font-medium truncate">
+                        {family.assignedVolunteer.name}
+                      </span>
+                      {family.assignedVolunteer.email && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <Mail className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground truncate">
+                            {family.assignedVolunteer.email}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground italic">No volunteer assigned</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Creator Information */}
             <div className="flex items-start gap-2 min-w-0">
               <User className="h-3 w-3 shrink-0 text-muted-foreground mt-1" />
@@ -141,51 +162,23 @@ export function FamilyTile({ family, onDelete, basePath = "/admin/families" }: F
                 )}
               </div>
             </div>
-
-            {/* Created Date */}
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="h-3 w-3 shrink-0" />
-              <span className="text-xs">
-                Created {new Date(family.createdAt).toLocaleDateString()}
-              </span>
-            </div>
           </div>
 
           {/* Actions Section */}
           <div className="flex items-center justify-end pt-2 border-t border-border/50">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="h-8 w-8 p-0 min-h-[44px]"
-                  data-dropdown-trigger
-                  onClick={(e) => e.preventDefault()}
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href={`${basePath}/${family.id}`}>
-                    <Eye className="mr-2 h-4 w-4" />
-                    View Details
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={`${basePath}/${family.id}/edit`}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit Family
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-red-600"
-                  onClick={() => onDelete(family.id, family.name)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Family
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                window.location.href = `${basePath}/${family.id}`
+              }}
+              className="min-h-[44px]"
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              View Details
+            </Button>
           </div>
         </CardContent>
       </Link>

@@ -491,7 +491,7 @@ export default function FamilyDetailPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" asChild className="min-h-[44px]">
+          <Button variant="default" size="icon" asChild className="min-h-[44px]">
             <Link href="/admin/families">
               <ArrowLeft className="h-4 w-4" />
             </Link>
@@ -1069,7 +1069,7 @@ export default function FamilyDetailPage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 This family doesn't have any volunteers assigned to manage it yet.
               </p>
-              <Button variant="outline" className="mt-4">
+              <Button variant="outline" className="mt-4" onClick={handleManageVolunteersClick}>
                 <Plus className="h-4 w-4 mr-2" />
                 Assign First Volunteer
               </Button>

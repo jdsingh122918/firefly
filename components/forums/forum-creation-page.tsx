@@ -93,7 +93,7 @@ export function ForumCreationPage() {
   return (
     <div className="space-y-3">
       {/* Back Button */}
-      <Button variant="ghost" size="sm" asChild>
+      <Button variant="default" size="sm" asChild>
         <Link href={`/${userRole}/forums`}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Forums

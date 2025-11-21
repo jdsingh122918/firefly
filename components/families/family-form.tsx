@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -47,6 +47,8 @@ interface FamilyFormProps {
 
 export function FamilyForm({ mode, initialData, onSuccess }: FamilyFormProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const userRole = pathname.split('/')[1] // Extract 'admin' or 'volunteer' from path
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -97,10 +99,10 @@ export function FamilyForm({ mode, initialData, onSuccess }: FamilyFormProps) {
         // Default navigation behavior
         if (mode === 'create') {
           // Redirect to the new family's detail page
-          router.push(`/admin/families/${result.family.id}`)
+          router.push(`/${userRole}/families/${result.family.id}`)
         } else {
           // Redirect back to families list
-          router.push('/admin/families')
+          router.push(`/${userRole}/families`)
         }
       }
 
@@ -116,9 +118,9 @@ export function FamilyForm({ mode, initialData, onSuccess }: FamilyFormProps) {
 
   const handleCancel = () => {
     if (mode === 'create') {
-      router.push('/admin/families')
+      router.push(`/${userRole}/families`)
     } else {
-      router.push(`/admin/families/${initialData?.id}`)
+      router.push(`/${userRole}/families/${initialData?.id}`)
     }
   }
 

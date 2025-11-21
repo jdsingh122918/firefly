@@ -256,7 +256,7 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Link href={`/${userRole.toLowerCase()}/resources`}>
-            <Button variant="ghost" size="sm">
+            <Button variant="default" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Resources
             </Button>
@@ -284,7 +284,7 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Link href={`/${userRole.toLowerCase()}/resources`}>
-            <Button variant="ghost" size="sm" className="min-h-[44px]">
+            <Button variant="default" size="sm" className="min-h-[44px]">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Resources
             </Button>

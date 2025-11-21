@@ -87,30 +87,47 @@ export async function GET(request: NextRequest) {
       createdBy,
     });
 
+    // Get volunteer assignments for all families
+    const familiesWithVolunteers = await Promise.all(
+      (families || []).filter(family => family !== null).map(async (family) => {
+        // Get assigned volunteers for this family
+        const volunteers = await familyRepository.getVolunteersForFamily(family.id);
+        const primaryVolunteer = volunteers.length > 0 ? volunteers[0] : null;
+
+        return {
+          id: family.id,
+          name: family.name,
+          description: family.description,
+          updatedAt: family.updatedAt,
+          createdBy: family.createdBy ? {
+            id: family.createdBy.id,
+            name: family.createdBy.firstName
+              ? `${family.createdBy.firstName} ${family.createdBy.lastName || ""}`.trim()
+              : family.createdBy.email,
+            email: family.createdBy.email,
+          } : undefined,
+          assignedVolunteer: primaryVolunteer ? {
+            id: primaryVolunteer.id,
+            name: primaryVolunteer.firstName
+              ? `${primaryVolunteer.firstName} ${primaryVolunteer.lastName || ""}`.trim()
+              : primaryVolunteer.email,
+            email: primaryVolunteer.email,
+          } : null,
+          members: (family.members || []).map(member => ({
+            id: member.id,
+            name: member.firstName
+              ? `${member.firstName} ${member.lastName || ""}`.trim()
+              : member.email,
+            email: member.email,
+            role: member.role,
+          })),
+          memberCount: (family.members || []).length,
+        };
+      })
+    );
+
     return NextResponse.json({
-      families: (families || []).filter(family => family !== null).map(family => ({
-        id: family.id,
-        name: family.name,
-        description: family.description,
-        createdAt: family.createdAt,
-        updatedAt: family.updatedAt,
-        createdBy: family.createdBy ? {
-          id: family.createdBy.id,
-          name: family.createdBy.firstName
-            ? `${family.createdBy.firstName} ${family.createdBy.lastName || ""}`.trim()
-            : family.createdBy.email,
-          email: family.createdBy.email,
-        } : undefined,
-        members: (family.members || []).map(member => ({
-          id: member.id,
-          name: member.firstName
-            ? `${member.firstName} ${member.lastName || ""}`.trim()
-            : member.email,
-          email: member.email,
-          role: member.role,
-        })),
-        memberCount: (family.members || []).length,
-      })),
+      families: familiesWithVolunteers,
       total: families?.length || 0,
     });
   } catch (error) {

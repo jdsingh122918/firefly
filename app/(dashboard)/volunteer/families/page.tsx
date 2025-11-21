@@ -237,9 +237,8 @@ export default function VolunteerFamiliesPage() {
                     <TableRow>
                       <TableHead>Family Name</TableHead>
                       <TableHead>Members</TableHead>
-                      <TableHead>Created</TableHead>
                       <TableHead>Creator</TableHead>
-                      <TableHead className="w-12"></TableHead>
+                      <TableHead className="w-32">View</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -268,11 +267,6 @@ export default function VolunteerFamiliesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            {new Date(family.createdAt).toLocaleDateString()}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
                             <div className="font-medium">{family.createdBy?.name || 'Unknown Creator'}</div>
                             <div className="text-muted-foreground">
                               {family.createdBy?.email || 'N/A'}
@@ -280,34 +274,12 @@ export default function VolunteerFamiliesPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="p-0 min-h-[44px] min-w-[44px]">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link href={`/volunteer/families/${family.id}`}>
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  View Details
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <Link href={`/volunteer/families/${family.id}/edit`}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-red-600"
-                                onClick={() => handleDelete(family.id, family.name)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <Button variant="default" size="sm" asChild>
+                            <Link href={`/volunteer/families/${family.id}`}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </Link>
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

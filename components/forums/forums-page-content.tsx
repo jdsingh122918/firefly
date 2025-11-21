@@ -456,15 +456,18 @@ export function ForumsPageContent() {
                           {/* Join/Leave Button */}
                           {!forum.isCreator && (
                             forum.isMember ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-xs px-3 py-1 h-7"
-                                disabled={leavingForum === forum.id}
-                                onClick={(e) => handleLeaveForum(forum.id, e)}
-                              >
-                                {leavingForum === forum.id ? "Leaving..." : "Leave"}
-                              </Button>
+                              // Only show Leave button for PRIVATE forums
+                              forum.visibility === 'PRIVATE' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs px-3 py-1 h-7"
+                                  disabled={leavingForum === forum.id}
+                                  onClick={(e) => handleLeaveForum(forum.id, e)}
+                                >
+                                  {leavingForum === forum.id ? "Leaving..." : "Leave"}
+                                </Button>
+                              )
                             ) : (
                               <Button
                                 size="sm"

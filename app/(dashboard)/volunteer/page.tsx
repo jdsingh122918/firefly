@@ -161,7 +161,7 @@ export default async function VolunteerDashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Families</CardTitle>
-              <Button size="sm" variant="outline" asChild>
+              <Button size="sm" variant="default" asChild>
                 <Link href="/volunteer/families">
                   <Eye className="mr-2 h-4 w-4" />
                   View All
@@ -225,7 +225,7 @@ export default async function VolunteerDashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Recent Members</CardTitle>
-              <Button size="sm" variant="outline" asChild>
+              <Button size="sm" variant="default" asChild>
                 <Link href="/volunteer/users">
                   <Eye className="mr-2 h-4 w-4" />
                   View All

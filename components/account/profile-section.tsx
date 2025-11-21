@@ -265,7 +265,7 @@ export function ProfileSection() {
             </p>
             <div className="flex items-center space-x-2 pt-1">
               <Button
-                variant="outline"
+                variant="default"
                 size="sm"
                 disabled={isLoading}
                 asChild
@@ -285,7 +285,7 @@ export function ProfileSection() {
               </Button>
               {user.imageUrl && (
                 <Button
-                  variant="ghost"
+                  variant="default"
                   size="sm"
                   disabled={isLoading}
                   onClick={() => user.setProfileImage({ file: null })}
@@ -304,7 +304,7 @@ export function ProfileSection() {
             <h3 className="text-sm font-medium">Personal Information</h3>
             {!isEditing && (
               <Button
-                variant="outline"
+                variant="default"
                 size="sm"
                 onClick={() => setIsEditing(true)}
                 className="min-h-[32px] h-8 text-xs"
@@ -401,7 +401,7 @@ export function ProfileSection() {
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="min-h-[44px]">
+                <Button variant="default" size="sm" className="min-h-[44px]">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Email
                 </Button>
@@ -561,7 +561,7 @@ export function ProfileSection() {
 
                 <div className="flex items-center space-x-1.5 flex-shrink-0">
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => handleStartEdit(emailAddress.id, emailAddress.emailAddress)}
                     disabled={loadingAction !== null}

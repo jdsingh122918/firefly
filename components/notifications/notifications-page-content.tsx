@@ -19,7 +19,6 @@ import {
   Reply,
   Eye,
   Phone,
-  BookmarkPlus,
   ExternalLink,
   CheckCircle,
   AlertOctagon,
@@ -375,15 +374,6 @@ function getContextualActions(notification: Notification): {
       break
   }
 
-  // Add generic bookmark action for actionable notifications
-  if (notification.isActionable && !actions.some(a => a.label.includes("Bookmark"))) {
-    actions.push({
-      icon: BookmarkPlus,
-      label: "Bookmark",
-      action: () => console.log("Bookmarked notification"),
-      variant: "ghost"
-    })
-  }
 
   return actions
 }
@@ -754,7 +744,7 @@ export function NotificationsPageContent() {
                           e.stopPropagation() // Prevent card click
                           handleDelete(notification.id)
                         }}
-                        className="h-9 w-9 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 min-w-[44px] sm:h-8 sm:w-8 sm:min-w-[32px]"
+                        className="h-9 w-9 p-0 text-muted-foreground hover:text-orange-600 hover:bg-orange-100 min-w-[44px] sm:h-8 sm:w-8 sm:min-w-[32px]"
                         title="Delete notification"
                       >
                         <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />

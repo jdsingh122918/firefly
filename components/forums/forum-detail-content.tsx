@@ -341,7 +341,7 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
   return (
     <div className="space-y-2">
       {/* Back navigation */}
-      <Button variant="ghost" asChild className="w-fit">
+      <Button asChild className="w-fit">
         <Link href={`/${((sessionClaims?.metadata as { role?: string })?.role || 'member').toLowerCase()}/forums`}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Forums
@@ -391,13 +391,16 @@ export function ForumDetailContent({ forumSlug }: ForumDetailContentProps) {
               {/* Join/Leave Button */}
               {!forum.isCreator && (
                 forum.isMember ? (
-                  <Button
-                    variant="outline"
-                    disabled={leavingForum}
-                    onClick={handleLeaveForum}
-                  >
-                    {leavingForum ? "Leaving..." : "Leave Forum"}
-                  </Button>
+                  // Only show Leave button for PRIVATE forums
+                  forum.visibility === 'PRIVATE' && (
+                    <Button
+                      variant="outline"
+                      disabled={leavingForum}
+                      onClick={handleLeaveForum}
+                    >
+                      {leavingForum ? "Leaving..." : "Leave Forum"}
+                    </Button>
+                  )
                 ) : (
                   <Button
                     variant="default"

@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { useTheme } from 'next-themes'
 import { UserRole } from '@prisma/client'
 import { UserProfileDropdown } from '@/components/user-profile-dropdown'
 import { getFeatureRoutesForRole } from '@/lib/navigation/feature-routes'
@@ -106,6 +107,14 @@ export function SidebarNavigation({
 }) {
   const pathname = usePathname()
   const { setOpenMobile, isMobile } = useSidebar()
+  const { theme, resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  // Hydration protection - wait for theme to be resolved on client
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
 
   // Auto-close mobile sidebar when navigating to different routes
   useEffect(() => {
@@ -144,24 +153,30 @@ export function SidebarNavigation({
         <div className="flex flex-col items-center space-y-3 py-4">
           <Link href="/" className="flex items-center justify-center hover:opacity-80 transition-opacity p-6">
             <div className="relative shrink-0">
-              {/* Black logo for light mode - covers majority of sidebar width */}
-              <Image
-                src="/firefly-logo-black.png"
-                alt="Firefly - End of Life Care Platform"
-                width={200}
-                height={80}
-                priority
-                className="object-contain w-44 h-auto dark:hidden sm:w-48 sm:h-auto"
-              />
-              {/* White logo for dark mode */}
-              <Image
-                src="/firefly-logo-white.png"
-                alt="Firefly - End of Life Care Platform"
-                width={200}
-                height={80}
-                priority
-                className="object-contain w-44 h-auto hidden dark:block sm:w-48 sm:h-auto"
-              />
+              {!mounted ? (
+                /* Placeholder during hydration to prevent layout shift */
+                <div className="w-44 h-20 sm:w-48 sm:h-20 animate-pulse bg-gray-200 dark:bg-gray-700 rounded" />
+              ) : resolvedTheme === 'dark' ? (
+                /* Black logo for dark mode */
+                <Image
+                  src="/firefly-logo-black.png"
+                  alt="Firefly - End of Life Care Platform"
+                  width={200}
+                  height={80}
+                  priority
+                  className="object-contain w-44 h-auto sm:w-48 sm:h-auto"
+                />
+              ) : (
+                /* White logo for light mode */
+                <Image
+                  src="/firefly-logo-white.png"
+                  alt="Firefly - End of Life Care Platform"
+                  width={200}
+                  height={80}
+                  priority
+                  className="object-contain w-44 h-auto sm:w-48 sm:h-auto"
+                />
+              )}
             </div>
           </Link>
           <SimpleThemeToggle />

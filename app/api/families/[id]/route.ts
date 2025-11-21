@@ -98,10 +98,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Check if volunteer has access to this family
     if (user.role === UserRole.VOLUNTEER) {
-      // Volunteers can only see families they created
-      if (family.createdById !== user.id) {
+      // Volunteers can only see families they are assigned to
+      const isAssigned = await familyRepository.isVolunteerAssignedToFamily(user.id, familyId);
+      if (!isAssigned) {
         return NextResponse.json(
-          { error: "Access denied - you can only view families you created" },
+          { error: "Access denied - you can only view families you are assigned to" },
           { status: 403 },
         );
       }

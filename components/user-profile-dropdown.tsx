@@ -62,8 +62,8 @@ export function UserProfileDropdown({ user, userRole }: UserProfileDropdownProps
   if (!isMounted) {
     return (
       <Button
-        variant="ghost"
-        className="h-auto p-2 w-full justify-start gap-3 hover:bg-accent"
+        variant="default"
+        className="h-auto p-2 w-full justify-start gap-3"
         disabled
       >
         <Avatar className="h-8 w-8">
@@ -75,7 +75,7 @@ export function UserProfileDropdown({ user, userRole }: UserProfileDropdownProps
           <span className="text-sm font-medium truncate max-w-[160px]">
             {displayName}
           </span>
-          <span className="text-xs text-muted-foreground truncate max-w-[160px]">
+          <span className="text-xs truncate max-w-[160px]">
             {user?.email}
           </span>
         </div>
@@ -87,8 +87,8 @@ export function UserProfileDropdown({ user, userRole }: UserProfileDropdownProps
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant="ghost"
-          className="h-auto p-2 w-full justify-start gap-3 hover:bg-accent/50 transition-colors min-h-[48px] rounded-lg"
+          variant="default"
+          className="h-auto p-2 w-full justify-start gap-3 transition-colors min-h-[48px] rounded-lg"
         >
           <Avatar className="h-8 w-8">
             <AvatarImage src={user?.imageUrl || undefined} alt={displayName} />
@@ -100,7 +100,7 @@ export function UserProfileDropdown({ user, userRole }: UserProfileDropdownProps
             <span className="text-sm font-medium truncate max-w-[160px]">
               {displayName}
             </span>
-            <span className="text-xs text-muted-foreground truncate max-w-[160px]">
+            <span className="text-xs truncate max-w-[160px]">
               {user?.email}
             </span>
           </div>
