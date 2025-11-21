@@ -166,7 +166,7 @@ export default function FamilyDetailPage() {
 
       // Filter out volunteers already assigned to this family
       const assignedVolunteerIds = new Set(assignedVolunteers.map(v => v.id))
-      const availableVolunteers = volunteers.filter(volunteer => !assignedVolunteerIds.has(volunteer.id))
+      const availableVolunteers = volunteers.filter((volunteer: UnassignedMember) => !assignedVolunteerIds.has(volunteer.id))
 
       setAvailableVolunteers(availableVolunteers)
     } catch (err) {
