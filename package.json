@@ -15,7 +15,9 @@
     "db:backup": "npx tsx scripts/utils/db-backup.ts",
     "db:seed-tags": "npx tsx scripts/seed-healthcare-tags.ts",
     "db:backfill-users": "npx tsx scripts/backfill-users.ts",
-    "db:validate-full": "npx tsx scripts/validate-database.ts"
+    "db:validate-full": "npx tsx scripts/validate-database.ts",
+    "db:verify-models": "npx tsx scripts/verify-database-models.ts",
+    "db:verify-models:fix": "npx tsx scripts/verify-database-models.ts --auto-fix"
   },
   "dependencies": {
     "@apollo/client": "^4.0.9",
