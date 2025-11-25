@@ -258,20 +258,20 @@ export function ProfileSection() {
             )}
           </div>
 
-          <div className="space-y-1 flex-grow">
+          <div className="space-y-1 flex-1 min-w-0">
             <h3 className="text-sm font-medium">Profile Picture</h3>
             <p className="text-xs text-muted-foreground leading-tight">
               Recommended: Square format, up to 10MB
             </p>
-            <div className="flex items-center space-x-2 pt-1">
+            <div className="flex items-center gap-2 pt-1">
               <Button
                 variant="default"
                 size="sm"
                 disabled={isLoading}
                 asChild
-                className="min-h-[32px] h-8 text-xs"
+                className="min-h-[32px] h-8 text-xs w-auto"
               >
-                <label htmlFor="profile-image" className="cursor-pointer">
+                <label htmlFor="profile-image" className="cursor-pointer flex items-center">
                   <Upload className="h-3 w-3 mr-1" />
                   Upload
                   <input
@@ -285,11 +285,11 @@ export function ProfileSection() {
               </Button>
               {user.imageUrl && (
                 <Button
-                  variant="default"
+                  variant="outline"
                   size="sm"
                   disabled={isLoading}
                   onClick={() => user.setProfileImage({ file: null })}
-                  className="min-h-[32px] h-8 text-xs"
+                  className="min-h-[32px] h-8 text-xs w-auto"
                 >
                   Remove
                 </Button>

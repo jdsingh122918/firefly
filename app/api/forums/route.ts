@@ -5,12 +5,11 @@ import { ForumVisibility } from "@prisma/client";
 import { UserRole } from "@/lib/auth/roles";
 import { ForumRepository } from "@/lib/db/repositories/forum.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
-import { NotificationRepository } from "@/lib/db/repositories/notification.repository";
 import { NotificationType } from "@/lib/types";
+import { notificationDispatcher } from "@/lib/notifications/notification-dispatcher.service";
 
 const forumRepository = new ForumRepository();
 const userRepository = new UserRepository();
-const notificationRepository = new NotificationRepository();
 
 // Validation schema for creating a forum
 const createForumSchema = z.object({
@@ -329,35 +328,42 @@ async function createForumCreatedNotification(
 
     if (usersToNotify.length === 0) return;
 
-    // Create notifications for admin users
-    const notifications = usersToNotify.map((admin) => ({
-      userId: admin.id,
-      type: NotificationType.FAMILY_ACTIVITY,
-      title: "New Forum Created",
-      message: `${creator.firstName || creator.email || "A user"} ${creator.lastName || ""} created a new forum: "${forum.title}"`,
-      data: {
-        forumId,
-        forumTitle: forum.title,
-        forumSlug: forum.slug,
-        creatorId,
-        creatorName: `${creator.firstName || creator.email || "A user"} ${creator.lastName || ""}`,
-        activityType: "forum_created"
-      },
-      actionUrl: `/${admin.role.toLowerCase()}/forums/${forum.slug}`,
-      isActionable: true
-    }));
+    // Dispatch notifications to each admin with their role-specific actionUrl
+    const dispatchPromises = usersToNotify.map((admin) => {
+      const recipientName = admin.firstName
+        ? `${admin.firstName} ${admin.lastName || ""}`.trim()
+        : admin.email;
 
-    // Create notifications in parallel
-    await Promise.all(
-      notifications.map((notification) =>
-        notificationRepository.createNotification(notification),
-      ),
-    );
+      return notificationDispatcher.dispatchNotification(
+        admin.id,
+        NotificationType.FAMILY_ACTIVITY,
+        {
+          title: "New Forum Created",
+          message: `${creator.firstName || creator.email || "A user"} ${creator.lastName || ""} created a new forum: "${forum.title}"`,
+          data: {
+            forumId,
+            forumTitle: forum.title,
+            forumSlug: forum.slug,
+            creatorId,
+            creatorName: `${creator.firstName || creator.email || "A user"} ${creator.lastName || ""}`,
+            activityType: "forum_created"
+          },
+          actionUrl: `/${admin.role.toLowerCase()}/forums/${forum.slug}`,
+          isActionable: true
+        },
+        {
+          recipientName,
+        }
+      );
+    });
+
+    const results = await Promise.allSettled(dispatchPromises);
+    const successCount = results.filter(r => r.status === 'fulfilled' && (r.value as any).success).length;
 
     console.log("✅ Forum creation notifications sent:", {
       forumId,
       forumTitle: forum.title,
-      notificationCount: notifications.length
+      notificationCount: successCount
     });
   } catch (error) {
     console.error("❌ Failed to create forum creation notifications:", error);

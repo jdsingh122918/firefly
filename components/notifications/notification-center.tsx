@@ -12,10 +12,12 @@ import {
   Info,
   AlertTriangle,
   Users,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Notification, NotificationType } from "@/lib/types";
 import { useNotifications } from "@/hooks/use-notifications";
+import { ConnectionStatusBanner } from "./connection-status-banner";
 
 export interface NotificationCenterProps {
   isOpen: boolean;
@@ -52,10 +54,15 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
     notifications,
     unreadCount,
     isLoading,
+    isRefreshing,
     error,
+    connectionState,
+    lastRefreshedAt,
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    refreshNotifications,
+    reconnect,
   } = useNotifications();
 
   const [filter, setFilter] = useState<"all" | "unread" | NotificationType>("all");
@@ -145,14 +152,39 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
               )}
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-accent rounded-full transition-colors"
-            aria-label="Close notifications"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => refreshNotifications?.()}
+              disabled={isRefreshing}
+              className="p-2 hover:bg-accent rounded-full transition-colors"
+              aria-label="Refresh notifications"
+              title="Refresh notifications"
+            >
+              <RefreshCw className={cn("h-5 w-5", isRefreshing && "animate-spin")} />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-accent rounded-full transition-colors"
+              aria-label="Close notifications"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
+
+        {/* Connection Status */}
+        {connectionState !== 'connected' && (
+          <div className="px-4 pt-2">
+            <ConnectionStatusBanner
+              connectionState={connectionState}
+              lastRefreshedAt={lastRefreshedAt}
+              isRefreshing={isRefreshing}
+              error={error}
+              onReconnect={reconnect}
+              onRefresh={refreshNotifications}
+            />
+          </div>
+        )}
 
         {/* Filters and Actions */}
         <div className="p-4 border-b border-border bg-muted/20 space-y-3">

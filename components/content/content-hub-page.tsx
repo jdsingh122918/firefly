@@ -489,7 +489,7 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
 
         {/* Sort Controls */}
         <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-[140px]" suppressHydrationWarning>
+          <SelectTrigger className="w-full sm:w-[140px]" suppressHydrationWarning>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

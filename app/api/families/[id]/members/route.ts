@@ -4,12 +4,11 @@ import { z } from "zod";
 import { UserRole } from "@/lib/auth/roles";
 import { FamilyRepository } from "@/lib/db/repositories/family.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
-import { NotificationRepository } from "@/lib/db/repositories/notification.repository";
 import { NotificationType } from "@/lib/types";
+import { notificationDispatcher } from "@/lib/notifications/notification-dispatcher.service";
 
 const familyRepository = new FamilyRepository();
 const userRepository = new UserRepository();
-const notificationRepository = new NotificationRepository();
 
 // Validation schema for adding a member to family
 const addMemberSchema = z.object({
@@ -227,21 +226,31 @@ async function createFamilyMemberAddedNotification(
     if (!addedBy) return;
 
     // Notify the new member about being added to family
-    await notificationRepository.createNotification({
-      userId: newMemberId,
-      type: NotificationType.FAMILY_ACTIVITY,
-      title: "Welcome to Your Family",
-      message: `You have been added to the ${family.name} family by ${addedBy.firstName} ${addedBy.lastName || ""}`,
-      data: {
-        familyId,
-        familyName: family.name,
-        addedById,
-        addedByName: `${addedBy.firstName} ${addedBy.lastName || ""}`,
-        activityType: "member_added_welcome"
+    const newMemberName = newMember.firstName
+      ? `${newMember.firstName} ${newMember.lastName || ""}`.trim()
+      : newMember.email;
+
+    await notificationDispatcher.dispatchNotification(
+      newMemberId,
+      NotificationType.FAMILY_ACTIVITY,
+      {
+        title: "Welcome to Your Family",
+        message: `You have been added to the ${family.name} family by ${addedBy.firstName} ${addedBy.lastName || ""}`,
+        data: {
+          familyId,
+          familyName: family.name,
+          addedById,
+          addedByName: `${addedBy.firstName} ${addedBy.lastName || ""}`,
+          activityType: "member_added_welcome"
+        },
+        actionUrl: `/families/${familyId}`,
+        isActionable: true
       },
-      actionUrl: `/families/${familyId}`,
-      isActionable: true
-    });
+      {
+        recipientName: newMemberName,
+        familyName: family.name,
+      }
+    );
 
     // Notify existing family members about new member (exclude the new member and person who added them)
     const existingMembers = family.members?.filter(
@@ -249,29 +258,34 @@ async function createFamilyMemberAddedNotification(
     ) || [];
 
     if (existingMembers.length > 0) {
-      const memberNotifications = existingMembers.map((member) => ({
+      const memberRecipients = existingMembers.map((member) => ({
         userId: member.id,
-        type: NotificationType.FAMILY_ACTIVITY,
-        title: "New Family Member",
-        message: `${newMember.firstName} ${newMember.lastName || ""} has joined the ${family.name} family`,
-        data: {
-          familyId,
+        emailData: {
+          recipientName: member.firstName
+            ? `${member.firstName} ${member.lastName || ""}`.trim()
+            : member.email,
           familyName: family.name,
-          newMemberId,
-          newMemberName: `${newMember.firstName} ${newMember.lastName || ""}`,
-          addedById,
-          addedByName: `${addedBy.firstName} ${addedBy.lastName || ""}`,
-          activityType: "member_added_notification"
         },
-        actionUrl: `/families/${familyId}`,
-        isActionable: true
       }));
 
-      // Create notifications in parallel
-      await Promise.all(
-        memberNotifications.map((notification) =>
-          notificationRepository.createNotification(notification),
-        ),
+      await notificationDispatcher.dispatchBulkNotifications(
+        memberRecipients,
+        NotificationType.FAMILY_ACTIVITY,
+        {
+          title: "New Family Member",
+          message: `${newMember.firstName} ${newMember.lastName || ""} has joined the ${family.name} family`,
+          data: {
+            familyId,
+            familyName: family.name,
+            newMemberId,
+            newMemberName: `${newMember.firstName} ${newMember.lastName || ""}`,
+            addedById,
+            addedByName: `${addedBy.firstName} ${addedBy.lastName || ""}`,
+            activityType: "member_added_notification"
+          },
+          actionUrl: `/families/${familyId}`,
+          isActionable: true
+        }
       );
     }
 
@@ -284,28 +298,34 @@ async function createFamilyMemberAddedNotification(
     );
 
     if (adminsToNotify.length > 0) {
-      const adminNotifications = adminsToNotify.map((admin) => ({
+      const adminRecipients = adminsToNotify.map((admin) => ({
         userId: admin.id,
-        type: NotificationType.FAMILY_ACTIVITY,
-        title: "Family Membership Update",
-        message: `${newMember.firstName} ${newMember.lastName || ""} was added to the ${family.name} family`,
-        data: {
-          familyId,
+        emailData: {
+          recipientName: admin.firstName
+            ? `${admin.firstName} ${admin.lastName || ""}`.trim()
+            : admin.email,
           familyName: family.name,
-          newMemberId,
-          newMemberName: `${newMember.firstName} ${newMember.lastName || ""}`,
-          addedById,
-          addedByName: `${addedBy.firstName} ${addedBy.lastName || ""}`,
-          activityType: "member_added_admin"
         },
-        actionUrl: `/admin/families/${familyId}`,
-        isActionable: true
       }));
 
-      await Promise.all(
-        adminNotifications.map((notification) =>
-          notificationRepository.createNotification(notification),
-        ),
+      await notificationDispatcher.dispatchBulkNotifications(
+        adminRecipients,
+        NotificationType.FAMILY_ACTIVITY,
+        {
+          title: "Family Membership Update",
+          message: `${newMember.firstName} ${newMember.lastName || ""} was added to the ${family.name} family`,
+          data: {
+            familyId,
+            familyName: family.name,
+            newMemberId,
+            newMemberName: `${newMember.firstName} ${newMember.lastName || ""}`,
+            addedById,
+            addedByName: `${addedBy.firstName} ${addedBy.lastName || ""}`,
+            activityType: "member_added_admin"
+          },
+          actionUrl: `/admin/families/${familyId}`,
+          isActionable: true
+        }
       );
     }
 

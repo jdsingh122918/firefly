@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Bell, BellRing } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/hooks/use-notifications";
 import { NotificationCenter } from "./notification-center";
+import { ConnectionStatusIndicator } from "./connection-status-banner";
+import { notificationSound } from "@/lib/notifications/notification-sound";
+import { Notification } from "@/lib/types";
 
 export interface NotificationBellProps {
   className?: string;
@@ -12,6 +15,7 @@ export interface NotificationBellProps {
   variant?: "default" | "outline" | "ghost";
   showCount?: boolean;
   maxDisplayCount?: number;
+  enableSound?: boolean;
 }
 
 export function NotificationBell({
@@ -20,9 +24,36 @@ export function NotificationBell({
   variant = "ghost",
   showCount = true,
   maxDisplayCount = 99,
+  enableSound = true,
 }: NotificationBellProps) {
-  const { unreadCount, isConnected } = useNotifications();
+  const {
+    unreadCount,
+    connectionState,
+    lastRefreshedAt,
+  } = useNotifications({
+    onNewNotification: enableSound ? handleNewNotification : undefined,
+  });
   const [isOpen, setIsOpen] = useState(false);
+  const soundInitialized = useRef(false);
+
+  // Initialize sound on first user interaction
+  useEffect(() => {
+    if (!soundInitialized.current && enableSound) {
+      const initSound = () => {
+        notificationSound.initialize();
+        soundInitialized.current = true;
+        window.removeEventListener('click', initSound);
+      };
+      window.addEventListener('click', initSound);
+      return () => window.removeEventListener('click', initSound);
+    }
+  }, [enableSound]);
+
+  function handleNewNotification(notification: Notification) {
+    if (enableSound) {
+      notificationSound.playSound(notification.type);
+    }
+  }
 
   const sizeClasses = {
     sm: "h-8 w-8",
@@ -64,14 +95,9 @@ export function NotificationBell({
         )}
 
         {/* Connection indicator */}
-        <div
-          className={cn(
-            "absolute -top-0.5 -left-0.5 w-2 h-2 rounded-full transition-all duration-300",
-            isConnected
-              ? "bg-green-500 animate-pulse"
-              : "bg-gray-400 animate-none"
-          )}
-          title={isConnected ? "Connected" : "Disconnected"}
+        <ConnectionStatusIndicator
+          connectionState={connectionState}
+          className="absolute -top-0.5 -left-0.5"
         />
 
         {/* Unread count badge */}
@@ -104,7 +130,7 @@ export function NotificationBellCompact({
   className?: string;
   onClick?: () => void;
 }) {
-  const { unreadCount, isConnected } = useNotifications();
+  const { unreadCount, connectionState } = useNotifications();
 
   return (
     <button
@@ -130,14 +156,9 @@ export function NotificationBellCompact({
       )}
 
       {/* Connection status - improved positioning */}
-      <div
-        className={cn(
-          "absolute bottom-1 left-1 w-2 h-2 rounded-full transition-all duration-300",
-          isConnected
-            ? "bg-green-500 animate-pulse"
-            : "bg-gray-400"
-        )}
-        title={isConnected ? "Connected" : "Disconnected"}
+      <ConnectionStatusIndicator
+        connectionState={connectionState}
+        className="absolute bottom-1 left-1"
       />
     </button>
   );
@@ -145,7 +166,15 @@ export function NotificationBellCompact({
 
 // Hook for managing notification bell state across components
 export function useNotificationBell() {
-  const { unreadCount, isConnected, error } = useNotifications();
+  const {
+    unreadCount,
+    isConnected,
+    connectionState,
+    error,
+    lastRefreshedAt,
+    refreshNotifications,
+    reconnect,
+  } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
 
   const openNotifications = () => setIsOpen(true);
@@ -155,11 +184,15 @@ export function useNotificationBell() {
   return {
     unreadCount,
     isConnected,
+    connectionState,
     hasError: !!error,
     error,
+    lastRefreshedAt,
     isOpen,
     openNotifications,
     closeNotifications,
     toggleNotifications,
+    refreshNotifications,
+    reconnect,
   };
 }

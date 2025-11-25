@@ -4,13 +4,12 @@ import { z } from "zod";
 import { UserRole, ResourceStatus, ResourceType, ResourceVisibility } from "@prisma/client";
 import { ResourceRepository } from "@/lib/db/repositories/resource.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
-import { NotificationRepository } from "@/lib/db/repositories/notification.repository";
 import { NotificationType } from "@/lib/types";
 import { prisma } from "@/lib/db/prisma";
+import { notificationDispatcher } from "@/lib/notifications/notification-dispatcher.service";
 
 const resourceRepository = new ResourceRepository(prisma);
 const userRepository = new UserRepository();
-const notificationRepository = new NotificationRepository();
 
 // Validation schema for updating a resource
 const updateResourceSchema = z.object({
@@ -513,35 +512,53 @@ async function createResourceStatusNotifications(
     // Don't notify if the resource creator is changing their own status
     if (resource.submittedBy === changedByUserId) return;
 
-    let notificationData: any = {
-      userId: resource.submittedBy,
-      type: NotificationType.FAMILY_ACTIVITY,
-      data: {
-        resourceId,
-        resourceTitle: resource.title,
-        resourceType: resource.resourceType,
-        oldStatus,
-        newStatus,
-        changedByUserId,
-        changedByName: `${statusChanger.firstName} ${statusChanger.lastName || ""}`,
-        activityType: "resource_status_changed"
-      },
-      actionUrl: `/resources/${resourceId}`,
-      isActionable: true
-    };
+    // Can't notify if no submittedBy
+    if (!resource.submittedBy) return;
+
+    const resourceOwner = await userRepository.getUserById(resource.submittedBy);
+    const recipientName = resourceOwner?.firstName
+      ? `${resourceOwner.firstName} ${resourceOwner.lastName || ""}`.trim()
+      : resourceOwner?.email || "User";
+
+    let title = "";
+    let message = "";
+    const notificationDataExtra: Record<string, unknown> = {};
 
     if (newStatus === ResourceStatus.APPROVED) {
-      notificationData.title = "Your resource has been approved";
-      notificationData.message = `Great news! Your resource "${resource.title}" has been approved and is now live.`;
+      title = "Your resource has been approved";
+      message = `Great news! Your resource "${resource.title}" has been approved and is now live.`;
     } else if (newStatus === ResourceStatus.REJECTED) {
-      notificationData.title = "Your resource needs attention";
-      notificationData.message = rejectionReason
+      title = "Your resource needs attention";
+      message = rejectionReason
         ? `Your resource "${resource.title}" was not approved. Reason: ${rejectionReason}`
         : `Your resource "${resource.title}" was not approved. Please review and resubmit.`;
-      notificationData.data.rejectionReason = rejectionReason;
+      notificationDataExtra.rejectionReason = rejectionReason;
     }
 
-    await notificationRepository.createNotification(notificationData);
+    await notificationDispatcher.dispatchNotification(
+      resource.submittedBy,
+      NotificationType.FAMILY_ACTIVITY,
+      {
+        title,
+        message,
+        data: {
+          resourceId,
+          resourceTitle: resource.title,
+          resourceType: resource.resourceType,
+          oldStatus,
+          newStatus,
+          changedByUserId,
+          changedByName: `${statusChanger.firstName} ${statusChanger.lastName || ""}`,
+          activityType: "resource_status_changed",
+          ...notificationDataExtra
+        },
+        actionUrl: `/resources/${resourceId}`,
+        isActionable: true
+      },
+      {
+        recipientName,
+      }
+    );
 
     console.log("✅ Resource status notification sent:", {
       resourceId,

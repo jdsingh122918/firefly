@@ -7,6 +7,7 @@ import { NotificationType } from "@/lib/types";
 import { NotificationRepository } from "@/lib/db/repositories/notification.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
 import type { NotificationData } from "@/lib/types/api";
+import { notificationDispatcher } from "@/lib/notifications/notification-dispatcher.service";
 
 const notificationRepository = new NotificationRepository();
 const userRepository = new UserRepository();
@@ -143,47 +144,43 @@ export async function POST(request: NextRequest) {
       notificationData.familyId = validatedData.familyId;
     }
 
-    // Create notifications for all target users
-    const notifications = targetUsers.map((targetUser) => ({
-      userId: targetUser.id,
-      type: NotificationType.SYSTEM_ANNOUNCEMENT,
-      title: validatedData.title,
-      message: validatedData.message,
-      data: notificationData,
-      isActionable: validatedData.isActionable,
-      actionUrl: validatedData.actionUrl,
-      expiresAt: validatedData.expiresAt ? new Date(validatedData.expiresAt) : undefined,
-    }));
+    // Prepare recipients with email data for bulk dispatch
+    const allUsersDetails = await Promise.all(
+      targetUsers.map(async (targetUser) => {
+        const userDetails = await userRepository.getUserById(targetUser.id);
+        return {
+          userId: targetUser.id,
+          emailData: {
+            recipientName: userDetails?.firstName
+              ? `${userDetails.firstName} ${userDetails.lastName || ""}`.trim()
+              : userDetails?.email || "User",
+            authorName: `${user.firstName} ${user.lastName || ""}`,
+            priority: validatedData.priority,
+          },
+        };
+      })
+    );
 
-    // Create notifications in parallel batches (to avoid overwhelming the database)
-    const batchSize = 50;
-    const batches = [];
-    for (let i = 0; i < notifications.length; i += batchSize) {
-      batches.push(notifications.slice(i, i + batchSize));
-    }
-
-    let createdCount = 0;
-    for (const batch of batches) {
-      const results = await Promise.allSettled(
-        batch.map((notification) =>
-          notificationRepository.createNotification(notification),
-        ),
-      );
-
-      createdCount += results.filter(result => result.status === 'fulfilled').length;
-
-      // Log any failures
-      const failures = results.filter(result => result.status === 'rejected');
-      if (failures.length > 0) {
-        console.error("❌ Some notifications failed to create:", failures);
+    // Use dispatcher for bulk notifications with real-time SSE delivery
+    const dispatchResult = await notificationDispatcher.dispatchBulkNotifications(
+      allUsersDetails,
+      NotificationType.SYSTEM_ANNOUNCEMENT,
+      {
+        title: validatedData.title,
+        message: validatedData.message,
+        data: notificationData,
+        isActionable: validatedData.isActionable,
+        actionUrl: validatedData.actionUrl,
+        expiresAt: validatedData.expiresAt ? new Date(validatedData.expiresAt) : undefined,
       }
-    }
+    );
 
     console.log("✅ Admin announcement sent successfully:", {
       title: validatedData.title,
       targetAudience: validatedData.targetAudience,
       targetCount: targetUsers.length,
-      createdCount,
+      createdCount: dispatchResult.successCount,
+      sseDelivered: dispatchResult.sseDeliveredCount,
       isCalendarEvent: validatedData.isCalendarEvent,
     });
 
@@ -195,7 +192,8 @@ export async function POST(request: NextRequest) {
           title: validatedData.title,
           targetAudience: validatedData.targetAudience,
           targetCount: targetUsers.length,
-          createdCount,
+          createdCount: dispatchResult.successCount,
+          sseDeliveredCount: dispatchResult.sseDeliveredCount,
           isCalendarEvent: validatedData.isCalendarEvent,
           priority: validatedData.priority,
         },

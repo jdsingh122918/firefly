@@ -165,28 +165,23 @@ export function AssignmentDashboard({ className }: AssignmentDashboardProps) {
       console.log('📡 [Assignment Dashboard] Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
-        let errorDetails;
+        let errorDetails: string | Record<string, unknown> = 'Unknown error';
         try {
           // Try to parse JSON error response first
           const errorText = await response.text();
           try {
             errorDetails = JSON.parse(errorText);
           } catch {
-            errorDetails = errorText;
+            errorDetails = errorText || 'Empty response body';
           }
         } catch (readError) {
           errorDetails = `Failed to read error response: ${readError}`;
         }
 
-        console.error('❌ [Assignment Dashboard] API Error:', {
-          url: response.url,
-          method: 'GET',
-          status: response.status,
-          statusText: response.statusText,
-          error: errorDetails,
-          headers: Object.fromEntries(response.headers.entries()),
-          timestamp: new Date().toISOString()
-        });
+        // Log error details explicitly to avoid serialization issues
+        console.error('❌ [Assignment Dashboard] API Error - Status:', response.status, response.statusText);
+        console.error('❌ [Assignment Dashboard] API Error - URL:', response.url);
+        console.error('❌ [Assignment Dashboard] API Error - Details:', typeof errorDetails === 'object' ? JSON.stringify(errorDetails, null, 2) : errorDetails);
 
         // Provide user-friendly error messages based on status
         let userMessage = `Failed to load assignments (${response.status})`;

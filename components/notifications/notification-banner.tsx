@@ -22,7 +22,7 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { Notification, NotificationType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 
 export interface NotificationBannerProps {
@@ -54,7 +54,8 @@ export function NotificationBanner({
   showOnlyActionable = false,
   position = "top",
 }: NotificationBannerProps) {
-  const { notifications, unreadCount, markAsRead, isConnected } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, isConnected } = useNotifications();
+  const pathname = usePathname();
   const [isExpanded, setIsExpanded] = useState(false);
   const router = useRouter();
   const { sessionClaims } = useAuth();
@@ -79,6 +80,11 @@ export function NotificationBanner({
     : displayNotifications.slice(0, maxDisplayCount);
 
   const hasMoreNotifications = displayNotifications.length > maxDisplayCount;
+
+  // Don't render on notifications page (user is already viewing notifications)
+  if (pathname?.endsWith('/notifications')) {
+    return null;
+  }
 
   // Don't render if no notifications
   if (unreadCount === 0 || displayNotifications.length === 0) {
@@ -270,6 +276,20 @@ export function NotificationBanner({
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => markAllAsRead()}
+                className={cn(
+                  "text-xs touch-manipulation min-h-[36px]",
+                  "hover:scale-105 active:scale-95 transition-all",
+                  "focus:ring-2 focus:ring-offset-1 focus:outline-none"
+                )}
+              >
+                <CheckCircle className="h-3 w-3 mr-1" />
+                <span className="hidden sm:inline">Mark All Read</span>
+                <span className="sm:hidden">Read All</span>
+              </Button>
               {hasMoreNotifications && (
                 <Button
                   variant="ghost"

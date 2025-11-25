@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { UserRole, ResourceStatus } from "@prisma/client";
+import { ResourceStatus } from "@prisma/client";
 import { ResourceRepository } from "@/lib/db/repositories/resource.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
-import { NotificationRepository } from "@/lib/db/repositories/notification.repository";
 import { NotificationType } from "@/lib/types";
 import { prisma } from "@/lib/db/prisma";
+import { notificationDispatcher } from "@/lib/notifications/notification-dispatcher.service";
 
 const resourceRepository = new ResourceRepository(prisma);
 const userRepository = new UserRepository();
-const notificationRepository = new NotificationRepository();
 
 // Validation schema for rating a resource
 const rateResourceSchema = z.object({
@@ -299,29 +298,36 @@ async function createResourceRatingNotification(
     // TODO: We need to get the rater's role for findById - using MEMBER as default for now
     const resource = await resourceRepository.findById(resourceId, raterId, "MEMBER");
     const rater = await userRepository.getUserById(raterId);
+    const author = await userRepository.getUserById(authorId);
 
     if (!resource || !rater) return;
 
-    // Create notification for resource author
-    const notification = {
-      userId: authorId,
-      type: NotificationType.FAMILY_ACTIVITY,
-      title: `Your resource received a ${rating}-star rating`,
-      message: `${rater.firstName} ${rater.lastName || ""} gave your resource "${resource.title}" a ${rating}-star rating.`,
-      data: {
-        resourceId,
-        resourceTitle: resource.title,
-        resourceType: resource.resourceType,
-        raterId,
-        raterName: `${rater.firstName} ${rater.lastName || ""}`,
-        rating,
-        activityType: "resource_rated"
-      },
-      actionUrl: `/resources/${resourceId}`,
-      isActionable: true
-    };
+    const recipientName = author?.firstName
+      ? `${author.firstName} ${author.lastName || ""}`.trim()
+      : author?.email || "User";
 
-    await notificationRepository.createNotification(notification);
+    await notificationDispatcher.dispatchNotification(
+      authorId,
+      NotificationType.FAMILY_ACTIVITY,
+      {
+        title: `Your resource received a ${rating}-star rating`,
+        message: `${rater.firstName} ${rater.lastName || ""} gave your resource "${resource.title}" a ${rating}-star rating.`,
+        data: {
+          resourceId,
+          resourceTitle: resource.title,
+          resourceType: resource.resourceType,
+          raterId,
+          raterName: `${rater.firstName} ${rater.lastName || ""}`,
+          rating,
+          activityType: "resource_rated"
+        },
+        actionUrl: `/resources/${resourceId}`,
+        isActionable: true
+      },
+      {
+        recipientName,
+      }
+    );
 
     console.log("✅ Resource rating notification sent:", {
       resourceId,

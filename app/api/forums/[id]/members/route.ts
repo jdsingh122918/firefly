@@ -4,12 +4,11 @@ import { z } from "zod";
 import { UserRole } from "@prisma/client";
 import { ForumRepository } from "@/lib/db/repositories/forum.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
-import { NotificationRepository } from "@/lib/db/repositories/notification.repository";
 import { NotificationType } from "@/lib/types";
+import { notificationDispatcher } from "@/lib/notifications/notification-dispatcher.service";
 
 const forumRepository = new ForumRepository();
 const userRepository = new UserRepository();
-const notificationRepository = new NotificationRepository();
 
 // Validation schema for adding a member
 const addMemberSchema = z.object({
@@ -461,30 +460,38 @@ async function createMembershipNotification(
   try {
     const forum = await forumRepository.getForumById(forumId);
     const actionUser = await userRepository.getUserById(actionBy);
+    const targetUser = await userRepository.getUserById(targetUserId);
 
     if (!forum || !actionUser) return;
 
-    const notification = {
-      userId: targetUserId,
-      type: NotificationType.FAMILY_ACTIVITY,
-      title: `Forum Membership ${action === "added" ? "Added" : "Removed"}`,
-      message: action === "added"
-        ? `You were added to the forum "${forum.title}" by ${actionUser.firstName} ${actionUser.lastName || ""}`
-        : `You were removed from the forum "${forum.title}" by ${actionUser.firstName} ${actionUser.lastName || ""}`,
-      data: {
-        forumId,
-        forumTitle: forum.title,
-        forumSlug: forum.slug,
-        action,
-        actionBy,
-        actionByName: `${actionUser.firstName} ${actionUser.lastName || ""}`,
-        activityType: `forum_member_${action}`
-      },
-      actionUrl: action === "added" ? `/forums/${forum.slug}` : undefined,
-      isActionable: action === "added",
-    };
+    const recipientName = targetUser?.firstName
+      ? `${targetUser.firstName} ${targetUser.lastName || ""}`.trim()
+      : targetUser?.email || "User";
 
-    await notificationRepository.createNotification(notification);
+    await notificationDispatcher.dispatchNotification(
+      targetUserId,
+      NotificationType.FAMILY_ACTIVITY,
+      {
+        title: `Forum Membership ${action === "added" ? "Added" : "Removed"}`,
+        message: action === "added"
+          ? `You were added to the forum "${forum.title}" by ${actionUser.firstName} ${actionUser.lastName || ""}`
+          : `You were removed from the forum "${forum.title}" by ${actionUser.firstName} ${actionUser.lastName || ""}`,
+        data: {
+          forumId,
+          forumTitle: forum.title,
+          forumSlug: forum.slug,
+          action,
+          actionBy,
+          actionByName: `${actionUser.firstName} ${actionUser.lastName || ""}`,
+          activityType: `forum_member_${action}`
+        },
+        actionUrl: action === "added" ? `/forums/${forum.slug}` : undefined,
+        isActionable: action === "added",
+      },
+      {
+        recipientName,
+      }
+    );
 
     console.log("✅ Membership notification sent:", {
       forumId,

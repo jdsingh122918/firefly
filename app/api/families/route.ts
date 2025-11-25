@@ -4,12 +4,11 @@ import { z } from "zod";
 import { UserRole } from "@/lib/auth/roles";
 import { FamilyRepository } from "@/lib/db/repositories/family.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
-import { NotificationRepository } from "@/lib/db/repositories/notification.repository";
 import { NotificationType } from "@/lib/types";
+import { notificationDispatcher } from "@/lib/notifications/notification-dispatcher.service";
 
 const familyRepository = new FamilyRepository();
 const userRepository = new UserRepository();
-const notificationRepository = new NotificationRepository();
 
 // Validation schema for creating a family
 const createFamilySchema = z.object({
@@ -261,34 +260,41 @@ async function createFamilyCreatedNotification(
 
     if (usersToNotify.length === 0) return;
 
-    // Create notifications for admin users
-    const notifications = usersToNotify.map((admin) => ({
+    // Prepare recipients for bulk dispatch
+    const recipients = usersToNotify.map((admin) => ({
       userId: admin.id,
-      type: NotificationType.FAMILY_ACTIVITY,
-      title: "New Family Created",
-      message: `${creator.firstName} ${creator.lastName || ""} created a new family: "${family.name}"`,
-      data: {
-        familyId,
+      emailData: {
+        recipientName: admin.firstName
+          ? `${admin.firstName} ${admin.lastName || ""}`.trim()
+          : admin.email,
         familyName: family.name,
-        creatorId,
-        creatorName: `${creator.firstName} ${creator.lastName || ""}`,
-        activityType: "family_created"
       },
-      actionUrl: `/admin/families/${familyId}`,
-      isActionable: true
     }));
 
-    // Create notifications in parallel
-    await Promise.all(
-      notifications.map((notification) =>
-        notificationRepository.createNotification(notification),
-      ),
+    // Use dispatcher for bulk notifications
+    const result = await notificationDispatcher.dispatchBulkNotifications(
+      recipients,
+      NotificationType.FAMILY_ACTIVITY,
+      {
+        title: "New Family Created",
+        message: `${creator.firstName} ${creator.lastName || ""} created a new family: "${family.name}"`,
+        data: {
+          familyId,
+          familyName: family.name,
+          creatorId,
+          creatorName: `${creator.firstName} ${creator.lastName || ""}`,
+          activityType: "family_created"
+        },
+        actionUrl: `/admin/families/${familyId}`,
+        isActionable: true
+      }
     );
 
     console.log("✅ Family creation notifications sent:", {
       familyId,
       familyName: family.name,
-      notificationCount: notifications.length
+      notificationCount: result.successCount,
+      sseDelivered: result.sseDeliveredCount,
     });
   } catch (error) {
     console.error("❌ Failed to create family creation notifications:", error);

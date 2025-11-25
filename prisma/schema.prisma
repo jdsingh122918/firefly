@@ -42,6 +42,14 @@ enum NotificationType {
   EMERGENCY_ALERT
 }
 
+// Notification delivery tracking status
+enum DeliveryStatus {
+  PENDING    // Notification created, awaiting delivery
+  DELIVERED  // Successfully delivered via SSE
+  FAILED     // SSE delivery failed
+  POLLED     // Picked up via polling fallback
+}
+
 // ====================================
 // ASSIGNMENT SYSTEM ENUMS (Session 018)
 // ====================================
@@ -296,12 +304,41 @@ model Notification {
 
   // Relations
   user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveryLogs NotificationDeliveryLog[]
 
   @@index([userId])
   @@index([type])
   @@index([isRead])
   @@index([createdAt])
   @@map("notifications")
+}
+
+// Notification delivery tracking for debugging and monitoring
+model NotificationDeliveryLog {
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  notificationId  String         @db.ObjectId
+  userId          String         @db.ObjectId
+
+  // Timing metrics
+  createdAt       DateTime       @default(now())
+  dispatchedAt    DateTime?
+  deliveredAt     DateTime?
+
+  // Delivery status
+  status          DeliveryStatus @default(PENDING)
+  wasConnected    Boolean        @default(false)
+  connectionId    String?
+  sseError        String?
+  latencyMs       Int?
+
+  // Relations
+  notification    Notification   @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("notification_delivery_logs")
 }
 
 // User notification preferences
@@ -324,6 +361,10 @@ model NotificationPreferences {
   inAppAnnouncements     Boolean @default(true)
   inAppFamilyActivity    Boolean @default(true)
   inAppEmergencyAlerts   Boolean @default(true)
+
+  // Sound preferences
+  soundEnabled           Boolean @default(true)
+  soundVolume            Float   @default(0.5)
 
   // Timing preferences
   quietHoursEnabled      Boolean @default(false)

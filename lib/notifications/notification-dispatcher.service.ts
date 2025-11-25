@@ -1,4 +1,5 @@
 import { NotificationRepository } from "@/lib/db/repositories/notification.repository";
+import { NotificationDeliveryRepository } from "@/lib/db/repositories/notification-delivery.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
 import {
   NotificationType,
@@ -8,6 +9,8 @@ import {
   sendNotificationEmail,
   NotificationEmailHelpers,
 } from "@/lib/email";
+import { NotificationLogger } from "./notification-logger";
+import { DeliveryStatus } from "@prisma/client";
 
 // Import the broadcaster functions from the SSE endpoint
 // Note: This import will work at runtime since the SSE route exports these functions
@@ -22,10 +25,20 @@ interface NotificationBroadcastData {
   isActionable: boolean;
   actionUrl: string | null;
   createdAt: Date;
+  deliveryLogId?: string; // For client acknowledgment
 }
 
-let broadcastNotificationToUser: (userId: string, notification: NotificationBroadcastData) => void;
+// Broadcast result type
+interface BroadcastResult {
+  success: boolean;
+  connectionId?: string;
+  error?: string;
+}
+
+let broadcastNotificationToUser: (userId: string, notification: NotificationBroadcastData) => BroadcastResult;
 let broadcastUnreadCountToUser: (userId: string, count: number) => void;
+let isUserConnected: (userId: string) => boolean;
+let getConnectionIdForUser: (userId: string) => string | undefined;
 
 // Dynamic import to avoid circular dependencies
 async function initializeBroadcasters() {
@@ -34,31 +47,41 @@ async function initializeBroadcasters() {
       const streamModule = await import("@/app/api/notifications/stream/route");
       broadcastNotificationToUser = streamModule.broadcastNotificationToUser as (
         userId: string,
-        notification: unknown
-      ) => void;
+        notification: NotificationBroadcastData
+      ) => BroadcastResult;
       broadcastUnreadCountToUser = streamModule.broadcastUnreadCountToUser as (
         userId: string,
         count: number
       ) => void;
+      isUserConnected = streamModule.isUserConnected as (
+        userId: string
+      ) => boolean;
+      getConnectionIdForUser = streamModule.getConnectionIdForUser as (
+        userId: string
+      ) => string | undefined;
     } catch (_error) {
       console.error(
         "❌ Failed to initialize notification broadcasters:",
         _error,
       );
       // Provide fallback functions
-      broadcastNotificationToUser = () => {};
+      broadcastNotificationToUser = () => ({ success: false, error: "Broadcasters not initialized" });
       broadcastUnreadCountToUser = () => {};
+      isUserConnected = () => false;
+      getConnectionIdForUser = () => undefined;
     }
   }
 }
 
 export class NotificationDispatcher {
   private notificationRepository: NotificationRepository;
+  private deliveryRepository: NotificationDeliveryRepository;
   private userRepository: UserRepository;
   private initialized = false;
 
   constructor() {
     this.notificationRepository = new NotificationRepository();
+    this.deliveryRepository = new NotificationDeliveryRepository();
     this.userRepository = new UserRepository();
     this.initialize();
   }
@@ -101,6 +124,8 @@ export class NotificationDispatcher {
   ): Promise<{
     inAppNotification?: Notification;
     emailSent: boolean;
+    sseDelivered: boolean;
+    deliveryLogId?: string;
     success: boolean;
     errors: string[];
   }> {
@@ -109,6 +134,8 @@ export class NotificationDispatcher {
     const errors: string[] = [];
     let inAppNotification: Notification | undefined;
     let emailSent = false;
+    let sseDelivered = false;
+    let deliveryLogId: string | undefined;
 
     try {
       // Always create in-app notification first
@@ -123,14 +150,36 @@ export class NotificationDispatcher {
         expiresAt: data.expiresAt,
       });
 
-      console.log("🔔 Created in-app notification:", {
-        id: inAppNotification.id,
+      // Log notification creation
+      NotificationLogger.notificationCreated(
+        inAppNotification.id,
+        recipientUserId,
+        type
+      );
+
+      // Check if user is connected and get connection info
+      const wasConnected = isUserConnected(recipientUserId);
+      const connectionId = getConnectionIdForUser(recipientUserId);
+
+      // Create delivery tracking log
+      const deliveryLog = await this.deliveryRepository.createDeliveryLog({
+        notificationId: inAppNotification.id,
         userId: recipientUserId,
-        type,
+        wasConnected,
+        connectionId,
       });
+      deliveryLogId = deliveryLog.id;
+
+      // Log dispatch attempt
+      NotificationLogger.sseDispatchAttempted(
+        inAppNotification.id,
+        recipientUserId,
+        wasConnected,
+        connectionId
+      );
 
       // Broadcast the notification via SSE
-      broadcastNotificationToUser(recipientUserId, {
+      const broadcastResult = broadcastNotificationToUser(recipientUserId, {
         id: inAppNotification.id,
         type: inAppNotification.type,
         title: inAppNotification.title,
@@ -139,7 +188,36 @@ export class NotificationDispatcher {
         isActionable: inAppNotification.isActionable,
         actionUrl: inAppNotification.actionUrl,
         createdAt: inAppNotification.createdAt,
+        deliveryLogId: deliveryLog.id,
       });
+
+      // Update delivery log based on result
+      if (broadcastResult.success) {
+        const latencyMs = Date.now() - inAppNotification.createdAt.getTime();
+        await this.deliveryRepository.markAsDelivered(deliveryLog.id, latencyMs);
+        sseDelivered = true;
+        NotificationLogger.sseDispatchSuccess(
+          inAppNotification.id,
+          recipientUserId,
+          latencyMs,
+          broadcastResult.connectionId
+        );
+      } else {
+        await this.deliveryRepository.markAsFailed(
+          deliveryLog.id,
+          broadcastResult.error || "Unknown error"
+        );
+        if (!wasConnected) {
+          NotificationLogger.sseNoConnection(inAppNotification.id, recipientUserId);
+        } else {
+          NotificationLogger.sseDispatchFailed(
+            inAppNotification.id,
+            recipientUserId,
+            broadcastResult.error || "Unknown error",
+            broadcastResult.connectionId
+          );
+        }
+      }
 
       // Update unread count
       const unreadCount =
@@ -291,6 +369,8 @@ export class NotificationDispatcher {
       return {
         inAppNotification,
         emailSent,
+        sseDelivered,
+        deliveryLogId,
         success: true,
         errors,
       };
@@ -303,6 +383,8 @@ export class NotificationDispatcher {
       return {
         inAppNotification,
         emailSent,
+        sseDelivered,
+        deliveryLogId,
         success: false,
         errors,
       };
@@ -332,11 +414,13 @@ export class NotificationDispatcher {
   ): Promise<{
     successCount: number;
     failureCount: number;
+    sseDeliveredCount: number;
     results: Array<{
       userId: string;
       success: boolean;
       inAppNotification?: Notification;
       emailSent: boolean;
+      sseDelivered: boolean;
       errors: string[];
     }>;
   }> {
@@ -362,6 +446,7 @@ export class NotificationDispatcher {
           userId: recipients[index].userId,
           success: false,
           emailSent: false,
+          sseDelivered: false,
           errors: [`Failed to dispatch: ${result.reason}`],
         };
       }
@@ -369,16 +454,19 @@ export class NotificationDispatcher {
 
     const successCount = finalResults.filter((r) => r.success).length;
     const failureCount = finalResults.length - successCount;
+    const sseDeliveredCount = finalResults.filter((r) => r.sseDelivered).length;
 
     console.log("🔔 Bulk notification dispatch complete:", {
       total: recipients.length,
       success: successCount,
       failed: failureCount,
+      sseDelivered: sseDeliveredCount,
     });
 
     return {
       successCount,
       failureCount,
+      sseDeliveredCount,
       results: finalResults,
     };
   }
@@ -406,11 +494,13 @@ export class NotificationDispatcher {
   ): Promise<{
     successCount: number;
     failureCount: number;
+    sseDeliveredCount: number;
     results: Array<{
       userId: string;
       success: boolean;
       inAppNotification?: Notification;
       emailSent: boolean;
+      sseDelivered: boolean;
       errors: string[];
     }>;
   }> {
@@ -457,11 +547,13 @@ export class NotificationDispatcher {
       return {
         successCount: 0,
         failureCount: 1,
+        sseDeliveredCount: 0,
         results: [
           {
             userId: "family",
             success: false,
             emailSent: false,
+            sseDelivered: false,
             errors: [error instanceof Error ? error.message : "Unknown error"],
           },
         ],

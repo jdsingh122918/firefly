@@ -536,27 +536,27 @@ export default function VolunteerFamilyDetailPage() {
                                 key={member.id}
                                 className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                               >
-                                <div className="flex items-center space-x-3">
-                                  <Avatar className="h-10 w-10">
+                                <div className="flex items-center space-x-3 min-w-0 flex-1">
+                                  <Avatar className="h-10 w-10 flex-shrink-0">
                                     <AvatarFallback>
                                       {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                                     </AvatarFallback>
                                   </Avatar>
-                                  <div>
-                                    <p className="font-medium">{member.name}</p>
+                                  <div className="min-w-0">
+                                    <p className="font-medium truncate">{member.name}</p>
                                     <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                                      <Mail className="h-3 w-3" />
-                                      <span>{member.email}</span>
+                                      <Mail className="h-3 w-3 flex-shrink-0" />
+                                      <span className="truncate">{member.email}</span>
                                     </div>
                                     {member.phoneNumber && (
                                       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                                        <Phone className="h-3 w-3" />
-                                        <span>{member.phoneNumber}</span>
+                                        <Phone className="h-3 w-3 flex-shrink-0" />
+                                        <span className="truncate">{member.phoneNumber}</span>
                                       </div>
                                     )}
                                   </div>
                                 </div>
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center space-x-2 flex-shrink-0">
                                   <Badge variant="secondary">{member.role}</Badge>
                                   <Button
                                     size="sm"
@@ -681,27 +681,27 @@ export default function VolunteerFamilyDetailPage() {
               <div className="space-y-4">
                 {family.members.map((member) => (
                   <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-10 w-10">
+                    <div className="flex items-center space-x-3 min-w-0 flex-1">
+                      <Avatar className="h-10 w-10 flex-shrink-0">
                         <AvatarFallback>
                           {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <p className="font-medium">{member.name}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{member.name}</p>
                         <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                          <Mail className="h-3 w-3" />
-                          <span>{member.email}</span>
+                          <Mail className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{member.email}</span>
                         </div>
                         {member.phoneNumber && (
                           <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            <span>{member.phoneNumber}</span>
+                            <Phone className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{member.phoneNumber}</span>
                           </div>
                         )}
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex-shrink-0">
                       <Badge variant={getRoleColor(member.role)}>
                         {member.role}
                       </Badge>

@@ -681,17 +681,17 @@ export default function FamilyDetailPage() {
                                 key={member.id}
                                 className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                               >
-                                <div className="flex items-center space-x-3">
-                                  <Avatar className="h-10 w-10">
+                                <div className="flex items-center space-x-3 min-w-0 flex-1">
+                                  <Avatar className="h-10 w-10 flex-shrink-0">
                                     <AvatarFallback>
                                       {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                                     </AvatarFallback>
                                   </Avatar>
-                                  <div>
-                                    <p className="font-medium">{member.name}</p>
+                                  <div className="min-w-0">
+                                    <p className="font-medium truncate">{member.name}</p>
                                     <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                                      <Mail className="h-3 w-3" />
-                                      <span>{member.email}</span>
+                                      <Mail className="h-3 w-3 flex-shrink-0" />
+                                      <span className="truncate">{member.email}</span>
                                     </div>
                                     {member.phoneNumber && (
                                       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
@@ -701,7 +701,7 @@ export default function FamilyDetailPage() {
                                     )}
                                   </div>
                                 </div>
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center space-x-2 flex-shrink-0">
                                   <Badge variant="secondary">{member.role}</Badge>
                                   <Button
                                     size="sm"
@@ -826,27 +826,27 @@ export default function FamilyDetailPage() {
               <div className="space-y-4">
                 {family.members.map((member) => (
                   <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-10 w-10">
+                    <div className="flex items-center space-x-3 min-w-0 flex-1">
+                      <Avatar className="h-10 w-10 flex-shrink-0">
                         <AvatarFallback>
                           {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <p className="font-medium">{member.name}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{member.name}</p>
                         <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                          <Mail className="h-3 w-3" />
-                          <span>{member.email}</span>
+                          <Mail className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{member.email}</span>
                         </div>
                         {member.phoneNumber && (
                           <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            <span>{member.phoneNumber}</span>
+                            <Phone className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{member.phoneNumber}</span>
                           </div>
                         )}
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex-shrink-0">
                       <Badge variant={getRoleColor(member.role)}>
                         {member.role}
                       </Badge>
@@ -895,55 +895,58 @@ export default function FamilyDetailPage() {
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-6 lg:grid-cols-2 overflow-y-auto flex-1 pt-4">
-                  {/* Currently Assigned Volunteers */}
-                  <div className="space-y-3 flex flex-col min-h-0">
-                    {/* Section Header - Minimalist */}
-                    <div className="flex items-center justify-between pb-2 border-b">
-                      <h3 className="text-sm font-medium text-muted-foreground">Currently Assigned</h3>
-                      <Badge variant="outline" className="text-xs tabular-nums">
+                <Tabs defaultValue="available" className="flex-1 flex flex-col overflow-hidden">
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="assigned" className="flex items-center gap-2">
+                      Currently Assigned
+                      <Badge variant="secondary" className="text-xs tabular-nums">
                         {assignedVolunteers.length}
                       </Badge>
-                    </div>
+                    </TabsTrigger>
+                    <TabsTrigger value="available" className="flex items-center gap-2">
+                      Available Volunteers
+                      <Badge variant="secondary" className="text-xs tabular-nums">
+                        {availableVolunteers.length}
+                      </Badge>
+                    </TabsTrigger>
+                  </TabsList>
 
-                    {/* Empty State */}
+                  {/* Currently Assigned Tab */}
+                  <TabsContent value="assigned" className="flex-1 overflow-y-auto mt-0">
                     {assignedVolunteers.length === 0 ? (
-                      <div className="flex-1 flex items-center justify-center">
+                      <div className="flex items-center justify-center min-h-[300px]">
                         <div className="text-center py-8 px-4">
                           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted/50 mb-3">
                             <UserPlus className="h-5 w-5 text-muted-foreground" />
                           </div>
-                          <p className="text-sm text-muted-foreground">No volunteers assigned</p>
+                          <p className="text-sm text-muted-foreground">No volunteers assigned yet</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Switch to "Available Volunteers" to assign someone
+                          </p>
                         </div>
                       </div>
                     ) : (
-                      /* Assigned Volunteers List */
-                      <div className="space-y-1.5 overflow-y-auto flex-1 pr-1">
+                      <div className="space-y-2">
                         {assignedVolunteers.map((volunteer) => (
                           <div
                             key={volunteer.id}
-                            className="group relative flex items-center gap-3 p-2.5 rounded-md border hover:bg-accent/50 transition-colors"
+                            className="flex items-center gap-4 p-3 rounded-lg border bg-card hover:bg-accent/30 transition-colors"
                           >
-                            {/* Avatar - Simplified */}
-                            <Avatar className="h-9 w-9 shrink-0">
-                              <AvatarFallback className="text-xs font-medium bg-primary/10 text-primary">
+                            <Avatar className="h-10 w-10 shrink-0">
+                              <AvatarFallback className="text-sm font-medium bg-primary/10 text-primary">
                                 {volunteer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
-
-                            {/* Information - Clean Layout */}
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm text-foreground truncate">{volunteer.name}</p>
-                              <p className="text-xs text-muted-foreground truncate">{volunteer.email}</p>
+                              <p className="font-medium text-foreground">{volunteer.name}</p>
+                              <p className="text-sm text-muted-foreground">{volunteer.email}</p>
                             </div>
-
-                            {/* Action Button - Minimal */}
                             <Button
                               size="sm"
-                              variant="ghost"
+                              variant="outline"
                               onClick={() => removeVolunteerFromFamily(volunteer.id)}
                               disabled={removingVolunteer === volunteer.id}
-                              className="h-7 px-2 text-xs shrink-0 text-muted-foreground hover:text-destructive"
+                              className="shrink-0 text-muted-foreground hover:text-destructive hover:border-destructive"
                             >
                               {removingVolunteer === volunteer.id ? 'Removing...' : 'Remove'}
                             </Button>
@@ -951,93 +954,71 @@ export default function FamilyDetailPage() {
                         ))}
                       </div>
                     )}
-                  </div>
+                  </TabsContent>
 
-                  {/* Available Volunteers */}
-                  <div className="space-y-3 flex flex-col min-h-0">
-                    {/* Section Header - Minimalist */}
-                    <div className="flex items-center justify-between pb-2 border-b">
-                      <h3 className="text-sm font-medium text-muted-foreground">Available Volunteers</h3>
-                      <Badge variant="outline" className="text-xs tabular-nums">
-                        {availableVolunteers.length}
-                      </Badge>
-                    </div>
-
-                    {/* Error State - Clean */}
+                  {/* Available Volunteers Tab */}
+                  <TabsContent value="available" className="flex-1 overflow-y-auto mt-0">
                     {volunteerManageError && (
-                      <div className="flex items-start gap-2 p-2.5 bg-destructive/5 border border-destructive/20 rounded-md">
-                        <span className="text-xs text-destructive flex-1">{volunteerManageError}</span>
+                      <div className="flex items-start gap-2 p-3 mb-4 bg-destructive/5 border border-destructive/20 rounded-lg">
+                        <span className="text-sm text-destructive">{volunteerManageError}</span>
                       </div>
                     )}
 
-                    {/* Loading State - Minimal */}
-                    {loadingAvailableVolunteers && (
-                      <div className="space-y-1.5 flex-1">
+                    {loadingAvailableVolunteers ? (
+                      <div className="space-y-2">
                         {[1, 2, 3].map((i) => (
-                          <div key={i} className="flex items-center gap-3 p-2.5 rounded-md border">
-                            <Skeleton className="h-9 w-9 rounded-full shrink-0" />
-                            <div className="flex-1 space-y-1.5">
-                              <Skeleton className="h-3.5 w-2/3" />
-                              <Skeleton className="h-3 w-1/2" />
+                          <div key={i} className="flex items-center gap-4 p-3 rounded-lg border">
+                            <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+                            <div className="flex-1 space-y-2">
+                              <Skeleton className="h-4 w-1/2" />
+                              <Skeleton className="h-3 w-2/3" />
                             </div>
-                            <Skeleton className="h-7 w-14 shrink-0" />
+                            <Skeleton className="h-9 w-16 shrink-0" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : availableVolunteers.length === 0 ? (
+                      <div className="flex items-center justify-center min-h-[300px]">
+                        <div className="text-center py-8 px-4">
+                          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted/50 mb-3">
+                            <UserPlus className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <p className="text-sm text-muted-foreground">No volunteers available</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            All volunteers are already assigned to families
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {availableVolunteers.map((volunteer) => (
+                          <div
+                            key={volunteer.id}
+                            className="flex items-center gap-4 p-3 rounded-lg border bg-card hover:bg-accent/30 transition-colors"
+                          >
+                            <Avatar className="h-10 w-10 shrink-0">
+                              <AvatarFallback className="text-sm font-medium bg-primary/10 text-primary">
+                                {volunteer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-foreground">{volunteer.name}</p>
+                              <p className="text-sm text-muted-foreground">{volunteer.email}</p>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => assignVolunteerToFamily(volunteer.id)}
+                              disabled={assigningVolunteer}
+                              className="shrink-0"
+                            >
+                              {assigningVolunteer ? 'Assigning...' : 'Assign'}
+                            </Button>
                           </div>
                         ))}
                       </div>
                     )}
-
-                    {/* Available volunteers list */}
-                    {!loadingAvailableVolunteers && (
-                      <div className="overflow-y-auto space-y-1.5 flex-1 pr-1">
-                        {/* Empty State */}
-                        {availableVolunteers.length === 0 ? (
-                          <div className="flex items-center justify-center h-full min-h-[200px]">
-                            <div className="text-center py-8 px-4">
-                              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted/50 mb-3">
-                                <UserPlus className="h-5 w-5 text-muted-foreground" />
-                              </div>
-                              <p className="text-sm text-muted-foreground">
-                                No volunteers available
-                              </p>
-                            </div>
-                          </div>
-                        ) : (
-                          /* Available Volunteers List */
-                          availableVolunteers.map((volunteer) => (
-                            <div
-                              key={volunteer.id}
-                              className="group relative flex items-center gap-3 p-2.5 rounded-md border hover:bg-accent/50 transition-colors"
-                            >
-                              {/* Avatar - Simplified */}
-                              <Avatar className="h-9 w-9 shrink-0">
-                                <AvatarFallback className="text-xs font-medium bg-primary/10 text-primary">
-                                  {volunteer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-
-                              {/* Information - Clean Layout */}
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm text-foreground truncate">{volunteer.name}</p>
-                                <p className="text-xs text-muted-foreground truncate">{volunteer.email}</p>
-                              </div>
-
-                              {/* Action Button - Minimal */}
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => assignVolunteerToFamily(volunteer.id)}
-                                disabled={assigningVolunteer}
-                                className="h-7 px-2 text-xs shrink-0"
-                              >
-                                {assigningVolunteer ? 'Assigning...' : 'Assign'}
-                              </Button>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                  </TabsContent>
+                </Tabs>
               </DialogContent>
             </Dialog>
           </div>

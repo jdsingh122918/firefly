@@ -91,7 +91,10 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Resources API GET error:', error);
+    console.error('💥 Resources API GET error:', error);
+    console.error('💥 Error name:', error instanceof Error ? error.name : 'Not an Error');
+    console.error('💥 Error message:', error instanceof Error ? error.message : String(error));
+    console.error('💥 Error stack:', error instanceof Error ? error.stack : 'No stack');
     return NextResponse.json(
       { error: 'Failed to fetch resources', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

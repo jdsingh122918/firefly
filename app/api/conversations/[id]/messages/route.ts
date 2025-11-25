@@ -3,15 +3,14 @@ import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { ConversationRepository } from "@/lib/db/repositories/conversation.repository";
 import { MessageRepository } from "@/lib/db/repositories/message.repository";
-import { NotificationRepository } from "@/lib/db/repositories/notification.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
 import { NotificationType } from "@/lib/types";
 import type { MessageMetadata } from "@/lib/types/api";
 import { broadcastToConversation } from "../stream/route";
+import { notificationDispatcher } from "@/lib/notifications/notification-dispatcher.service";
 
 const conversationRepository = new ConversationRepository();
 const messageRepository = new MessageRepository();
-const notificationRepository = new NotificationRepository();
 const userRepository = new UserRepository();
 
 // Validation schema for creating a message
@@ -257,16 +256,19 @@ async function createMessageNotifications(
         (p: any) => p.userId !== senderId && !p.leftAt,
       ) || [];
 
-    // Create notifications for each participant with role-based actionUrl
-    const notifications = await Promise.all(
-      otherParticipants.map(async (participant: any) => {
-        // Get participant's role for correct routing
-        const participantUser = await userRepository.getUserById(participant.userId);
-        const role = participantUser?.role?.toLowerCase() || 'member';
+    // Dispatch notifications for each participant with role-based actionUrl
+    const dispatchPromises = otherParticipants.map(async (participant: any) => {
+      // Get participant's role for correct routing
+      const participantUser = await userRepository.getUserById(participant.userId);
+      const role = participantUser?.role?.toLowerCase() || 'member';
+      const recipientName = participantUser?.firstName
+        ? `${participantUser.firstName} ${participantUser.lastName || ""}`.trim()
+        : participantUser?.email || "User";
 
-        return {
-          userId: participant.userId,
-          type: NotificationType.MESSAGE,
+      return notificationDispatcher.dispatchNotification(
+        participant.userId,
+        NotificationType.MESSAGE,
+        {
           title:
             conversation.title ||
             `Message from ${sender.firstName} ${sender.lastName}`,
@@ -278,16 +280,28 @@ async function createMessageNotifications(
             senderName: `${sender.firstName} ${sender.lastName}`,
           },
           actionUrl: `/${role}/chat/${conversationId}`,
-        };
-      })
-    );
+          isActionable: true,
+        },
+        {
+          recipientName,
+          senderName: `${sender.firstName} ${sender.lastName}`,
+          conversationTitle: conversation.title || undefined,
+        }
+      );
+    });
 
-    // Create notifications in parallel
-    await Promise.all(
-      notifications.map((notification: any) =>
-        notificationRepository.createNotification(notification),
-      ),
-    );
+    // Dispatch all notifications in parallel
+    const results = await Promise.allSettled(dispatchPromises);
+    const successCount = results.filter(r => r.status === 'fulfilled' && (r.value as any).success).length;
+    const sseDeliveredCount = results.filter(r => r.status === 'fulfilled' && (r.value as any).sseDelivered).length;
+
+    console.log("🔔 Message notifications dispatched:", {
+      conversationId,
+      messageId,
+      total: otherParticipants.length,
+      success: successCount,
+      sseDelivered: sseDeliveredCount,
+    });
   } catch (error) {
     console.error("❌ Failed to create message notifications:", error);
     // Don't throw error as this is not critical for message sending

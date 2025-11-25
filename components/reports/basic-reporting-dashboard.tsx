@@ -220,7 +220,7 @@ export function BasicReportingDashboard({ className }: BasicReportingDashboardPr
 
         <div className="flex items-center space-x-4">
           <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Select date range" />
             </SelectTrigger>
             <SelectContent>

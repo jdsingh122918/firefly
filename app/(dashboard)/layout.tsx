@@ -54,7 +54,7 @@ export default async function DashboardLayout({
           {/* Top section with mobile title and welcome message */}
           <div className="flex h-14 sm:h-16 items-center justify-between px-3 sm:px-4 md:px-6">
             <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
-              <SidebarTrigger className="md:hidden h-8 w-8 shrink-0" />
+              <SidebarTrigger className="md:hidden h-8 w-8 min-h-[44px] min-w-[44px] shrink-0" />
               <div className="min-w-0 flex-1">
                 <h1 className="text-lg sm:text-xl font-semibold md:hidden truncate">PPCC</h1>
                 <div className="hidden md:block text-sm text-muted-foreground truncate">
@@ -86,7 +86,7 @@ export default async function DashboardLayout({
         )}
 
         {/* Notification Banner */}
-        <NotificationBanner className="border-b" />
+        <NotificationBanner className="border-b" maxDisplayCount={1} />
 
         {/* Main content */}
         <main className="flex-1 flex flex-col p-3 sm:p-4 md:p-6 lg:p-8 min-h-0 overflow-auto">

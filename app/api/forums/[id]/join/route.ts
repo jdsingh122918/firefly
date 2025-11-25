@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { ForumRepository } from "@/lib/db/repositories/forum.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
-import { NotificationRepository } from "@/lib/db/repositories/notification.repository";
 import { NotificationType } from "@/lib/types";
+import { notificationDispatcher } from "@/lib/notifications/notification-dispatcher.service";
 
 const forumRepository = new ForumRepository();
 const userRepository = new UserRepository();
-const notificationRepository = new NotificationRepository();
 
 // POST /api/forums/[id]/join - Join a forum
 export async function POST(
@@ -82,22 +81,32 @@ export async function POST(
 
     // Create notification for forum creator about new member
     try {
-      await notificationRepository.createNotification({
-        userId: forum.createdBy,
-        type: NotificationType.FAMILY_ACTIVITY,
-        title: "New Forum Member",
-        message: `${user.firstName} ${user.lastName || ""} joined your forum "${forum.title}"`,
-        data: {
-          forumId: id,
-          forumTitle: forum.title,
-          forumSlug: forum.slug,
-          newMemberId: user.id,
-          newMemberName: `${user.firstName} ${user.lastName || ""}`,
-          activityType: "forum_member_joined"
+      const forumCreator = await userRepository.getUserById(forum.createdBy);
+      const creatorName = forumCreator?.firstName
+        ? `${forumCreator.firstName} ${forumCreator.lastName || ""}`.trim()
+        : forumCreator?.email || "Forum Creator";
+
+      await notificationDispatcher.dispatchNotification(
+        forum.createdBy,
+        NotificationType.FAMILY_ACTIVITY,
+        {
+          title: "New Forum Member",
+          message: `${user.firstName} ${user.lastName || ""} joined your forum "${forum.title}"`,
+          data: {
+            forumId: id,
+            forumTitle: forum.title,
+            forumSlug: forum.slug,
+            newMemberId: user.id,
+            newMemberName: `${user.firstName} ${user.lastName || ""}`,
+            activityType: "forum_member_joined"
+          },
+          actionUrl: `/forums/${forum.slug}`,
+          isActionable: true,
         },
-        actionUrl: `/forums/${forum.slug}`,
-        isActionable: true,
-      });
+        {
+          recipientName: creatorName,
+        }
+      );
     } catch (notifError) {
       console.warn("⚠️ Failed to send forum join notification:", notifError);
       // Don't fail the whole request for notification errors

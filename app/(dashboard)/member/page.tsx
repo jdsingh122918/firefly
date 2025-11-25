@@ -81,7 +81,7 @@ export default async function MemberDashboard() {
   return (
     <div className="space-y-6 pb-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
           Welcome{user?.firstName ? `, ${user.firstName}` : ''}
         </h2>
         <p className="text-muted-foreground">
