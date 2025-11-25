@@ -29,6 +29,7 @@ import { formatDistanceToNow } from "date-fns";
 import { MessageList } from "./message-list";
 import { useChatRealtime } from "@/hooks/use-chat-realtime";
 import { useMessageReactions } from "@/components/chat/message-reactions";
+import { useAutoDismissNotifications } from "@/hooks/use-auto-dismiss-notifications";
 import { MessageMetadata, MessageReaction } from "@/lib/types/api";
 import {
   Dialog,
@@ -147,6 +148,11 @@ export function ConversationDetailPage({
     setMessageReactions,
     getMessageReactions
   } = useMessageReactions();
+
+  // Auto-dismiss notifications when viewing this conversation
+  useAutoDismissNotifications("conversationId", conversationId, {
+    enabled: !!conversationId && !loading && isLoaded && isSignedIn,
+  });
 
   // API functions for reactions - Define handleRemoveReaction first to avoid circular dependency
   const handleRemoveReaction = useCallback(async (messageId: string, emoji: string) => {

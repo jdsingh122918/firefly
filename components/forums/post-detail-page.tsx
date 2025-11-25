@@ -34,6 +34,7 @@ import { ReplyThread } from "./reply-thread"
 import { ReplyForm } from "./reply-form"
 import { PostModerationActions } from "./post-moderation-actions"
 import { MessageContentRenderer } from "@/components/chat/message-content-renderer"
+import { useAutoDismissNotifications } from "@/hooks/use-auto-dismiss-notifications"
 
 interface Post {
   id: string
@@ -156,6 +157,11 @@ export function PostDetailPage() {
   const [post, setPost] = useState<Post | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Auto-dismiss notifications when viewing this post
+  useAutoDismissNotifications("postId", post?.id, {
+    enabled: !!post && !loading && isLoaded && isSignedIn,
+  })
 
   // Get user role for navigation
   const userRole = (sessionClaims?.metadata as { role?: string })?.role || 'member'

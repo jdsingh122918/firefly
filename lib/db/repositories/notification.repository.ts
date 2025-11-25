@@ -137,6 +137,62 @@ export class NotificationRepository {
   }
 
   /**
+   * Mark notifications as read by source entity
+   * This allows marking all notifications related to a specific entity (conversation, post, etc.)
+   * as read in a single batch operation.
+   *
+   * @param userId - The user ID to scope the notifications
+   * @param sourceField - The field name in the notification data (e.g., "conversationId", "postId")
+   * @param sourceValue - The value to match
+   * @returns Object with the count of marked notifications
+   */
+  async markReadBySource(
+    userId: string,
+    sourceField: string,
+    sourceValue: string,
+  ): Promise<{ markedCount: number }> {
+    // First, find all matching unread notifications
+    // We need to do this because Prisma's updateMany with JSON path filtering
+    // doesn't work directly with MongoDB's JSON fields in all cases
+    const unreadNotifications = await prisma.notification.findMany({
+      where: {
+        userId,
+        isRead: false,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+      select: {
+        id: true,
+        data: true,
+      },
+    });
+
+    // Filter notifications that have the matching source field value
+    const matchingIds = unreadNotifications
+      .filter((notification) => {
+        const data = notification.data as Record<string, unknown> | null;
+        return data && data[sourceField] === sourceValue;
+      })
+      .map((notification) => notification.id);
+
+    if (matchingIds.length === 0) {
+      return { markedCount: 0 };
+    }
+
+    // Update all matching notifications
+    const result = await prisma.notification.updateMany({
+      where: {
+        id: { in: matchingIds },
+      },
+      data: {
+        isRead: true,
+        readAt: new Date(),
+      },
+    });
+
+    return { markedCount: result.count };
+  }
+
+  /**
    * Delete notification
    */
   async deleteNotification(id: string): Promise<void> {
