@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { Notification, NotificationType } from "@/lib/types";
 import { useNotifications } from "@/hooks/use-notifications";
 import { ConnectionStatusBanner } from "./connection-status-banner";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 
 export interface NotificationCenterProps {
   isOpen: boolean;
@@ -64,9 +66,17 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
     refreshNotifications,
     reconnect,
   } = useNotifications();
+  const router = useRouter();
+  const { sessionClaims } = useAuth();
 
   const [filter, setFilter] = useState<"all" | "unread" | NotificationType>("all");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+  // Get user role from session metadata
+  const getUserRole = () => {
+    const metadata = sessionClaims?.metadata as { role?: string } | undefined;
+    return metadata?.role?.toLowerCase() || 'member';
+  };
 
   const filteredNotifications = notifications.filter((notification) => {
     if (filter === "all") return true;
@@ -114,9 +124,26 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
   };
 
   const handleAction = (notification: Notification) => {
-    if (notification.actionUrl) {
-      window.open(notification.actionUrl, "_blank");
+    let targetUrl: string | null = null;
+
+    // For MESSAGE notifications, construct URL dynamically with current role
+    if (notification.type === NotificationType.MESSAGE) {
+      const messageData = notification.data as Record<string, unknown>;
+      if (messageData?.conversationId) {
+        const role = getUserRole();
+        targetUrl = `/${role}/chat/${messageData.conversationId}`;
+      }
     }
+
+    // Fall back to actionUrl for other types or if no conversationId
+    if (!targetUrl && notification.actionUrl) {
+      targetUrl = notification.actionUrl;
+    }
+
+    if (targetUrl) {
+      router.push(targetUrl);
+    }
+
     if (!notification.isRead) {
       handleMarkAsRead(notification.id);
     }
