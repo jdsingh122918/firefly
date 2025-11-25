@@ -25,6 +25,9 @@ import {
   ScrollText,
   Play,
   Eye,
+  ChevronDown,
+  ChevronRight,
+  LayoutList,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -46,6 +49,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatDistanceToNow } from "date-fns";
 import { getResourceTypeIcon, isTemplate } from "@/lib/utils/resource-utils";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { TemplateSchemaPreview } from "@/components/resources/template-schema-preview";
 
 interface Resource {
   id: string;
@@ -129,6 +138,7 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
   const [error, setError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [startWorkingLoading, setStartWorkingLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(true); // Expanded by default
 
   const router = useRouter();
 
@@ -437,6 +447,33 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
                     ))}
                   </div>
                 </div>
+              )}
+
+              {/* Template Form Preview */}
+              {isTemplateResource && resource.externalMeta?.formSchema && (
+                <Collapsible open={previewOpen} onOpenChange={setPreviewOpen}>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between p-3 rounded-lg border bg-[hsl(var(--ppcc-purple)/0.05)] hover:bg-[hsl(var(--ppcc-purple)/0.1)] transition-colors cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        {previewOpen ? (
+                          <ChevronDown className="h-4 w-4 text-[hsl(var(--ppcc-purple))]" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-[hsl(var(--ppcc-purple))]" />
+                        )}
+                        <LayoutList className="h-4 w-4 text-[hsl(var(--ppcc-purple))]" />
+                        <span className="font-medium text-sm text-[hsl(var(--ppcc-purple))]">Form Structure Preview</span>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] border-[hsl(var(--ppcc-purple)/0.3)] text-[hsl(var(--ppcc-purple))] bg-[hsl(var(--ppcc-purple)/0.1)]">
+                        {Object.keys(resource.externalMeta.formSchema.sections || {}).length} sections
+                      </Badge>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-3 p-4 rounded-lg border bg-card">
+                      <TemplateSchemaPreview formSchema={resource.externalMeta.formSchema} />
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
 
               {/* Documents/Attachments */}

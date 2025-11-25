@@ -1,0 +1,53 @@
+# =============================================================================
+# Firefly Docker Ignore
+# =============================================================================
+
+# Dependencies - use container's node_modules
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs - rebuild in container
+.next
+out
+build
+dist
+
+# Testing
+coverage
+
+# Development/Local files
+*.log
+npm-debug.log*
+.env.local
+.env*.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Test files
+test-*.txt
+
+# Documentation (optional - comment out if needed in container)
+*.md
+!README.md
+
+# Development tools
+.cursor
+.vercel
+future-dev
+docs
+
+# Docker scripts are mounted, not copied
+docker/scripts/*

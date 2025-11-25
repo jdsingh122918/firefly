@@ -223,10 +223,12 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
     }
   }, [contentId]);
 
+  // Extract param value outside useEffect to prevent infinite loop
+  // (searchParams object reference changes on every render)
+  const selectedTagsParam = searchParams.get('selectedTags');
+
   // Coordinated content fetch and tag application to prevent race condition
   useEffect(() => {
-    const selectedTagsParam = searchParams.get('selectedTags');
-
     if (selectedTagsParam) {
       // Tags from URL - fetch content first, then apply tags
       const tagsFromUrl = decodeURIComponent(selectedTagsParam).split(',').filter(Boolean);
@@ -258,7 +260,7 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
       // Normal content fetch without tag override
       fetchContent();
     }
-  }, [searchParams, fetchContent, toast]);
+  }, [selectedTagsParam, fetchContent, toast]);
 
   // Form handlers
   const handleInputChange = useCallback((field: keyof FormData, value: string | boolean) => {

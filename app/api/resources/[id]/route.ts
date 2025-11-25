@@ -126,6 +126,7 @@ export async function GET(
       relatedResources: [], // TODO: Implement relatedResources field
       attachments: resource.attachments,
       metadata: resource.externalMeta || {},
+      externalMeta: resource.externalMeta || {},
       isFeatured: resource.status === ResourceStatus.FEATURED,
       isApproved: resource.status === ResourceStatus.APPROVED || resource.status === ResourceStatus.FEATURED,
       approvedAt: resource.approvedAt,

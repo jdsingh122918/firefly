@@ -103,6 +103,10 @@ export function ResourceCreationPage({ userRole, userId }: ResourceCreationPageP
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Extract param value outside useEffect to prevent infinite loop
+  // (searchParams object reference changes on every render)
+  const selectedTagsParam = searchParams.get('selectedTags');
+
   // File upload functionality
   const {
     uploadFiles,
@@ -131,7 +135,6 @@ export function ResourceCreationPage({ userRole, userId }: ResourceCreationPageP
 
   // Listen for tags from URL parameters (when returning from tag selection page)
   useEffect(() => {
-    const selectedTagsParam = searchParams.get('selectedTags');
     if (selectedTagsParam) {
       const tagsFromUrl = decodeURIComponent(selectedTagsParam).split(',').filter(Boolean);
       if (tagsFromUrl.length > 0) {
@@ -145,7 +148,7 @@ export function ResourceCreationPage({ userRole, userId }: ResourceCreationPageP
         router.replace(newUrl.pathname + newUrl.search);
       }
     }
-  }, [searchParams, router]);
+  }, [selectedTagsParam, router]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
