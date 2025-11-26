@@ -31,6 +31,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/debug/sync-user(.*)",
   "/api/debug/reset-database(.*)",
   "/api/debug/webhook-test(.*)",
+  "/api/health(.*)", // Docker health checks
 ]);
 
 // Define role-specific route matchers

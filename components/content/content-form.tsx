@@ -188,9 +188,14 @@ const ContentForm = ({
   const isResource = true;
   const requiresUrl = ['LINK', 'VIDEO'].includes(formData.resourceType as string);
 
+  // Extract param value outside useEffect to prevent infinite loop
+  // (searchParams object reference changes on every render)
+  const selectedTagsParam = searchParams.get('selectedTags');
+
   // Listen for tags from URL parameters (when returning from tag selection page)
+  // Note: formData is intentionally excluded from deps to avoid infinite loops
+  // We only want to apply URL tags when selectedTagsParam changes
   useEffect(() => {
-    const selectedTagsParam = searchParams.get('selectedTags');
     if (selectedTagsParam && mode === 'create') {
       const tagsFromUrl = decodeURIComponent(selectedTagsParam).split(',').filter(Boolean);
       if (tagsFromUrl.length > 0) {
@@ -204,7 +209,8 @@ const ContentForm = ({
         router.replace(newUrl.pathname + newUrl.search);
       }
     }
-  }, [searchParams, mode, router, formData, setFormData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTagsParam, mode, router, setFormData]);
 
   // Update resource defaults when creating (simplified since everything is a resource)
   useEffect(() => {

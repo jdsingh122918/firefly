@@ -62,3 +62,6 @@ tests/dashboard/node_modules/
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# Docker port state (auto-generated)
+.docker-ports

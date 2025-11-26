@@ -24,7 +24,9 @@ import {
   AlertTriangle,
   ScrollText,
   Play,
-  Eye,
+  ChevronDown,
+  ChevronRight,
+  LayoutList,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -46,6 +48,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatDistanceToNow } from "date-fns";
 import { getResourceTypeIcon, isTemplate } from "@/lib/utils/resource-utils";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { TemplateSchemaPreview } from "@/components/resources/template-schema-preview";
 
 interface Resource {
   id: string;
@@ -129,6 +137,7 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
   const [error, setError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [startWorkingLoading, setStartWorkingLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(true); // Expanded by default
 
   const router = useRouter();
 
@@ -220,14 +229,6 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
     }
   };
 
-  const handlePreviewTemplate = () => {
-    if (!resource) return;
-
-    // Navigate to preview mode without creating an assignment
-    // Use a dummy ID 'preview' since we're not loading a real assignment
-    router.push(`/${userRole.toLowerCase()}/assignments/preview/complete?preview=true&resourceId=${resourceId}`);
-  };
-
   if (loading) {
     return (
       <div className="space-y-4">
@@ -273,46 +274,29 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
   }
 
   const isTemplateResource = isTemplate(resource);
+  const isSystemTemplate = isTemplateResource && resource.externalMeta?.systemGenerated;
   const TypeIcon = getResourceTypeIcon(resource.type, isTemplateResource);
   const statusColor = getStatusColor(resource.status, resource.isFeatured);
-  const canEdit = userRole === UserRole.ADMIN || (resource.creator?.id === userId);
-  const canDelete = userRole === UserRole.ADMIN || (resource.creator?.id === userId);
+  const canEdit = !isSystemTemplate && (userRole === UserRole.ADMIN || (resource.creator?.id === userId));
+  const canDelete = !isSystemTemplate && (userRole === UserRole.ADMIN || (resource.creator?.id === userId));
+  const hasSidebarContent = !!resource.family;
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Link href={`/${userRole.toLowerCase()}/resources`}>
-            <Button variant="default" size="sm" className="min-h-[44px]">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Resources
+      {/* Header - Action buttons (only shown when there are actions) */}
+      {(canEdit || canDelete || (isTemplateResource && userRole === UserRole.MEMBER)) && (
+        <div className="flex items-center justify-end">
+          <div className="flex items-center gap-2">
+          {isTemplateResource && userRole === UserRole.MEMBER && (
+            <Button
+              onClick={handleStartWorking}
+              disabled={startWorkingLoading}
+              size="sm"
+              className="min-h-[44px] bg-[hsl(var(--ppcc-purple))] hover:bg-[hsl(var(--ppcc-purple)/0.9)] text-white"
+            >
+              <Play className="h-4 w-4 mr-2" />
+              {startWorkingLoading ? "Starting..." : "Start Working"}
             </Button>
-          </Link>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {isTemplateResource && (
-            <>
-              <Button
-                onClick={handleStartWorking}
-                disabled={startWorkingLoading}
-                size="sm"
-                className="min-h-[44px] bg-[hsl(var(--ppcc-purple))] hover:bg-[hsl(var(--ppcc-purple)/0.9)] text-white"
-              >
-                <Play className="h-4 w-4 mr-2" />
-                {startWorkingLoading ? "Starting..." : "Start Working"}
-              </Button>
-              <Button
-                onClick={handlePreviewTemplate}
-                variant="outline"
-                size="sm"
-                className="min-h-[44px] border-[hsl(var(--ppcc-purple)/0.3)] text-[hsl(var(--ppcc-purple))] hover:bg-[hsl(var(--ppcc-purple)/0.1)]"
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Preview Template
-              </Button>
-            </>
           )}
           {canEdit && (
             <Link href={`/${userRole.toLowerCase()}/resources/${resourceId}/edit`}>
@@ -350,12 +334,23 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
               </AlertDialogContent>
             </AlertDialog>
           )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Content */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-4">
+      <div className={`grid gap-4 ${hasSidebarContent ? 'lg:grid-cols-3' : 'max-w-4xl mx-auto'}`}>
+        <div className={`${hasSidebarContent ? 'lg:col-span-2' : ''} space-y-4`}>
+          {/* Back to Resources - centered */}
+          <div className="flex justify-center">
+            <Link href={`/${userRole.toLowerCase()}/resources`}>
+              <Button variant="default" size="sm" className="min-h-[44px]">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Resources
+              </Button>
+            </Link>
+          </div>
+
           {/* Resource Info */}
           <Card className="p-4">
             <CardHeader className="space-y-3">
@@ -439,6 +434,33 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
                 </div>
               )}
 
+              {/* Template Form Preview */}
+              {isTemplateResource && resource.externalMeta?.formSchema && (
+                <Collapsible open={previewOpen} onOpenChange={setPreviewOpen}>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between p-3 rounded-lg border bg-[hsl(var(--ppcc-purple)/0.05)] hover:bg-[hsl(var(--ppcc-purple)/0.1)] transition-colors cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        {previewOpen ? (
+                          <ChevronDown className="h-4 w-4 text-[hsl(var(--ppcc-purple))]" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-[hsl(var(--ppcc-purple))]" />
+                        )}
+                        <LayoutList className="h-4 w-4 text-[hsl(var(--ppcc-purple))]" />
+                        <span className="font-medium text-sm text-[hsl(var(--ppcc-purple))]">Form Structure Preview</span>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] border-[hsl(var(--ppcc-purple)/0.3)] text-[hsl(var(--ppcc-purple))] bg-[hsl(var(--ppcc-purple)/0.1)]">
+                        {Object.keys(resource.externalMeta.formSchema.sections || {}).length} sections
+                      </Badge>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-3 p-4 rounded-lg border bg-card">
+                      <TemplateSchemaPreview formSchema={resource.externalMeta.formSchema} />
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
               {/* Documents/Attachments */}
               {resource.documents && resource.documents.length > 0 && (
                 <div>
@@ -473,53 +495,21 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-4">
-
-          {/* Creator Info */}
-          <Card className="p-3">
-            <CardHeader>
-              <h3 className="font-medium text-sm">Creator Info</h3>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {resource.creator && (
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  <div>
-                    <p className="text-sm font-medium">
-                      {resource.creator.firstName || resource.creator.lastName
-                        ? `${resource.creator.firstName || ''} ${resource.creator.lastName || ''}`.trim()
-                        : resource.creator.email.split('@')[0]}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{resource.creator.role}</p>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                <div>
-                  <p className="text-sm">Created {formatDistanceToNow(new Date(resource.createdAt), { addSuffix: true })}</p>
-                  {resource.updatedAt !== resource.createdAt && (
-                    <p className="text-xs text-muted-foreground">
-                      Updated {formatDistanceToNow(new Date(resource.updatedAt), { addSuffix: true })}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Family Context */}
-          {resource.family && (
-            <Card className="p-3">
-              <CardHeader>
-                <h3 className="font-medium text-sm">Family Context</h3>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm">{resource.family.name}</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        {hasSidebarContent && (
+          <div className="space-y-4">
+            {/* Family Context */}
+            {resource.family && (
+              <Card className="p-3">
+                <CardHeader>
+                  <h3 className="font-medium text-sm">Family Context</h3>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm">{resource.family.name}</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
