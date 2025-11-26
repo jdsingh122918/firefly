@@ -21,7 +21,7 @@ services:
   # MongoDB with Replica Set (required for Prisma transactions)
   # ===========================================================================
   mongodb:
-    image: mongodb/mongodb-community-server:7.0-ubuntu2204
+    image: mongodb/mongodb-community-server:latest
     container_name: firefly-mongodb
     command: ["--replSet", "rs0", "--bind_ip_all"]
     ports:
@@ -43,7 +43,7 @@ services:
   # MongoDB Replica Set Initializer (one-shot service)
   # ===========================================================================
   mongodb-init:
-    image: mongodb/mongodb-community-server:7.0-ubuntu2204
+    image: mongodb/mongodb-community-server:latest
     container_name: firefly-mongodb-init
     depends_on:
       - mongodb

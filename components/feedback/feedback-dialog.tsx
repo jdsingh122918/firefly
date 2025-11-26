@@ -130,7 +130,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
         userInfo: data.isAnonymous ? undefined : {
           name: user?.fullName || user?.firstName || "Unknown",
           email: user?.emailAddresses?.[0]?.emailAddress || "unknown@example.com",
-          role: sessionClaims?.role || "UNKNOWN",
+          role: (sessionClaims?.metadata as { role?: string } | undefined)?.role || "UNKNOWN",
           userId: user?.id
         }
       }

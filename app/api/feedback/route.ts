@@ -61,7 +61,13 @@ export async function POST(request: NextRequest) {
     if (validatedData.attachments && validatedData.attachments.length > 0) {
       const documentRepository = new DocumentRepository();
 
+      console.log("📧 Processing attachments:", {
+        count: validatedData.attachments.length,
+        ids: validatedData.attachments,
+      });
+
       for (const attachmentId of validatedData.attachments) {
+        console.log(`📧 Processing attachment: ${attachmentId}`);
         try {
           // Get document metadata
           const document =
@@ -73,6 +79,14 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
+          console.log(`📧 Document found:`, {
+            id: document.id,
+            fileName: document.fileName,
+            originalFileName: document.originalFileName,
+            mimeType: document.mimeType,
+            fileSize: document.fileSize,
+          });
+
           // Get file content from database
           const fileResult =
             await databaseFileStorageService.readFile(attachmentId);
@@ -83,6 +97,12 @@ export async function POST(request: NextRequest) {
             );
             continue;
           }
+
+          console.log(`📧 File data read successfully:`, {
+            bufferSize: fileResult.buffer.length,
+            mimeType: fileResult.mimeType,
+            fileName: fileResult.fileName,
+          });
 
           // Add to email attachments
           emailAttachments.push({
@@ -106,6 +126,10 @@ export async function POST(request: NextRequest) {
           );
         }
       }
+
+      console.log(`📧 Total attachments prepared for email: ${emailAttachments.length}`);
+    } else {
+      console.log("📧 No attachments in request");
     }
 
     // 5. Compose email content
@@ -176,7 +200,7 @@ export async function POST(request: NextRequest) {
           }
 
           <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; margin-top: 25px; text-align: center; color: #64748b; font-size: 12px;">
-            <p style="margin: 0;">Sent from Firefly End of Life Care Platform</p>
+            <p style="margin: 0;">Sent from Firefly Platform</p>
             <p style="margin: 5px 0 0 0;">Generated on ${new Date().toLocaleString()}</p>
           </div>
         </div>
@@ -210,7 +234,7 @@ ${emailAttachments.map((att) => `- ${att.filename}`).join("\n")}
     : ""
 }
 
-Sent from Firefly End of Life Care Platform
+Sent from Firefly Platform
 Generated on ${new Date().toLocaleString()}
     `.trim();
 
@@ -234,6 +258,17 @@ Generated on ${new Date().toLocaleString()}
       fromName: "Firefly Feedback",
       baseUrl: "https://api.resend.com",
       supportEmail: feedbackEmail,
+    });
+
+    console.log("📧 Sending email with attachments:", {
+      to: feedbackEmail,
+      subject: `[Firefly Feedback] ${validatedData.title}`,
+      attachmentCount: emailAttachments.length,
+      attachments: emailAttachments.map(a => ({
+        filename: a.filename,
+        contentType: a.contentType,
+        contentLength: typeof a.content === 'string' ? a.content.length : 0,
+      })),
     });
 
     const emailResult = await resendProvider.sendEmail({

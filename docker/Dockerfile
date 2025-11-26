@@ -15,9 +15,8 @@ RUN apk add --no-cache libc6-compat curl
 # =============================================================================
 FROM base AS deps
 COPY package.json package-lock.json ./
-RUN npm ci
 COPY prisma ./prisma/
-RUN npx prisma generate
+RUN npm ci
 
 # =============================================================================
 # Development Stage - Hot reload support
