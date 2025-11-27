@@ -198,17 +198,6 @@ async function handleUserCreated(clerkUser: ClerkUser, webhookId: string) {
     console.log(`👤 [${webhookId}] ===== PROCESSING USER CREATED =====`);
     console.log(`👤 [${webhookId}] Clerk ID: ${clerkUser.id}`);
 
-    // Check if user already exists (avoid duplicates)
-    console.log(`👤 [${webhookId}] Checking if user exists in database...`);
-    const existingUser = await userRepository.getUserByClerkId(clerkUser.id);
-    if (existingUser) {
-      console.log(
-        `⚠️ [${webhookId}] User already exists in database: ${existingUser.email} (ID: ${existingUser.id})`,
-      );
-      console.log(`⚠️ [${webhookId}] Skipping creation to avoid duplicates`);
-      return;
-    }
-
     // Extract primary email
     console.log(`👤 [${webhookId}] Extracting user data from Clerk payload...`);
     const primaryEmail = clerkUser.email_addresses[0]?.email_address;
@@ -260,7 +249,7 @@ async function handleUserCreated(clerkUser: ClerkUser, webhookId: string) {
       phoneNumber,
     };
 
-    console.log(`👤 [${webhookId}] Creating user with data:`, {
+    console.log(`👤 [${webhookId}] Upserting user with data:`, {
       clerkId: createUserData.clerkId,
       email: createUserData.email,
       firstName: createUserData.firstName,
@@ -269,13 +258,18 @@ async function handleUserCreated(clerkUser: ClerkUser, webhookId: string) {
       phoneNumber: createUserData.phoneNumber,
     });
 
-    // Create user in database
-    console.log(`👤 [${webhookId}] Calling userRepository.createUser()...`);
-    const newUser = await userRepository.createUser(createUserData);
-    console.log(`✅ [${webhookId}] User created successfully!`);
-    console.log(`✅ [${webhookId}] Database ID: ${newUser.id}`);
-    console.log(`✅ [${webhookId}] Email: ${newUser.email}`);
-    console.log(`✅ [${webhookId}] Role: ${newUser.role}`);
+    // Use upsert to atomically create or update user (prevents race conditions)
+    console.log(`👤 [${webhookId}] Calling userRepository.upsertUser()...`);
+    const { user, created } = await userRepository.upsertUser(createUserData);
+
+    if (created) {
+      console.log(`✅ [${webhookId}] User created successfully!`);
+    } else {
+      console.log(`⚠️ [${webhookId}] User already existed, updated instead`);
+    }
+    console.log(`✅ [${webhookId}] Database ID: ${user.id}`);
+    console.log(`✅ [${webhookId}] Email: ${user.email}`);
+    console.log(`✅ [${webhookId}] Role: ${user.role}`);
   } catch (error) {
     console.error(
       `❌ [${webhookId}] Error creating user for Clerk ID ${clerkUser.id}:`,
@@ -298,28 +292,34 @@ async function handleUserUpdated(clerkUser: ClerkUser, webhookId: string) {
     console.log(`🔄 [${webhookId}] ===== PROCESSING USER UPDATED =====`);
     console.log(`🔄 [${webhookId}] Clerk ID: ${clerkUser.id}`);
 
-    // Find existing user
-    const existingUser = await userRepository.getUserByClerkId(clerkUser.id);
-    if (!existingUser) {
-      console.log(`User not found in database, creating: ${clerkUser.id}`);
-      // If user doesn't exist, create them
-      await handleUserCreated(clerkUser, webhookId);
-      return;
+    // Extract primary email
+    const primaryEmail = clerkUser.email_addresses[0]?.email_address;
+    if (!primaryEmail) {
+      console.error(`❌ [${webhookId}] No email found for user ${clerkUser.id}`);
+      throw new Error(`No email address found for user ${clerkUser.id}`);
     }
 
     // Extract role from metadata
-    const newRole = extractUserRole(clerkUser, webhookId);
+    const role = extractUserRole(clerkUser, webhookId);
 
-    // Update role if it changed
-    if (existingUser.role !== newRole) {
-      await userRepository.updateUserRole(existingUser.id, newRole);
-      console.log(
-        `User role updated: ${existingUser.email} (${existingUser.role} -> ${newRole})`,
-      );
+    // Extract phone number if available
+    const phoneNumber = clerkUser.phone_numbers?.[0]?.phone_number || undefined;
+
+    // Use upsert to handle both update and create cases atomically
+    const { user, created } = await userRepository.upsertUser({
+      clerkId: clerkUser.id,
+      email: primaryEmail,
+      firstName: clerkUser.first_name || undefined,
+      lastName: clerkUser.last_name || undefined,
+      role,
+      phoneNumber,
+    });
+
+    if (created) {
+      console.log(`🔄 [${webhookId}] User was not in database, created: ${user.email}`);
+    } else {
+      console.log(`🔄 [${webhookId}] User updated: ${user.email}`);
     }
-
-    // Note: For simplicity, we're only syncing role changes from Clerk metadata
-    // Additional fields like firstName, lastName, email could be synced here if needed
   } catch (error) {
     console.error(`Error updating user for Clerk ID ${clerkUser.id}:`, error);
     throw error;

@@ -38,6 +38,56 @@ export class UserRepository {
   }
 
   /**
+   * Create or update a user by clerkId (atomic operation to prevent race conditions)
+   * This is the preferred method for user sync operations.
+   */
+  async upsertUser(data: CreateUserInput): Promise<{ user: User; created: boolean }> {
+    // First check if user exists to determine if this is a create or update
+    const existingUser = await prisma.user.findUnique({
+      where: { clerkId: data.clerkId },
+    });
+
+    const user = await prisma.user.upsert({
+      where: { clerkId: data.clerkId },
+      update: {
+        // Only update fields that should be synced from Clerk
+        email: data.email,
+        firstName: data.firstName || undefined,
+        lastName: data.lastName || undefined,
+        // Note: We don't update role, familyId, etc. as those are managed locally
+      },
+      create: {
+        clerkId: data.clerkId,
+        email: data.email,
+        firstName: data.firstName || null,
+        lastName: data.lastName || null,
+        role: data.role,
+        familyId: data.familyId || null,
+        createdById: data.createdById || null,
+        phoneNumber: data.phoneNumber || null,
+        emailVerified: true,
+      },
+      include: {
+        family: true,
+        createdBy: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return {
+      user: this.transformPrismaUser(user),
+      created: !existingUser,
+    };
+  }
+
+  /**
    * Find user by Clerk ID
    */
   async getUserByClerkId(clerkId: string): Promise<User | null> {

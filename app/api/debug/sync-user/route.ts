@@ -13,16 +13,6 @@ export async function POST() {
 
     const userRepository = new UserRepository();
 
-    // Check if user already exists
-    const existingUser = await userRepository.getUserByClerkId(userId);
-
-    if (existingUser) {
-      return NextResponse.json({
-        message: "User already exists",
-        user: existingUser,
-      });
-    }
-
     // Get Clerk user info
     const clerkUser = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
       headers: {
@@ -30,19 +20,20 @@ export async function POST() {
       },
     }).then((res) => res.json());
 
-    // Create user in database with MEMBER role by default (can be updated by admin)
-    const newUser = await userRepository.createUser({
+    // Use upsert to atomically create or update user (prevents race conditions)
+    const { user, created } = await userRepository.upsertUser({
       clerkId: userId,
       email:
         clerkUser.email_addresses[0]?.email_address || "unknown@example.com",
       firstName: clerkUser.first_name,
       lastName: clerkUser.last_name,
-      role: UserRole.MEMBER, // Default to MEMBER role for security
+      role: UserRole.MEMBER, // Default to MEMBER role for new users
     });
 
     return NextResponse.json({
-      message: "User synced successfully",
-      user: newUser,
+      message: created ? "User synced successfully" : "User already exists",
+      user,
+      created,
       clerkUser: {
         id: clerkUser.id,
         email: clerkUser.email_addresses[0]?.email_address,
