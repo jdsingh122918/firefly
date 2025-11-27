@@ -598,6 +598,174 @@ Support: {{baseUrl}}/support
   isActive: true,
 };
 
+// Feedback notification template
+export const feedbackNotificationTemplate: EmailTemplate = {
+  id: "feedback-notification",
+  name: "Feedback Notification",
+  subject: "🎯 [Firefly Feedback] {{feedbackTitle}}",
+  htmlTemplate: `
+    ${baseStyles}
+    <div class="email-container">
+      <div class="email-header">
+        <h1>🎯 New Feedback Received</h1>
+        <p>From the Firefly platform</p>
+      </div>
+      <div class="email-body">
+        <h2>{{feedbackTitle}}</h2>
+
+        <div class="notification-content">
+          <p style="white-space: pre-wrap; line-height: 1.6;">{{feedbackDescription}}</p>
+        </div>
+
+        {{#if isAnonymous}}
+        <div style="background: #f1f5f9; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; margin: 20px 0; text-align: center;">
+          <p style="margin: 0; color: #64748b; font-size: 14px; margin-bottom: 5px;">🔒 Submission Type</p>
+          <p style="margin: 0; color: #1e293b; font-weight: 500;">Anonymous Feedback</p>
+          <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">User identity protected</p>
+        </div>
+        {{else}}
+        <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin: 0 0 15px 0; font-size: 14px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">User Information</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; color: #64748b; font-weight: 500; width: 80px;">Name:</td>
+              <td style="padding: 8px 0; color: #1e293b;">{{userName}}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Email:</td>
+              <td style="padding: 8px 0; color: #1e293b;">{{userEmail}}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748b; font-weight: 500;">Role:</td>
+              <td style="padding: 8px 0;">
+                <span style="background: #e0e7ff; color: #3730a3; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">
+                  {{userRole}}
+                </span>
+              </td>
+            </tr>
+          </table>
+        </div>
+        {{/if}}
+
+        {{#if hasAttachments}}
+        <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; margin-top: 20px;">
+          <h3 style="margin: 0 0 15px 0; font-size: 14px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">📎 Attachments ({{attachmentCount}})</h3>
+          <div style="background: #f1f5f9; padding: 15px; border-radius: 6px;">
+            {{attachmentList}}
+          </div>
+        </div>
+        {{/if}}
+
+        <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; margin-top: 25px; text-align: center; color: #64748b; font-size: 12px;">
+          <p style="margin: 0;">Generated on {{submissionDate}}</p>
+        </div>
+      </div>
+      <div class="email-footer">
+        <p>This feedback was submitted through the Firefly End of Life Care Platform.</p>
+        <p style="margin-top: 10px;">The Firefly Team</p>
+      </div>
+    </div>
+  `,
+  textTemplate: `
+🎯 New Feedback Received
+========================
+
+{{feedbackTitle}}
+
+Description:
+{{feedbackDescription}}
+
+{{#if isAnonymous}}
+Submission Type:
+Anonymous Feedback - User identity protected
+{{else}}
+User Information:
+- Name: {{userName}}
+- Email: {{userEmail}}
+- Role: {{userRole}}
+{{/if}}
+
+{{#if hasAttachments}}
+Attachments ({{attachmentCount}}):
+{{attachmentListText}}
+{{/if}}
+
+---
+Generated on {{submissionDate}}
+Sent from Firefly End of Life Care Platform
+  `,
+  variables: [
+    {
+      name: "feedbackTitle",
+      description: "Title of the feedback submission",
+      type: "string",
+      required: true,
+    },
+    {
+      name: "feedbackDescription",
+      description: "Detailed description of the feedback",
+      type: "string",
+      required: true,
+    },
+    {
+      name: "isAnonymous",
+      description: "Whether the feedback is submitted anonymously",
+      type: "boolean",
+      required: true,
+    },
+    {
+      name: "userName",
+      description: "Name of the user submitting feedback (if not anonymous)",
+      type: "string",
+      required: false,
+    },
+    {
+      name: "userEmail",
+      description: "Email of the user submitting feedback (if not anonymous)",
+      type: "string",
+      required: false,
+    },
+    {
+      name: "userRole",
+      description: "Role of the user submitting feedback (if not anonymous)",
+      type: "string",
+      required: false,
+    },
+    {
+      name: "hasAttachments",
+      description: "Whether the feedback has attachments",
+      type: "boolean",
+      required: false,
+    },
+    {
+      name: "attachmentCount",
+      description: "Number of attachments",
+      type: "number",
+      required: false,
+    },
+    {
+      name: "attachmentList",
+      description: "HTML list of attachments",
+      type: "string",
+      required: false,
+    },
+    {
+      name: "attachmentListText",
+      description: "Plain text list of attachments",
+      type: "string",
+      required: false,
+    },
+    {
+      name: "submissionDate",
+      description: "Date and time of feedback submission",
+      type: "date",
+      required: true,
+    },
+  ],
+  notificationType: NotificationType.SYSTEM_ANNOUNCEMENT, // Using SYSTEM_ANNOUNCEMENT as there's no FEEDBACK type
+  isActive: true,
+};
+
 // Family activity template
 export const familyActivityTemplate: EmailTemplate = {
   id: "family-activity-notification",
@@ -733,6 +901,7 @@ export const defaultEmailTemplates: EmailTemplate[] = [
   careUpdateNotificationTemplate,
   emergencyAlertTemplate,
   systemAnnouncementTemplate,
+  feedbackNotificationTemplate,
   familyActivityTemplate,
 ];
 

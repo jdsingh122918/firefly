@@ -45,7 +45,7 @@ export class ResendProvider implements EmailProvider {
         attachments?: Array<{
           filename: string;
           content: string;
-          contentType?: string;
+          content_type?: string; // Resend API uses snake_case
         }>;
         tags?: Array<{ name: string; value: string }>;
         headers?: Record<string, string>;
@@ -77,15 +77,55 @@ export class ResendProvider implements EmailProvider {
 
       // Add attachments if provided
       if (request.attachments && request.attachments.length > 0) {
+        console.log("📧 Processing attachments for Resend:", {
+          count: request.attachments.length,
+          attachments: request.attachments.map(a => ({
+            filename: a.filename,
+            hasContent: !!a.content,
+            contentType: a.contentType,
+            contentLength: typeof a.content === 'string' ? a.content.length : (Buffer.isBuffer(a.content) ? a.content.length : 0),
+          })),
+        });
+
         payload.attachments = request.attachments
-          .filter((attachment) => attachment.content !== undefined)
-          .map((attachment) => ({
-            filename: attachment.filename,
-            content: Buffer.isBuffer(attachment.content)
+          .filter((attachment) => {
+            const hasContent = attachment.content !== undefined && attachment.content !== null && attachment.content !== '';
+            if (!hasContent) {
+              console.warn("📧 Filtering out attachment with missing content:", attachment.filename);
+            }
+            return hasContent;
+          })
+          .map((attachment) => {
+            const base64Content = Buffer.isBuffer(attachment.content)
               ? attachment.content.toString('base64')
-              : String(attachment.content),
-            contentType: attachment.contentType,
-          }));
+              : String(attachment.content);
+
+            const mappedAttachment: {
+              filename: string;
+              content: string;
+              content_type?: string;
+            } = {
+              filename: attachment.filename,
+              content: base64Content,
+            };
+
+            // Resend API uses snake_case for content_type
+            if (attachment.contentType) {
+              mappedAttachment.content_type = attachment.contentType;
+            }
+
+            console.log("📧 Mapped attachment:", {
+              filename: mappedAttachment.filename,
+              content_type: mappedAttachment.content_type,
+              contentLength: mappedAttachment.content.length,
+            });
+
+            return mappedAttachment;
+          });
+
+        console.log("📧 Final attachments for Resend API:", {
+          count: payload.attachments.length,
+        });
       }
 
       // Add custom headers if provided
