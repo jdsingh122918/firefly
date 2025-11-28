@@ -234,7 +234,7 @@ export function MemberMultiCombobox({
               onValueChange={setSearchQuery}
               className="h-9"
             />
-            <CommandList className="max-h-[280px]">
+            <CommandList className="max-h-[280px] overflow-y-auto">
               <CommandEmpty className="py-4 text-sm text-muted-foreground">
                 {loading ? (
                   <div className="flex items-center justify-center gap-2">

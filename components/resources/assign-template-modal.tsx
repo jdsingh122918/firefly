@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Users, CheckCircle, Send } from "lucide-react";
+import { Loader2, Users, Send } from "lucide-react";
 import { MemberMultiCombobox } from "@/components/shared/member-multi-combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -174,7 +174,7 @@ export function AssignTemplateModal({
           <Button
             onClick={handleAssign}
             disabled={isAssigning || selectedMemberIds.length === 0}
-            className="min-h-[44px] flex-1 sm:flex-initial bg-[hsl(var(--ppcc-purple))] hover:bg-[hsl(var(--ppcc-purple))/0.9] text-white shadow-sm"
+            className="min-h-[44px] flex-1 sm:flex-initial"
           >
             {isAssigning ? (
               <>
@@ -183,11 +183,8 @@ export function AssignTemplateModal({
               </>
             ) : (
               <>
-                <CheckCircle className="mr-2 h-4 w-4" />
-                {selectedMemberIds.length > 0
-                  ? `Assign to ${selectedMemberIds.length} ${selectedMemberIds.length === 1 ? "Member" : "Members"}`
-                  : "Select Members to Assign"
-                }
+                <Send className="mr-2 h-4 w-4" />
+                Assign Template
               </>
             )}
           </Button>
