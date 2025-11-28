@@ -77,8 +77,6 @@ const VALID_ENUMS = {
   MessageType: ['DIRECT', 'FAMILY_CHAT', 'ANNOUNCEMENT'],
   MessageStatus: ['SENT', 'DELIVERED', 'READ'],
   NotificationType: ['MESSAGE', 'CARE_UPDATE', 'SYSTEM_ANNOUNCEMENT', 'FAMILY_ACTIVITY', 'EMERGENCY_ALERT'],
-  AssignmentPriority: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
-  AssignmentStatus: ['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
   DocumentSource: ['UPLOAD', 'LIBRARY'],
   DocumentType: ['MEDICAL', 'INSURANCE', 'CARE_PLAN', 'MEDICATION', 'LEGAL', 'FINANCIAL', 'PERSONAL', 'PHOTO', 'VIDEO', 'AUDIO', 'DOCUMENT', 'ARCHIVE', 'OTHER'],
   DocumentStatus: ['ACTIVE', 'ARCHIVED', 'DELETED', 'DRAFT', 'PROCESSING'],
@@ -336,13 +334,6 @@ export class ModelVerifier {
         countQuery: (prisma) => prisma.resourceShare.count(),
         validateModel: (prisma, autoFix) => this.validateResourceShareModel(prisma, autoFix),
         createFunction: (prisma) => this.initializeCollection(prisma, 'resourceShare'),
-      },
-      {
-        modelName: 'ResourceAssignment',
-        collectionName: 'resource_assignments',
-        countQuery: (prisma) => prisma.resourceAssignment.count(),
-        validateModel: (prisma, autoFix) => this.validateResourceAssignmentModel(prisma, autoFix),
-        createFunction: (prisma) => this.initializeCollection(prisma, 'resourceAssignment'),
       },
       {
         modelName: 'ResourceTag',
@@ -976,43 +967,6 @@ export class ModelVerifier {
       prisma,
       () => prisma.resourceShare.count(),
       undefined,
-      autoFix
-    );
-  }
-
-  private async validateResourceAssignmentModel(prisma: PrismaClient, autoFix = false): Promise<ModelValidationResult> {
-    return this.validateGenericModel(
-      'ResourceAssignment',
-      'resource_assignments',
-      prisma,
-      () => prisma.resourceAssignment.count(),
-      async () => {
-        const details: string[] = [];
-        let passed = true;
-
-        // Validate enum values
-        const assignments = await prisma.resourceAssignment.findMany({
-          select: { priority: true, status: true }
-        });
-
-        const invalidPriorities = assignments.filter(a => !VALID_ENUMS.AssignmentPriority.includes(a.priority as any));
-        if (invalidPriorities.length > 0) {
-          passed = false;
-          details.push(`Found ${invalidPriorities.length} resource assignments with invalid priority values`);
-        } else {
-          details.push('✅ All assignment priority values are valid');
-        }
-
-        const invalidStatuses = assignments.filter(a => !VALID_ENUMS.AssignmentStatus.includes(a.status as any));
-        if (invalidStatuses.length > 0) {
-          passed = false;
-          details.push(`Found ${invalidStatuses.length} resource assignments with invalid status values`);
-        } else {
-          details.push('✅ All assignment status values are valid');
-        }
-
-        return { passed, details };
-      },
       autoFix
     );
   }

@@ -215,6 +215,16 @@ export class DatabaseFileStorageService {
         };
       }
 
+      // Debug logging to trace fileData type from Prisma
+      console.log("📧 DEBUG fileData type:", {
+        documentId,
+        type: typeof document.fileData,
+        constructor: document.fileData?.constructor?.name,
+        isBuffer: Buffer.isBuffer(document.fileData),
+        isUint8Array: document.fileData instanceof Uint8Array,
+        length: document.fileData?.length,
+      });
+
       console.log("✅ File read from database successfully:", {
         documentId,
         fileName: document.fileName,
@@ -222,13 +232,26 @@ export class DatabaseFileStorageService {
       });
 
       // Convert fileData back to proper Buffer format
+      // Handle all possible Prisma return types for Bytes field
       let buffer: Buffer;
       if (Buffer.isBuffer(document.fileData)) {
         buffer = document.fileData;
-      } else {
-        // Handle case where Prisma returns the data in a different format
+      } else if (document.fileData instanceof Uint8Array) {
+        // Handle Uint8Array (common with some Prisma/MongoDB drivers)
         buffer = Buffer.from(document.fileData);
+      } else if (typeof document.fileData === 'string') {
+        // Handle base64 string (if Prisma returns encoded data)
+        buffer = Buffer.from(document.fileData, 'base64');
+      } else {
+        // Fallback for other ArrayBuffer-like types
+        buffer = Buffer.from(document.fileData as ArrayBuffer);
       }
+
+      console.log("📧 DEBUG buffer conversion result:", {
+        documentId,
+        bufferLength: buffer.length,
+        isValidBuffer: Buffer.isBuffer(buffer),
+      });
 
       return {
         success: true,

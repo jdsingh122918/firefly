@@ -63,7 +63,6 @@ export default async function MemberResourceEditPage({ params }: Props) {
         color: category.color ?? undefined
       }))}
       showFamilySelector={false} // Members can't change family assignment
-      showAssignmentManagement={false} // Members don't manage assignments
       showCurationControls={false} // Members don't have curation controls
       allowContentTypeChange={false} // Members have limited content type changes
     />

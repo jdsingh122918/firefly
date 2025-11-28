@@ -27,6 +27,7 @@ import {
   ChevronDown,
   ChevronRight,
   LayoutList,
+  Send,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -54,6 +55,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { TemplateSchemaPreview } from "@/components/resources/template-schema-preview";
+import { AssignTemplateModal } from "@/components/resources/assign-template-modal";
 
 interface Resource {
   id: string;
@@ -131,6 +133,13 @@ const getStatusColor = (status: string, isFeatured: boolean) => {
   }
 };
 
+interface TemplateAssignment {
+  id: string;
+  status: 'pending' | 'started' | 'completed';
+  startedAt?: string;
+  completedAt?: string;
+}
+
 export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDetailPageProps) {
   const [resource, setResource] = useState<Resource | null>(null);
   const [loading, setLoading] = useState(true);
@@ -138,6 +147,9 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [startWorkingLoading, setStartWorkingLoading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(true); // Expanded by default
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignment, setAssignment] = useState<TemplateAssignment | null>(null);
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
 
   const router = useRouter();
 
@@ -173,6 +185,38 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
 
     fetchResource();
   }, [resourceId]);
+
+  // Fetch assignment status for members viewing templates
+  useEffect(() => {
+    const fetchAssignment = async () => {
+      if (!resource || userRole !== UserRole.MEMBER) return;
+
+      // Only check assignment for system templates
+      const isSystemTemplate = resource.externalMeta?.systemGenerated;
+      if (!isSystemTemplate) return;
+
+      try {
+        setAssignmentLoading(true);
+        const response = await fetch(`/api/resources/${resourceId}/start-template`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.hasAssignment && data.assignment) {
+            setAssignment(data.assignment);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching assignment status:", error);
+      } finally {
+        setAssignmentLoading(false);
+      }
+    };
+
+    fetchAssignment();
+  }, [resource, resourceId, userRole]);
 
 
   const handleDelete = async () => {
@@ -215,18 +259,19 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
       const data = await response.json();
       console.log('Template workflow started:', data);
 
-      // Navigate to the assignment completion page to fill out the form
-      if (data.success && data.data.assignment?.id) {
-        router.push(`/${userRole.toLowerCase()}/assignments/${data.data.assignment.id}/complete`);
-      } else {
-        throw new Error('Assignment ID not received from server');
-      }
+      // Navigate to the form completion page
+      router.push(`/${userRole.toLowerCase()}/resources/${resourceId}/complete`);
     } catch (error) {
       console.error('Error starting template workflow:', error);
       alert(error instanceof Error ? error.message : 'Failed to start template workflow');
     } finally {
       setStartWorkingLoading(false);
     }
+  };
+
+  // Handle viewing/editing completed form
+  const handleViewForm = () => {
+    router.push(`/${userRole.toLowerCase()}/resources/${resourceId}/complete`);
   };
 
   if (loading) {
@@ -279,23 +324,60 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
   const statusColor = getStatusColor(resource.status, resource.isFeatured);
   const canEdit = !isSystemTemplate && (userRole === UserRole.ADMIN || (resource.creator?.id === userId));
   const canDelete = !isSystemTemplate && (userRole === UserRole.ADMIN || (resource.creator?.id === userId));
+  const canAssign = isSystemTemplate && (userRole === UserRole.ADMIN || userRole === UserRole.VOLUNTEER);
   const hasSidebarContent = !!resource.family;
 
   return (
     <div className="space-y-4">
       {/* Header - Action buttons (only shown when there are actions) */}
-      {(canEdit || canDelete || (isTemplateResource && userRole === UserRole.MEMBER)) && (
+      {(canEdit || canDelete || canAssign || (isSystemTemplate && userRole === UserRole.MEMBER)) && (
         <div className="flex items-center justify-end">
           <div className="flex items-center gap-2">
-          {isTemplateResource && userRole === UserRole.MEMBER && (
+          {isSystemTemplate && userRole === UserRole.MEMBER && (
+            assignmentLoading ? (
+              <Button disabled size="sm" className="min-h-[44px]">
+                <span className="animate-pulse">Loading...</span>
+              </Button>
+            ) : assignment ? (
+              // User has an assignment - show appropriate button based on status
+              assignment.status === 'completed' ? (
+                <Button
+                  onClick={handleViewForm}
+                  variant="outline"
+                  size="sm"
+                  className="min-h-[44px]"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  View My Response
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleStartWorking}
+                  disabled={startWorkingLoading}
+                  size="sm"
+                  className="min-h-[44px] bg-[hsl(var(--ppcc-purple))] hover:bg-[hsl(var(--ppcc-purple)/0.9)] text-white"
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  {startWorkingLoading ? "Starting..." : assignment.status === 'started' ? "Continue Form" : "Start Working"}
+                </Button>
+              )
+            ) : (
+              // No assignment - show message
+              <Badge variant="secondary" className="min-h-[44px] flex items-center px-4">
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Not assigned to you
+              </Badge>
+            )
+          )}
+          {canAssign && (
             <Button
-              onClick={handleStartWorking}
-              disabled={startWorkingLoading}
+              onClick={() => setShowAssignModal(true)}
+              variant="default"
               size="sm"
-              className="min-h-[44px] bg-[hsl(var(--ppcc-purple))] hover:bg-[hsl(var(--ppcc-purple)/0.9)] text-white"
+              className="min-h-[44px]"
             >
-              <Play className="h-4 w-4 mr-2" />
-              {startWorkingLoading ? "Starting..." : "Start Working"}
+              <Send className="h-4 w-4 mr-2" />
+              Assign
             </Button>
           )}
           {canEdit && (
@@ -511,6 +593,17 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
           </div>
         )}
       </div>
+
+      {/* Assign Template Modal */}
+      {canAssign && (
+        <AssignTemplateModal
+          open={showAssignModal}
+          onOpenChange={setShowAssignModal}
+          resourceId={resourceId}
+          resourceTitle={resource.title}
+          resourceDescription={resource.description}
+        />
+      )}
     </div>
   );
 }

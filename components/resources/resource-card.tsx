@@ -94,7 +94,17 @@ const getStatusColor = (status: string, isFeatured: boolean) => {
 };
 
 const getResourceCardColors = (resource: Resource) => {
-  // Priority 1: Healthcare tags (highest priority)
+  // Priority 0: Templates (highest priority) - Use subtle styling for legibility
+  const resourceIsTemplate = isTemplate(resource);
+  if (resourceIsTemplate) {
+    return {
+      border: 'border-l-[var(--ppcc-purple)]',
+      background: 'bg-background dark:bg-background',
+      hover: 'hover:bg-accent/50 dark:hover:bg-accent/50'
+    };
+  }
+
+  // Priority 1: Healthcare tags
   if (resource.tags && resource.tags.length > 0) {
     const tag = resource.tags[0].toLowerCase();
     if (tag.includes('medical') || tag.includes('health')) {
@@ -305,13 +315,18 @@ export function ResourceCard({ resource, userRole, showActions = false }: Resour
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
             <User className="h-3 w-3" />
-            <span>
-              {resource.creator
-                ? (resource.creator.firstName || resource.creator.lastName
-                    ? `${resource.creator.firstName || ''} ${resource.creator.lastName || ''}`.trim()
-                    : resource.creator.email.split('@')[0])
-                : 'Unknown'}
-            </span>
+            {/* Show "System" for system-generated templates */}
+            {resource.externalMeta?.systemGenerated ? (
+              <span className="text-purple-600 font-medium">System</span>
+            ) : (
+              <span>
+                {resource.creator
+                  ? (resource.creator.firstName || resource.creator.lastName
+                      ? `${resource.creator.firstName || ''} ${resource.creator.lastName || ''}`.trim()
+                      : resource.creator.email.split('@')[0])
+                  : 'Unknown'}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />

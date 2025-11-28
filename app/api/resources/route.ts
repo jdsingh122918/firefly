@@ -62,7 +62,6 @@ export async function GET(request: NextRequest) {
       includeCategory: searchParams.get('includeCategory') === 'true',
       includeDocuments: searchParams.get('includeDocuments') === 'true',
       includeShares: searchParams.get('includeShares') === 'true',
-      includeAssignments: searchParams.get('includeAssignments') === 'true',
       includeStructuredTags: searchParams.get('includeStructuredTags') === 'true',
       includeRatings: searchParams.get('includeRatings') === 'true'
     };
@@ -243,9 +242,6 @@ function parseResourceFilters(searchParams: URLSearchParams): ResourceFilters {
   const search = searchParams.get('search');
   if (search) filters.search = search;
 
-  const hasAssignments = searchParams.get('hasAssignments');
-  if (hasAssignments) filters.hasAssignments = hasAssignments === 'true';
-
   const hasCuration = searchParams.get('hasCuration');
   if (hasCuration) filters.hasCuration = hasCuration === 'true';
 
@@ -264,6 +260,12 @@ function parseResourceFilters(searchParams: URLSearchParams): ResourceFilters {
 
   const templateType = searchParams.get('templateType');
   if (templateType) filters.templateType = templateType;
+
+  // System-generated filtering
+  const isSystemGenerated = searchParams.get('isSystemGenerated');
+  if (isSystemGenerated !== null) {
+    filters.isSystemGenerated = isSystemGenerated === 'true';
+  }
 
   const minRating = searchParams.get('minRating');
   if (minRating) {
@@ -357,7 +359,6 @@ function validateCreateContentInput(body: any): CreateResourceInput {
     targetAudience: targetAudience?.filter((audience: any) => typeof audience === 'string'),
     externalMeta: body.externalMeta,
     submittedBy: body.submittedBy,
-    hasAssignments: body.hasAssignments,
     hasCuration: body.hasCuration,
     hasRatings: body.hasRatings,
     hasSharing: body.hasSharing,

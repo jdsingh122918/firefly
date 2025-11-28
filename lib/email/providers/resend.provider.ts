@@ -90,8 +90,19 @@ export class ResendProvider implements EmailProvider {
         payload.attachments = request.attachments
           .filter((attachment) => {
             const hasContent = attachment.content !== undefined && attachment.content !== null && attachment.content !== '';
+            console.log("📧 DEBUG attachment filter check:", {
+              filename: attachment.filename,
+              hasContent,
+              contentType: typeof attachment.content,
+              contentIsUndefined: attachment.content === undefined,
+              contentIsNull: attachment.content === null,
+              contentIsEmpty: attachment.content === '',
+              contentLength: typeof attachment.content === 'string'
+                ? attachment.content.length
+                : (Buffer.isBuffer(attachment.content) ? attachment.content.length : 'N/A'),
+            });
             if (!hasContent) {
-              console.warn("📧 Filtering out attachment with missing content:", attachment.filename);
+              console.warn("📧 ❌ Filtering out attachment with missing content:", attachment.filename);
             }
             return hasContent;
           })
@@ -125,6 +136,12 @@ export class ResendProvider implements EmailProvider {
 
         console.log("📧 Final attachments for Resend API:", {
           count: payload.attachments.length,
+          attachments: payload.attachments.map(a => ({
+            filename: a.filename,
+            contentLength: a.content?.length || 0,
+            content_type: a.content_type,
+            contentPreview: a.content?.substring(0, 50) + '...',
+          })),
         });
       }
 
@@ -132,6 +149,16 @@ export class ResendProvider implements EmailProvider {
       if (request.headers) {
         payload.headers = request.headers;
       }
+
+      // Debug: Log full payload structure (without full content for size)
+      console.log("📧 DEBUG Resend API payload:", {
+        to: payload.to,
+        from: payload.from,
+        subject: payload.subject,
+        hasHtml: !!payload.html,
+        hasText: !!payload.text,
+        attachmentCount: payload.attachments?.length || 0,
+      });
 
       // Make the API request to Resend
       const response = await fetch(`${this.baseUrl}/emails`, {

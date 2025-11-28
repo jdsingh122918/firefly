@@ -111,28 +111,15 @@ export class DocumentRepository {
         whereClause.status = { not: DocumentStatus.DELETED };
       }
 
-      const queryOptions: any = {
+      // Build query options - use either include OR select, not both
+      // Prisma doesn't allow both at the same time
+      let queryOptions: any = {
         where: whereClause,
-        include: {
-          uploadedByUser: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-            },
-          },
-          family: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
       };
 
       // Exclude fileData by default for performance, unless specifically requested
       if (!options.includeFileData) {
+        // Use select to exclude fileData (can't use include with select)
         queryOptions.select = {
           id: true,
           title: true,
@@ -158,6 +145,24 @@ export class DocumentRepository {
           createdAt: true,
           updatedAt: true,
           // Include relations
+          uploadedByUser: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          family: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        };
+      } else {
+        // When including fileData, use include for relations
+        queryOptions.include = {
           uploadedByUser: {
             select: {
               id: true,

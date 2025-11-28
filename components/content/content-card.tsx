@@ -24,7 +24,8 @@ import {
   Archive,
   Paperclip,
   FileIcon,
-  FileAudio
+  FileAudio,
+  ScrollText
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -33,7 +34,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ResourceType, ResourceStatus, AssignmentStatus, ResourceVisibility } from '@prisma/client';
+import { ResourceType, ResourceStatus, ResourceVisibility } from '@prisma/client';
 import { formatDistanceToNow } from 'date-fns';
 import { formatFileSize } from '@/components/shared/format-utils';
 
@@ -63,7 +64,6 @@ export interface ContentCardProps {
     ratingCount?: number;
 
     // Flags
-    hasAssignments?: boolean;
     hasCuration?: boolean;
     hasRatings?: boolean;
     isPinned?: boolean;
@@ -91,13 +91,6 @@ export interface ContentCardProps {
       name: string;
       color?: string;
     };
-    assignments?: Array<{
-      id: string;
-      title: string;
-      status: AssignmentStatus;
-      priority: string;
-      dueDate?: Date;
-    }>;
     documents?: Array<{
       id: string;
       document: {
@@ -107,10 +100,16 @@ export interface ContentCardProps {
         fileSize?: number;
       };
     }>;
+
+    // External metadata (for templates)
+    externalMeta?: {
+      isTemplate?: boolean;
+      systemGenerated?: boolean;
+      [key: string]: any;
+    };
   };
 
   // Display options
-  showAssignments?: boolean;
   showRatings?: boolean;
   showCuration?: boolean;
   showDocuments?: boolean;
@@ -122,7 +121,6 @@ export interface ContentCardProps {
   onShare?: (contentId: string) => void;
   onPin?: (contentId: string) => void;
   onArchive?: (contentId: string) => void;
-  onAssign?: (contentId: string) => void; // NOTE only
   onRate?: (contentId: string) => void; // RESOURCE only
   onApprove?: (contentId: string) => void; // RESOURCE only
   onFeature?: (contentId: string) => void; // RESOURCE only
@@ -149,7 +147,6 @@ const getDocumentIcon = (type?: string) => {
 
 const ContentCard: React.FC<ContentCardProps> = ({
   content,
-  showAssignments = true,
   showRatings = true,
   showCuration = true,
   showDocuments = true,
@@ -159,7 +156,6 @@ const ContentCard: React.FC<ContentCardProps> = ({
   onShare,
   onPin,
   onArchive,
-  onAssign,
   onRate,
   onApprove,
   onFeature,
@@ -191,8 +187,23 @@ const ContentCard: React.FC<ContentCardProps> = ({
       [ResourceStatus.REJECTED]: { color: 'bg-[var(--ppcc-pink)]', label: 'Rejected' }
     };
 
+    // Check if this is a template
+    const contentHasExternalMeta = (content as any).externalMeta;
+    const isTemplateContent = contentHasExternalMeta?.isTemplate === true ||
+      (content.visibility === ResourceVisibility.PUBLIC &&
+       content.tags?.includes('advance-directives') &&
+       content.status === ResourceStatus.APPROVED);
+
     return (
       <div className="flex flex-wrap gap-1.5 overflow-hidden">
+        {/* Template badge - highest priority */}
+        {isTemplateContent && (
+          <Badge variant="secondary" className="bg-[hsl(var(--ppcc-purple)/0.1)] text-[hsl(var(--ppcc-purple))] border-[hsl(var(--ppcc-purple)/0.3)] flex items-center gap-1 text-xs">
+            <ScrollText className="h-3 w-3" />
+            Template
+          </Badge>
+        )}
+
         {/* General badges */}
         {content.isPinned && (
           <Badge variant="secondary" className="flex items-center gap-1 text-xs">
@@ -206,15 +217,9 @@ const ContentCard: React.FC<ContentCardProps> = ({
             Archived
           </Badge>
         )}
-        {content.hasAssignments && (
-          <Badge variant="default" className="flex items-center gap-1 text-xs">
-            <Clock className="h-3 w-3" />
-            Tasks
-          </Badge>
-        )}
 
-        {/* Status badge */}
-        {content.status && (
+        {/* Status badge - only show if not a template */}
+        {!isTemplateContent && content.status && (
           <Badge className={`${statusConfig[content.status]?.color} text-white text-xs`}>
             {statusConfig[content.status]?.label}
           </Badge>
@@ -236,23 +241,6 @@ const ContentCard: React.FC<ContentCardProps> = ({
       <Badge className={`${config.color} text-xs`}>
         {config.label}
       </Badge>
-    );
-  };
-
-  const renderAssignmentInfo = () => {
-    if (!showAssignments || !content.assignments?.length) return null;
-
-    const pendingAssignments = content.assignments.filter(a =>
-      a.status === AssignmentStatus.ASSIGNED || a.status === AssignmentStatus.IN_PROGRESS
-    );
-
-    if (pendingAssignments.length === 0) return null;
-
-    return (
-      <div className="flex items-center gap-2 text-sm text-gray-600">
-        <AlertCircle className="h-4 w-4" />
-        <span>{pendingAssignments.length} pending task{pendingAssignments.length === 1 ? '' : 's'}</span>
-      </div>
     );
   };
 
@@ -292,7 +280,23 @@ const ContentCard: React.FC<ContentCardProps> = ({
 
   // Get comprehensive card colors based on content type or healthcare category
   const getCardColors = () => {
-    // Check for healthcare tags first (highest priority)
+    // Priority 0: Templates (highest priority) - Use subtle styling for legibility
+    // Check if this content has template metadata
+    const contentHasExternalMeta = (content as any).externalMeta;
+    const isTemplateContent = contentHasExternalMeta?.isTemplate === true ||
+      (content.visibility === ResourceVisibility.PUBLIC &&
+       content.tags?.includes('advance-directives') &&
+       content.status === ResourceStatus.APPROVED);
+
+    if (isTemplateContent) {
+      return {
+        border: 'border-l-[var(--ppcc-purple)]',
+        background: 'bg-background dark:bg-background',
+        hover: 'hover:bg-accent/50 dark:hover:bg-accent/50'
+      };
+    }
+
+    // Priority 1: Healthcare tags
     if (content.tags && content.tags.length > 0) {
       const tag = content.tags[0].toLowerCase();
       if (tag.includes('medical') || tag.includes('health')) {
@@ -408,14 +412,6 @@ const ContentCard: React.FC<ContentCardProps> = ({
             </DropdownMenuItem>
           )}
 
-          {/* Assignment actions */}
-          {onAssign && userRole !== 'MEMBER' && (
-            <DropdownMenuItem onClick={() => onAssign(content.id)}>
-              <User className="mr-2 h-4 w-4" />
-              Assign Task
-            </DropdownMenuItem>
-          )}
-
           {onPin && (
             <DropdownMenuItem onClick={() => onPin(content.id)}>
               <Pin className="mr-2 h-4 w-4" />
@@ -511,10 +507,9 @@ const ContentCard: React.FC<ContentCardProps> = ({
             </div>
           )}
 
-          {/* Status and Assignment Info */}
+          {/* Status Info */}
           <div className="space-y-1 pl-4">
             {getStatusBadge()}
-            {renderAssignmentInfo()}
             {renderRatingInfo()}
             {renderDocuments()}
           </div>
@@ -544,7 +539,19 @@ const ContentCard: React.FC<ContentCardProps> = ({
           {/* Creator and Timestamp */}
           <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t min-h-0 pl-4">
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              {content.creator && (
+              {/* Show "System" for system-generated templates, otherwise show creator */}
+              {content.externalMeta?.systemGenerated ? (
+                <>
+                  <Avatar className="h-5 w-5 flex-shrink-0">
+                    <AvatarFallback className="text-xs bg-purple-100 text-purple-700">
+                      SY
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="truncate min-w-0 text-purple-700 font-medium">
+                    System
+                  </span>
+                </>
+              ) : content.creator && (
                 <>
                   <Avatar className="h-5 w-5 flex-shrink-0">
                     <AvatarFallback className="text-xs">

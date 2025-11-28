@@ -45,7 +45,6 @@ export interface HealthcareContentFiltersState {
   categoryId?: string;
 
   // Feature filters
-  hasAssignments?: boolean;
   hasCuration?: boolean;
   hasRatings?: boolean;
   isPinned?: boolean;
@@ -124,7 +123,7 @@ const HealthcareContentFilters: React.FC<HealthcareContentFiltersProps> = ({
     if (filters.visibility?.length) count++;
     if (filters.familyId) count++;
     if (filters.categoryId) count++;
-    if (filters.hasAssignments || filters.hasCuration || filters.hasRatings || filters.isPinned) count++;
+    if (filters.hasCuration || filters.hasRatings || filters.isPinned) count++;
     return count;
   };
 
@@ -350,7 +349,6 @@ const HealthcareContentFilters: React.FC<HealthcareContentFiltersProps> = ({
               <p className="text-xs font-medium text-gray-700">Features</p>
               <div className="grid grid-cols-1 gap-1.5">
                 {[
-                  { key: 'hasAssignments', label: 'Has Assignments', icon: Users },
                   { key: 'hasCuration', label: 'Has Curation', icon: Star },
                   { key: 'hasRatings', label: 'Has Ratings', icon: Star },
                   { key: 'isPinned', label: 'Pinned', icon: Star }

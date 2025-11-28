@@ -80,12 +80,16 @@ export function NotificationActions({
           break;
 
         case "view":
+          // Mark as read before navigation
+          if (!notification.isRead) {
+            await markAsRead(notification.id);
+          }
           // For MESSAGE notifications, use data.conversationId with role-based routing
           if (notification.type === NotificationType.MESSAGE) {
-            const messageData = notification.data as any;
-            if (messageData?.conversationId) {
+            const viewMessageData = notification.data as any;
+            if (viewMessageData?.conversationId) {
               const role = getUserRole();
-              router.push(`/${role}/chat/${messageData.conversationId}`);
+              router.push(`/${role}/chat/${viewMessageData.conversationId}`);
               success = true;
             }
           } else if (notification.actionUrl) {
@@ -95,6 +99,10 @@ export function NotificationActions({
           break;
 
         case "external":
+          // Mark as read before opening external link
+          if (!notification.isRead) {
+            await markAsRead(notification.id);
+          }
           if (notification.actionUrl) {
             window.open(notification.actionUrl, "_blank");
             success = true;
@@ -102,12 +110,16 @@ export function NotificationActions({
           break;
 
         case "reply":
-          const messageData = notification.data as any;
-          if (messageData?.conversationId) {
+          // Mark as read before navigation
+          if (!notification.isRead) {
+            await markAsRead(notification.id);
+          }
+          const replyMessageData = notification.data as any;
+          if (replyMessageData?.conversationId) {
             const role = getUserRole();
-            router.push(`/${role}/chat/${messageData.conversationId}`);
+            router.push(`/${role}/chat/${replyMessageData.conversationId}`);
             success = true;
-          } else if (messageData?.senderId) {
+          } else if (replyMessageData?.senderId) {
             // Navigate to chat page (role-based routing)
             const role = getUserRole();
             router.push(`/${role}/chat`);
@@ -139,6 +151,10 @@ export function NotificationActions({
 
 
         case "family-view":
+          // Mark as read before navigation
+          if (!notification.isRead) {
+            await markAsRead(notification.id);
+          }
           const familyData = notification.data as any;
           if (familyData?.familyId) {
             router.push(`/families/${familyData.familyId}`);
@@ -147,6 +163,10 @@ export function NotificationActions({
           break;
 
         case "conversation":
+          // Mark as read before navigation
+          if (!notification.isRead) {
+            await markAsRead(notification.id);
+          }
           const conversationData = notification.data as any;
           if (conversationData?.conversationId) {
             const role = getUserRole();
@@ -156,6 +176,10 @@ export function NotificationActions({
           break;
 
         case "emergency-response":
+          // Mark as read before navigation
+          if (!notification.isRead) {
+            await markAsRead(notification.id);
+          }
           const emergencyData = notification.data as any;
           if (emergencyData?.responseUrl) {
             router.push(emergencyData.responseUrl);
@@ -164,6 +188,10 @@ export function NotificationActions({
           break;
 
         case "download":
+          // Mark as read before download
+          if (!notification.isRead) {
+            await markAsRead(notification.id);
+          }
           const downloadData = notification.data as any;
           if (downloadData?.downloadUrl) {
             window.open(downloadData.downloadUrl, "_blank");
@@ -172,6 +200,10 @@ export function NotificationActions({
           break;
 
         case "share":
+          // Mark as read when sharing
+          if (!notification.isRead) {
+            await markAsRead(notification.id);
+          }
           if (navigator.share && notification.actionUrl) {
             await navigator.share({
               title: notification.title,

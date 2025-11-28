@@ -5,14 +5,11 @@ import {
   ResourceStatus,
   ResourceVisibility,
   UserRole,
-  ResourceAssignment,
   ResourceDocument,
   ResourceShare,
   ResourceTag,
   ResourceRating,
   ResourceFormResponse,
-  AssignmentPriority,
-  AssignmentStatus,
 } from "@prisma/client";
 
 /**
@@ -22,12 +19,10 @@ import {
  * supporting all types of resources with optional features enabled via feature flags.
  *
  * Key Features:
- * - Assignment System: Complete task management workflow (enabled via hasAssignments)
  * - Curation Workflow: Approval, featuring, rating system (enabled via hasCuration)
  * - Sharing System: Advanced sharing capabilities (enabled via hasSharing)
  * - Rating System: Community ratings and reviews (enabled via hasRatings)
  * - Role-based Access Control: ADMIN/VOLUNTEER/MEMBER permissions
- * - Family-scoped Restrictions: VOLUNTEER can only assign to their families
  */
 
 export interface ResourceFilters {
@@ -41,7 +36,6 @@ export interface ResourceFilters {
   healthcareCategories?: string[];
   healthcareTags?: string[];
   search?: string;
-  hasAssignments?: boolean;
   hasCuration?: boolean;
   hasRatings?: boolean;
   hasSharing?: boolean;
@@ -51,6 +45,8 @@ export interface ResourceFilters {
   // Template filtering
   isTemplate?: boolean;
   templateType?: string;
+  // System-generated filtering
+  isSystemGenerated?: boolean;
   page?: number;
   limit?: number;
   sortBy?: "createdAt" | "updatedAt" | "title" | "viewCount" | "rating";
@@ -81,10 +77,10 @@ export interface CreateResourceInput {
   approvedAt?: Date;
 
   // Feature flags
-  hasAssignments?: boolean;
   hasCuration?: boolean;
   hasRatings?: boolean;
   hasSharing?: boolean;
+  isSystemGenerated?: boolean;
 
   // Document attachments
   documentIds?: string[];
@@ -98,7 +94,6 @@ export interface UpdateResourceInput extends Partial<CreateResourceInput> {
 export interface ResourceOptions {
   includeDocuments?: boolean;
   includeShares?: boolean;
-  includeAssignments?: boolean;
   includeStructuredTags?: boolean;
   includeRatings?: boolean;
   includeFormResponses?: boolean;
@@ -114,43 +109,6 @@ export interface PaginatedResources {
   total: number;
   page: number;
   limit: number;
-  totalPages: number;
-}
-
-export interface AssignmentInput {
-  title: string;
-  description?: string;
-  priority?: AssignmentPriority;
-  assignedTo: string;
-  dueDate?: Date;
-  estimatedMinutes?: number;
-  tags?: string[];
-}
-
-export interface AssignmentFilters {
-  status?: AssignmentStatus[];
-  priority?: AssignmentPriority[];
-  assignedTo?: string;
-  assignedBy?: string;
-  dueDate?: Date;
-  tags?: string[];
-  page?: number;
-  limit?: number;
-  sortBy?: "createdAt" | "updatedAt" | "title" | "dueDate" | "priority";
-  sortOrder?: "asc" | "desc";
-}
-
-export interface AssignmentStats {
-  assigned: number;
-  inProgress: number;
-  completed: number;
-  overdue: number;
-}
-
-export interface PaginationResult {
-  page: number;
-  limit: number;
-  total: number;
   totalPages: number;
 }
 
@@ -401,718 +359,6 @@ class ResourceRepository {
         viewCount: { increment: 1 },
       },
     });
-  }
-
-  // ========================================
-  // ASSIGNMENT SYSTEM (NOTE content only)
-  // ========================================
-
-  /**
-   * Create assignment for NOTE resource
-   */
-  async createAssignment(
-    resourceId: string,
-    assignmentData: AssignmentInput,
-    assignerId: string,
-    assignerRole: UserRole,
-  ): Promise<ResourceAssignment> {
-    const resource = await this.findById(resourceId, assignerId, assignerRole);
-    if (!resource) {
-      throw new Error("Resource not found");
-    }
-
-    // Validate assignment permissions (VOLUNTEER family-scoped restriction)
-    await this.validateAssignmentPermissions(
-      assignmentData.assignedTo,
-      assignerId,
-      assignerRole,
-    );
-
-    try {
-      const assignment = await this.prisma.resourceAssignment.create({
-        data: {
-          ...assignmentData,
-          resourceId,
-          assignedBy: assignerId,
-          status: AssignmentStatus.ASSIGNED,
-        },
-        include: {
-          assignee: {
-            select: { id: true, firstName: true, lastName: true, email: true },
-          },
-          assigner: {
-            select: { id: true, firstName: true, lastName: true, email: true },
-          },
-        },
-      });
-
-      // Update resource to enable assignments flag
-      await this.prisma.resource.update({
-        where: { id: resourceId },
-        data: { hasAssignments: true },
-      });
-
-      return assignment;
-    } catch (error) {
-      throw new Error(`Failed to create assignment: ${error}`);
-    }
-  }
-
-  /**
-   * Update assignment status
-   */
-  async updateAssignmentStatus(
-    assignmentId: string,
-    status: AssignmentStatus,
-    userId: string,
-    completionNotes?: string,
-  ): Promise<ResourceAssignment> {
-    const assignment = await this.prisma.resourceAssignment.findUnique({
-      where: { id: assignmentId },
-      include: { resource: true },
-    });
-
-    if (!assignment) {
-      throw new Error("Assignment not found");
-    }
-
-    // Validate user can update this assignment
-    const canUpdate =
-      assignment.assignedTo === userId || assignment.assignedBy === userId;
-
-    if (!canUpdate) {
-      throw new Error("Permission denied to update assignment");
-    }
-
-    const updateData: any = { status };
-
-    if (status === AssignmentStatus.COMPLETED) {
-      updateData.completedAt = new Date();
-      updateData.completedBy = userId;
-      if (completionNotes) {
-        updateData.completionNotes = completionNotes;
-      }
-    }
-
-    return await this.prisma.resourceAssignment.update({
-      where: { id: assignmentId },
-      data: updateData,
-      include: {
-        assignee: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-        resource: {
-          select: { id: true, title: true },
-        },
-      },
-    });
-  }
-
-  /**
-   * Get assignments for user
-   */
-  async getAssignedTasks(
-    userId: string,
-    status?: AssignmentStatus[],
-  ): Promise<ResourceAssignment[]> {
-    const where: any = { assignedTo: userId };
-
-    if (status && status.length > 0) {
-      where.status = { in: status };
-    }
-
-    return await this.prisma.resourceAssignment.findMany({
-      where,
-      include: {
-        resource: {
-          select: {
-            id: true,
-            title: true,
-            resourceType: true,
-            family: {
-              select: { id: true, name: true },
-            },
-          },
-        },
-        assigner: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-      },
-      orderBy: [
-        { priority: "desc" },
-        { dueDate: "asc" },
-        { createdAt: "desc" },
-      ],
-    });
-  }
-
-  /**
-   * Get assignments for user with pagination and stats
-   */
-  async getAssignmentsForUser(
-    userId: string,
-    filters: AssignmentFilters,
-  ): Promise<{ assignments: ResourceAssignment[]; stats: AssignmentStats; pagination: PaginationResult }> {
-    const page = filters.page || 1;
-    const limit = filters.limit || 50;
-    const skip = (page - 1) * limit;
-
-    // Build where clause
-    const where: any = { assignedTo: userId };
-
-    if (filters.status && filters.status.length > 0) {
-      where.status = { in: filters.status };
-    }
-    if (filters.priority && filters.priority.length > 0) {
-      where.priority = { in: filters.priority };
-    }
-    if (filters.dueDate) {
-      where.dueDate = { lte: filters.dueDate };
-    }
-    if (filters.tags && filters.tags.length > 0) {
-      where.tags = { hasSome: filters.tags };
-    }
-
-    // Build order by
-    const orderBy: any = {};
-    if (filters.sortBy) {
-      orderBy[filters.sortBy] = filters.sortOrder || "desc";
-    } else {
-      // Default ordering
-      orderBy.priority = "desc";
-      orderBy.dueDate = "asc";
-      orderBy.createdAt = "desc";
-    }
-
-    try {
-      // Get assignments with pagination
-      const [assignments, totalCount] = await Promise.all([
-        this.prisma.resourceAssignment.findMany({
-          where,
-          skip,
-          take: limit,
-          include: {
-            resource: {
-              select: {
-                id: true,
-                title: true,
-                resourceType: true,
-                family: {
-                  select: { id: true, name: true },
-                },
-              },
-            },
-            assigner: {
-              select: { id: true, firstName: true, lastName: true, email: true },
-            },
-          },
-          orderBy,
-        }),
-        this.prisma.resourceAssignment.count({ where }),
-      ]);
-
-      // Calculate stats
-      const stats = await this.calculateAssignmentStats(userId, "assigned");
-
-      const pagination: PaginationResult = {
-        page,
-        limit,
-        total: totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-      };
-
-      return { assignments, stats, pagination };
-    } catch (error) {
-      throw new Error(`Failed to fetch assignments for user: ${error}`);
-    }
-  }
-
-  /**
-   * Get assignments created by user (with VOLUNTEER family restrictions)
-   */
-  async getAssignmentsCreatedByUser(
-    userId: string,
-    userRole: UserRole,
-    filters: AssignmentFilters,
-  ): Promise<{ assignments: ResourceAssignment[]; stats: AssignmentStats; pagination: PaginationResult }> {
-    const page = filters.page || 1;
-    const limit = filters.limit || 50;
-    const skip = (page - 1) * limit;
-
-    // Build where clause
-    const where: any = { assignedBy: userId };
-
-    // VOLUNTEER restriction: only see assignments for families they created
-    if (userRole === UserRole.VOLUNTEER) {
-      const families = await this.prisma.family.findMany({
-        where: { createdById: userId },
-        select: { id: true },
-      });
-      const familyIds = families.map(f => f.id);
-
-      where.resource = {
-        familyId: { in: familyIds },
-      };
-    }
-
-    if (filters.status && filters.status.length > 0) {
-      where.status = { in: filters.status };
-    }
-    if (filters.priority && filters.priority.length > 0) {
-      where.priority = { in: filters.priority };
-    }
-    if (filters.assignedTo) {
-      where.assignedTo = filters.assignedTo;
-    }
-    if (filters.dueDate) {
-      where.dueDate = { lte: filters.dueDate };
-    }
-    if (filters.tags && filters.tags.length > 0) {
-      where.tags = { hasSome: filters.tags };
-    }
-
-    // Build order by
-    const orderBy: any = {};
-    if (filters.sortBy) {
-      orderBy[filters.sortBy] = filters.sortOrder || "desc";
-    } else {
-      // Default ordering
-      orderBy.priority = "desc";
-      orderBy.dueDate = "asc";
-      orderBy.createdAt = "desc";
-    }
-
-    try {
-      // Get assignments with pagination
-      const [assignments, totalCount] = await Promise.all([
-        this.prisma.resourceAssignment.findMany({
-          where,
-          skip,
-          take: limit,
-          include: {
-            resource: {
-              select: {
-                id: true,
-                title: true,
-                resourceType: true,
-                family: {
-                  select: { id: true, name: true },
-                },
-              },
-            },
-            assignee: {
-              select: { id: true, firstName: true, lastName: true, email: true },
-            },
-          },
-          orderBy,
-        }),
-        this.prisma.resourceAssignment.count({ where }),
-      ]);
-
-      // Calculate stats
-      const stats = await this.calculateAssignmentStats(userId, "created");
-
-      const pagination: PaginationResult = {
-        page,
-        limit,
-        total: totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-      };
-
-      return { assignments, stats, pagination };
-    } catch (error) {
-      throw new Error(`Failed to fetch assignments created by user: ${error}`);
-    }
-  }
-
-  /**
-   * Update assignment details
-   */
-  async updateAssignment(
-    assignmentId: string,
-    userId: string,
-    updateData: Partial<AssignmentInput> & {
-      status?: AssignmentStatus;
-      completionNotes?: string;
-    },
-  ): Promise<ResourceAssignment> {
-    try {
-      const assignment = await this.prisma.resourceAssignment.findUnique({
-        where: { id: assignmentId },
-        include: { resource: true },
-      });
-
-      if (!assignment) {
-        throw new Error("Assignment not found");
-      }
-
-      // Permission check: User must be assigned to it or be the assigner
-      const canUpdate =
-        assignment.assignedTo === userId ||
-        assignment.assignedBy === userId;
-
-      if (!canUpdate) {
-        throw new Error("Permission denied to update assignment");
-      }
-
-      // If completing assignment, set completion details
-      const updatePayload: any = { ...updateData };
-      if (updateData.status === AssignmentStatus.COMPLETED) {
-        updatePayload.completedAt = new Date();
-        updatePayload.completedBy = userId;
-      }
-
-      return await this.prisma.resourceAssignment.update({
-        where: { id: assignmentId },
-        data: updatePayload,
-        include: {
-          resource: {
-            select: {
-              id: true,
-              title: true,
-              resourceType: true,
-              family: {
-                select: { id: true, name: true },
-              },
-            },
-          },
-          assigner: {
-            select: { id: true, firstName: true, lastName: true, email: true },
-          },
-          assignee: {
-            select: { id: true, firstName: true, lastName: true, email: true },
-          },
-        },
-      });
-    } catch (error) {
-      throw new Error(`Failed to update assignment: ${error}`);
-    }
-  }
-
-  /**
-   * Delete assignment
-   */
-  async deleteAssignment(assignmentId: string, userId: string): Promise<void> {
-    try {
-      const assignment = await this.prisma.resourceAssignment.findUnique({
-        where: { id: assignmentId },
-      });
-
-      if (!assignment) {
-        throw new Error("Assignment not found");
-      }
-
-      // Permission check: Only the assigner can delete
-      if (assignment.assignedBy !== userId) {
-        throw new Error("Permission denied to delete assignment");
-      }
-
-      await this.prisma.resourceAssignment.delete({
-        where: { id: assignmentId },
-      });
-    } catch (error) {
-      throw new Error(`Failed to delete assignment: ${error}`);
-    }
-  }
-
-  /**
-   * Calculate assignment statistics
-   */
-  private async calculateAssignmentStats(
-    userId: string,
-    type: "assigned" | "created",
-  ): Promise<AssignmentStats> {
-    const where: any = type === "assigned"
-      ? { assignedTo: userId }
-      : { assignedBy: userId };
-
-    try {
-      const [assigned, inProgress, completed, overdueCount] = await Promise.all([
-        this.prisma.resourceAssignment.count({
-          where: { ...where, status: AssignmentStatus.ASSIGNED },
-        }),
-        this.prisma.resourceAssignment.count({
-          where: { ...where, status: AssignmentStatus.IN_PROGRESS },
-        }),
-        this.prisma.resourceAssignment.count({
-          where: { ...where, status: AssignmentStatus.COMPLETED },
-        }),
-        this.prisma.resourceAssignment.count({
-          where: {
-            ...where,
-            status: { in: [AssignmentStatus.ASSIGNED, AssignmentStatus.IN_PROGRESS] },
-            dueDate: { lt: new Date() },
-          },
-        }),
-      ]);
-
-      return {
-        assigned,
-        inProgress,
-        completed,
-        overdue: overdueCount,
-      };
-    } catch (error) {
-      throw new Error(`Failed to calculate assignment stats: ${error}`);
-    }
-  }
-
-  // ========================================
-  // TEMPLATE WORKFLOW METHODS
-  // ========================================
-
-  /**
-   * Start working with a template - creates auto-assignment and returns template info
-   * This implements the hybrid workflow: auto-assignment + form responses
-   */
-  async startWorkingWithTemplate(
-    templateId: string,
-    userId: string,
-    userRole: UserRole
-  ): Promise<{
-    template: Resource;
-    assignment: ResourceAssignment;
-    existingFormResponse?: ResourceFormResponse;
-  }> {
-    // Verify template exists and is actually a template
-    const template = await this.findById(templateId, userId, userRole);
-    if (!template) {
-      throw new Error("Template not found or access denied");
-    }
-
-    // Verify this is actually a template
-    const externalMeta = template.externalMeta as any;
-    const isTemplate = externalMeta?.isTemplate === true ||
-      (template.visibility === ResourceVisibility.PUBLIC &&
-       template.hasAssignments &&
-       template.status === ResourceStatus.APPROVED &&
-       template.tags.includes("advance-directives"));
-
-    if (!isTemplate) {
-      throw new Error("Resource is not a template");
-    }
-
-    try {
-      return await this.prisma.$transaction(async (prisma) => {
-        // Check if user already has an assignment for this template
-        let existingAssignment = await prisma.resourceAssignment.findFirst({
-          where: {
-            resourceId: templateId,
-            assignedTo: userId,
-            status: { in: [AssignmentStatus.ASSIGNED, AssignmentStatus.IN_PROGRESS] }
-          }
-        });
-
-        // Create assignment if one doesn't exist
-        if (!existingAssignment) {
-          existingAssignment = await prisma.resourceAssignment.create({
-            data: {
-              resourceId: templateId,
-              title: `Complete ${template.title}`,
-              description: `Work on advance directive template: ${template.title}`,
-              assignedTo: userId,
-              assignedBy: userId, // Self-assigned when starting template
-              status: AssignmentStatus.IN_PROGRESS,
-              priority: AssignmentPriority.MEDIUM,
-              tags: ["advance-directives", "template", "self-assigned"]
-            },
-            include: {
-              assignee: {
-                select: { id: true, firstName: true, lastName: true, email: true }
-              },
-              assigner: {
-                select: { id: true, firstName: true, lastName: true, email: true }
-              }
-            }
-          });
-        } else {
-          // Update existing assignment to IN_PROGRESS if it was just ASSIGNED
-          if (existingAssignment.status === AssignmentStatus.ASSIGNED) {
-            existingAssignment = await prisma.resourceAssignment.update({
-              where: { id: existingAssignment.id },
-              data: { status: AssignmentStatus.IN_PROGRESS },
-              include: {
-                assignee: {
-                  select: { id: true, firstName: true, lastName: true, email: true }
-                },
-                assigner: {
-                  select: { id: true, firstName: true, lastName: true, email: true }
-                }
-              }
-            });
-          }
-        }
-
-        // Check for existing form response
-        const existingFormResponse = await prisma.resourceFormResponse.findUnique({
-          where: {
-            resourceId_userId: {
-              resourceId: templateId,
-              userId: userId
-            }
-          }
-        });
-
-        // Increment view count for template
-        await prisma.resource.update({
-          where: { id: templateId },
-          data: { viewCount: { increment: 1 } }
-        });
-
-        return {
-          template,
-          assignment: existingAssignment,
-          existingFormResponse: existingFormResponse || undefined
-        };
-      });
-    } catch (error) {
-      throw new Error(`Failed to start working with template: ${error}`);
-    }
-  }
-
-  /**
-   * Get all advance directive templates available to user
-   */
-  async getAdvanceDirectiveTemplates(
-    userId: string,
-    userRole: UserRole,
-    options?: {
-      includeCreator?: boolean;
-      includeFormResponses?: boolean;
-      includeAssignments?: boolean;
-    }
-  ): Promise<Resource[]> {
-    try {
-      const include: any = {};
-
-      if (options?.includeCreator) {
-        include.creator = {
-          select: { id: true, firstName: true, lastName: true, email: true }
-        };
-      }
-
-      if (options?.includeFormResponses) {
-        include.formResponses = {
-          where: { userId },
-          select: {
-            id: true,
-            formData: true,
-            completedAt: true,
-            updatedAt: true
-          }
-        };
-      }
-
-      if (options?.includeAssignments) {
-        include.assignments = {
-          where: { assignedTo: userId },
-          select: {
-            id: true,
-            status: true,
-            createdAt: true,
-            completedAt: true
-          }
-        };
-      }
-
-      return await this.prisma.resource.findMany({
-        where: {
-          AND: [
-            { isDeleted: false },
-            {
-              OR: [
-                // Note: JSON path filtering not supported, will rely on hasAssignments filter instead
-                {
-                  AND: [
-                    { visibility: ResourceVisibility.PUBLIC },
-                    { hasAssignments: true },
-                    { tags: { hasSome: ["advance-directives"] } },
-                    { status: ResourceStatus.APPROVED }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        include,
-        orderBy: [
-          { title: "asc" }
-        ]
-      });
-    } catch (error) {
-      throw new Error(`Failed to get advance directive templates: ${error}`);
-    }
-  }
-
-  /**
-   * Complete template assignment and mark form as completed
-   */
-  async completeTemplateAssignment(
-    templateId: string,
-    userId: string,
-    userRole: UserRole,
-    completionNotes?: string
-  ): Promise<{ assignment: ResourceAssignment; formResponse?: ResourceFormResponse }> {
-    try {
-      return await this.prisma.$transaction(async (prisma) => {
-        // Find the assignment
-        const assignment = await prisma.resourceAssignment.findFirst({
-          where: {
-            resourceId: templateId,
-            assignedTo: userId,
-            status: { in: [AssignmentStatus.ASSIGNED, AssignmentStatus.IN_PROGRESS] }
-          }
-        });
-
-        if (!assignment) {
-          throw new Error("No active assignment found for this template");
-        }
-
-        // Update assignment to completed
-        const completedAssignment = await prisma.resourceAssignment.update({
-          where: { id: assignment.id },
-          data: {
-            status: AssignmentStatus.COMPLETED,
-            completedAt: new Date(),
-            completedBy: userId,
-            completionNotes: completionNotes || "Template form completed"
-          },
-          include: {
-            assignee: {
-              select: { id: true, firstName: true, lastName: true, email: true }
-            },
-            resource: {
-              select: { id: true, title: true }
-            }
-          }
-        });
-
-        // Update form response to mark as completed
-        const formResponse = await prisma.resourceFormResponse.findUnique({
-          where: {
-            resourceId_userId: {
-              resourceId: templateId,
-              userId: userId
-            }
-          }
-        });
-
-        let updatedFormResponse;
-        if (formResponse) {
-          updatedFormResponse = await prisma.resourceFormResponse.update({
-            where: { id: formResponse.id },
-            data: { completedAt: new Date() }
-          });
-        }
-
-        return {
-          assignment: completedAssignment,
-          formResponse: updatedFormResponse
-        };
-      });
-    } catch (error) {
-      throw new Error(`Failed to complete template assignment: ${error}`);
-    }
   }
 
   // ========================================
@@ -1433,7 +679,6 @@ class ResourceRepository {
       categoryId: data.categoryId,
       tags: data.tags || [],
       createdBy: userId,
-      hasAssignments: data.hasAssignments || false,
       hasSharing: data.hasSharing || false,
     };
 
@@ -1448,6 +693,7 @@ class ResourceRepository {
       submittedBy: userId,
       hasCuration: data.hasCuration !== undefined ? data.hasCuration : !isAutoApproved,
       hasRatings: data.hasRatings !== undefined ? data.hasRatings : true,
+      isSystemGenerated: data.isSystemGenerated ?? false,
       status: isAutoApproved
         ? ResourceStatus.APPROVED
         : ResourceStatus.PENDING,
@@ -1516,49 +762,6 @@ class ResourceRepository {
     throw new Error("Permission denied to delete resource");
   }
 
-  private async validateAssignmentPermissions(
-    assigneeId: string,
-    assignerId: string,
-    assignerRole: UserRole,
-  ): Promise<void> {
-    // ADMIN can assign to anyone
-    if (assignerRole === UserRole.ADMIN) {
-      return;
-    }
-
-    // VOLUNTEER family-scoped restriction
-    if (assignerRole === UserRole.VOLUNTEER) {
-      const [assigner, assignee] = await Promise.all([
-        this.prisma.user.findUnique({
-          where: { id: assignerId },
-          include: { createdFamilies: true },
-        }),
-        this.prisma.user.findUnique({
-          where: { id: assigneeId },
-        }),
-      ]);
-
-      if (!assigner || !assignee) {
-        throw new Error("User not found");
-      }
-
-      // Check if assignee is in a family created by this volunteer
-      const canAssign = assigner.createdFamilies.some(
-        (family) => family.id === assignee.familyId,
-      );
-
-      if (!canAssign) {
-        throw new Error(
-          "VOLUNTEER can only assign tasks to users in families they created",
-        );
-      }
-      return;
-    }
-
-    // MEMBER cannot assign tasks
-    throw new Error("Permission denied to create assignments");
-  }
-
   private async checkResourceAccess(
     resource: Resource,
     userId: string,
@@ -1571,6 +774,26 @@ class ResourceRepository {
 
     // Creator has access to their resource
     if (resource.createdBy === userId) {
+      return true;
+    }
+
+    // MEMBER cannot access system-generated resources unless:
+    // 1. They created it (checked above)
+    // 2. It has been assigned to them via TemplateAssignment
+    if (userRole === UserRole.MEMBER && resource.isSystemGenerated) {
+      // Check if this resource has been assigned to the member
+      const assignment = await this.prisma.templateAssignment.findUnique({
+        where: {
+          resourceId_assigneeId: {
+            resourceId: resource.id,
+            assigneeId: userId,
+          },
+        },
+      });
+      if (!assignment) {
+        return false;
+      }
+      // Member has an assignment for this resource, allow access
       return true;
     }
 
@@ -1680,10 +903,6 @@ class ResourceRepository {
     }
 
     // Feature flags
-    if (filters.hasAssignments !== undefined) {
-      where.hasAssignments = filters.hasAssignments;
-    }
-
     if (filters.hasCuration !== undefined) {
       where.hasCuration = filters.hasCuration;
     }
@@ -1722,7 +941,6 @@ class ResourceRepository {
               {
                 AND: [
                   { visibility: ResourceVisibility.PUBLIC },
-                  { hasAssignments: true },
                   { tags: { hasSome: ["advance-directives"] } },
                   { status: ResourceStatus.APPROVED }
                 ]
@@ -1754,6 +972,11 @@ class ResourceRepository {
       };
     }
 
+    // System-generated filtering (explicit filter parameter)
+    if (filters.isSystemGenerated !== undefined) {
+      where.isSystemGenerated = filters.isSystemGenerated;
+    }
+
     // Search
     if (filters.search) {
       where.OR = [
@@ -1766,7 +989,8 @@ class ResourceRepository {
 
     // Visibility and access control
     if (userRole !== UserRole.ADMIN) {
-      where.OR = [
+      // Base visibility conditions for non-admin users
+      const visibilityConditions = [
         { createdBy: userId }, // Own content
         { visibility: ResourceVisibility.PUBLIC }, // Public content
         {
@@ -1792,6 +1016,29 @@ class ResourceRepository {
           ],
         }, // Shared content
       ];
+
+      // MEMBER role: exclude system-generated resources unless they created it or it's assigned to them
+      if (userRole === UserRole.MEMBER) {
+        where.AND = [
+          ...(where.AND || []),
+          {
+            OR: [
+              { isSystemGenerated: false }, // Non-system-generated resources
+              { createdBy: userId }, // Own resources (even if somehow system-generated)
+              // Resources assigned to this member via TemplateAssignment
+              {
+                templateAssignments: {
+                  some: { assigneeId: userId },
+                },
+              },
+            ],
+          },
+          { OR: visibilityConditions },
+        ];
+      } else {
+        // VOLUNTEER: can see system-generated resources
+        where.OR = visibilityConditions;
+      }
     }
 
     return where;
@@ -1851,20 +1098,6 @@ class ResourceRepository {
             select: { id: true, firstName: true, lastName: true, email: true },
           },
         },
-      };
-    }
-
-    if (options.includeAssignments) {
-      include.assignments = {
-        include: {
-          assignee: {
-            select: { id: true, firstName: true, lastName: true, email: true },
-          },
-          assigner: {
-            select: { id: true, firstName: true, lastName: true, email: true },
-          },
-        },
-        orderBy: { createdAt: "desc" },
       };
     }
 
@@ -1948,7 +1181,6 @@ class ResourceRepository {
             select: {
               id: true,
               title: true,
-              hasAssignments: true,
             },
           },
           user: {
@@ -1961,11 +1193,6 @@ class ResourceRepository {
           },
         },
       });
-
-      // Update assignment completion if form is complete and resource has assignments
-      if (isComplete && response.resource.hasAssignments) {
-        await this.updateAssignmentCompletionFromForm(resourceId, userId);
-      }
 
       return response;
     } catch (error) {
@@ -1994,7 +1221,6 @@ class ResourceRepository {
               id: true,
               title: true,
               description: true,
-              hasAssignments: true,
             },
           },
         },
@@ -2200,43 +1426,6 @@ class ResourceRepository {
     });
 
     return user?.createdFamilies.map((family) => family.id) || [];
-  }
-
-  /**
-   * Auto-complete assignment when form is completed
-   * Private helper method
-   */
-  private async updateAssignmentCompletionFromForm(
-    resourceId: string,
-    userId: string,
-  ) {
-    try {
-      // Find active assignment for this content and user
-      const assignment = await this.prisma.resourceAssignment.findFirst({
-        where: {
-          resourceId: resourceId,
-          assignedTo: userId,
-          status: {
-            in: [AssignmentStatus.ASSIGNED, AssignmentStatus.IN_PROGRESS],
-          },
-        },
-      });
-
-      if (assignment) {
-        await this.prisma.resourceAssignment.update({
-          where: { id: assignment.id },
-          data: {
-            status: AssignmentStatus.COMPLETED,
-            completedAt: new Date(),
-            completedBy: userId,
-            completionNotes: "Form completed automatically",
-          },
-        });
-      }
-    } catch (error) {
-      console.error("Error updating assignment completion:", error);
-      // Don't throw error here - form save should succeed even if assignment update fails
-    }
   }
 
   /**

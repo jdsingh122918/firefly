@@ -57,7 +57,6 @@ export default async function AdminResourceEditPage({ params }: Props) {
         color: category.color ?? undefined
       }))}
       showFamilySelector={true} // Admin can change family assignment
-      showAssignmentManagement={true} // Admin can manage assignments
       showCurationControls={true} // Admin has curation controls
       allowContentTypeChange={true} // Admin can change content type
     />

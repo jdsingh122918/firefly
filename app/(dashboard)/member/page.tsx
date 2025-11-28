@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
-import { Heart, MessageSquare, FileText, Calendar, Users, Mail, User, Eye, Plus, BookOpen } from 'lucide-react'
+import { Heart, MessageSquare, FileText, Calendar, Users, Mail, User, Eye, Plus, BookOpen, ScrollText, Play, CheckCircle, Clock, ArrowRight } from 'lucide-react'
 import { UserRepository } from '@/lib/db/repositories/user.repository'
 import { ConversationRepository } from '@/lib/db/repositories/conversation.repository'
 import { ResourceRepository } from '@/lib/db/repositories/resource.repository'
 import { ForumRepository } from '@/lib/db/repositories/forum.repository'
 import { NotificationRepository } from '@/lib/db/repositories/notification.repository'
+import { TemplateAssignmentRepository } from '@/lib/db/repositories/template-assignment.repository'
 import { prisma } from '@/lib/db/prisma'
 
 const userRepository = new UserRepository()
@@ -19,6 +20,7 @@ const conversationRepository = new ConversationRepository()
 const resourceRepository = new ResourceRepository(prisma)
 const forumRepository = new ForumRepository()
 const notificationRepository = new NotificationRepository()
+const templateAssignmentRepository = new TemplateAssignmentRepository()
 
 export default async function MemberDashboard() {
   const { userId, sessionClaims } = await auth()
@@ -38,7 +40,16 @@ export default async function MemberDashboard() {
   // Get user data including family information
   const user = await userRepository.getUserByClerkId(userId)
   let familyMembers: Array<{ id: string; firstName: string | null; lastName?: string | null; role: string; email: string }> = []
-  let userStats = { conversations: 0, unreadNotifications: 0, content: 0, recentForums: 0 }
+  let userStats = { conversations: 0, unreadNotifications: 0, content: 0, recentForums: 0, pendingTemplates: 0 }
+  let templateAssignments: Array<{
+    id: string;
+    status: string;
+    resourceId: string;
+    resourceTitle: string;
+    startedAt?: Date;
+    completedAt?: Date;
+    assignedAt: Date;
+  }> = []
 
   if (user) {
     try {
@@ -55,21 +66,38 @@ export default async function MemberDashboard() {
       }
 
       // Fetch user-specific data
-      const [conversations, notifications, content] = await Promise.allSettled([
+      const [conversations, notifications, content, assignments] = await Promise.allSettled([
         conversationRepository.getConversationsForUser(user.id),
         notificationRepository.getUnreadCount(user.id),
         resourceRepository.filter({
           createdBy: user.id,
           page: 1,
           limit: 5
-        }, user.id, user.role)
+        }, user.id, user.role),
+        templateAssignmentRepository.getAssignmentsForUser(user.id)
       ])
+
+      // Process template assignments
+      if (assignments.status === 'fulfilled') {
+        templateAssignments = assignments.value.map(a => ({
+          id: a.id,
+          status: a.status,
+          resourceId: a.resourceId,
+          resourceTitle: a.resource?.title || 'Untitled Template',
+          startedAt: a.startedAt,
+          completedAt: a.completedAt,
+          assignedAt: a.assignedAt,
+        }))
+      }
+
+      const pendingCount = templateAssignments.filter(a => a.status === 'pending' || a.status === 'started').length
 
       userStats = {
         conversations: conversations.status === 'fulfilled' ? conversations.value.total : 0,
         unreadNotifications: notifications.status === 'fulfilled' ? notifications.value : 0,
         content: content.status === 'fulfilled' ? content.value.total : 0,
-        recentForums: 0 // Will be updated when we add forum integration
+        recentForums: 0, // Will be updated when we add forum integration
+        pendingTemplates: pendingCount
       }
 
       console.log('📊 Member dashboard stats:', userStats)
@@ -267,6 +295,103 @@ export default async function MemberDashboard() {
               <Separator />
 
               <div className="space-y-3">
+                {/* Template Assignments Section */}
+                {templateAssignments.length > 0 && (
+                  <div className="p-3 bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-200 dark:border-purple-800">
+                    <div className="flex items-center gap-2 mb-3">
+                      <ScrollText className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      <h3 className="font-medium text-purple-900 dark:text-purple-100">My Templates</h3>
+                      {userStats.pendingTemplates > 0 && (
+                        <Badge variant="secondary" className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 text-xs">
+                          {userStats.pendingTemplates} pending
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Pending/In-Progress Templates */}
+                    {templateAssignments.filter(a => a.status === 'pending' || a.status === 'started').length > 0 && (
+                      <div className="space-y-2 mb-3">
+                        <p className="text-xs font-medium text-purple-700 dark:text-purple-300 uppercase tracking-wide">Needs Action</p>
+                        {templateAssignments
+                          .filter(a => a.status === 'pending' || a.status === 'started')
+                          .slice(0, 3)
+                          .map(assignment => (
+                            <Link
+                              key={assignment.id}
+                              href={`/member/resources/${assignment.resourceId}/complete`}
+                              className="flex items-center justify-between p-2 rounded-md bg-white dark:bg-purple-900/50 hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors border border-purple-200 dark:border-purple-700"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                {assignment.status === 'started' ? (
+                                  <Clock className="h-4 w-4 text-amber-500 shrink-0" />
+                                ) : (
+                                  <Play className="h-4 w-4 text-purple-500 shrink-0" />
+                                )}
+                                <span className="text-sm font-medium text-purple-900 dark:text-purple-100 truncate">
+                                  {assignment.resourceTitle}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Badge
+                                  variant="outline"
+                                  className={assignment.status === 'started'
+                                    ? "text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-900/30 text-xs"
+                                    : "text-purple-600 border-purple-300 bg-purple-50 dark:bg-purple-900/30 text-xs"
+                                  }
+                                >
+                                  {assignment.status === 'started' ? 'Continue' : 'Start'}
+                                </Badge>
+                                <ArrowRight className="h-3 w-3 text-purple-400" />
+                              </div>
+                            </Link>
+                          ))}
+                      </div>
+                    )}
+
+                    {/* Completed Templates */}
+                    {templateAssignments.filter(a => a.status === 'completed').length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-purple-700 dark:text-purple-300 uppercase tracking-wide">Completed</p>
+                        {templateAssignments
+                          .filter(a => a.status === 'completed')
+                          .slice(0, 3)
+                          .map(assignment => (
+                            <Link
+                              key={assignment.id}
+                              href={`/member/resources/${assignment.resourceId}/complete`}
+                              className="flex items-center justify-between p-2 rounded-md bg-white dark:bg-purple-900/50 hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors border border-purple-200 dark:border-purple-700"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                                <span className="text-sm font-medium text-purple-900 dark:text-purple-100 truncate">
+                                  {assignment.resourceTitle}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 dark:bg-green-900/30 text-xs">
+                                  View
+                                </Badge>
+                                <ArrowRight className="h-3 w-3 text-purple-400" />
+                              </div>
+                            </Link>
+                          ))}
+                      </div>
+                    )}
+
+                    {/* Show more link if there are more than 3 total */}
+                    {templateAssignments.length > 3 && (
+                      <div className="mt-3 pt-2 border-t border-purple-200 dark:border-purple-700">
+                        <Button size="sm" variant="ghost" className="w-full text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300" asChild>
+                          <Link href="/member/resources?filter=templates">
+                            View All Templates ({templateAssignments.length})
+                            <ArrowRight className="ml-2 h-3 w-3" />
+                          </Link>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <h3 className="font-medium text-blue-900">Create Content</h3>
                   <p className="text-sm text-blue-800 mt-1">

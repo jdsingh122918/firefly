@@ -190,6 +190,10 @@ export async function GET(request: NextRequest) {
 
 // POST /api/users - Create new user with Clerk invitation
 export async function POST(request: NextRequest) {
+  // Declare variables at function scope for access in catch block (auto-recovery)
+  let validatedData: z.infer<typeof createUserSchema> | null = null;
+  let user: Awaited<ReturnType<typeof userRepository.getUserByClerkId>> = null;
+
   try {
     const { userId } = await auth();
 
@@ -198,14 +202,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user from database to check role
-    const user = await userRepository.getUserByClerkId(userId);
+    user = await userRepository.getUserByClerkId(userId);
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // Check permissions based on role
     const body = await request.json();
-    const validatedData = createUserSchema.parse(body);
+    validatedData = createUserSchema.parse(body);
 
     // Role-based creation permissions
     if (user.role === UserRole.VOLUNTEER) {
@@ -316,14 +320,79 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Handle Clerk-specific errors
+    // Handle Clerk-specific errors with auto-recovery
     if (error && typeof error === "object" && "errors" in error) {
       const clerkError = error as ClerkError;
-      if (clerkError.errors?.[0]?.code === "form_identifier_exists") {
+      if (clerkError.errors?.[0]?.code === "form_identifier_exists" && validatedData && user) {
+        // AUTO-RECOVERY: Sync existing Clerk user to database
+        console.log("🔄 User exists in Clerk, attempting auto-sync...");
+
+        try {
+          // Fetch existing user from Clerk by email
+          const client = await clerkClient();
+          const clerkUsers = await client.users.getUserList({
+            emailAddress: [validatedData.email],
+          });
+
+          if (clerkUsers.data.length > 0) {
+            const existingClerkUser = clerkUsers.data[0];
+
+            // Check if already in database by clerkId
+            const existingDbUser = await userRepository.getUserByClerkId(
+              existingClerkUser.id,
+            );
+            if (existingDbUser) {
+              return NextResponse.json(
+                { error: "User already exists in the system" },
+                { status: 400 },
+              );
+            }
+
+            // Create database record from Clerk data
+            const dbUser = await userRepository.createUser({
+              clerkId: existingClerkUser.id,
+              email: validatedData.email,
+              firstName: validatedData.firstName || existingClerkUser.firstName || undefined,
+              lastName: validatedData.lastName || existingClerkUser.lastName || undefined,
+              role: validatedData.role as AppUserRole,
+              familyId: validatedData.familyId,
+              createdById: user.id,
+            });
+
+            console.log("✅ User synced from Clerk to database:", {
+              userId: dbUser.id,
+            });
+
+            return NextResponse.json(
+              {
+                success: true,
+                synced: true,
+                user: {
+                  id: dbUser.id,
+                  clerkId: dbUser.clerkId,
+                  email: dbUser.email,
+                  firstName: dbUser.firstName,
+                  lastName: dbUser.lastName,
+                  name: dbUser.firstName
+                    ? `${dbUser.firstName} ${dbUser.lastName || ""}`.trim()
+                    : dbUser.email,
+                  role: dbUser.role,
+                  familyId: dbUser.familyId,
+                  createdAt: dbUser.createdAt,
+                },
+                message:
+                  "Existing Clerk user synced to database successfully.",
+              },
+              { status: 201 },
+            );
+          }
+        } catch (syncError) {
+          console.error("❌ Auto-sync failed:", syncError);
+        }
+
+        // Fallback to original error if sync fails
         return NextResponse.json(
-          {
-            error: "A user with this email already exists",
-          },
+          { error: "A user with this email already exists" },
           { status: 400 },
         );
       }

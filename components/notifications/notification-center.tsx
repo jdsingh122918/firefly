@@ -123,7 +123,7 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
     }
   };
 
-  const handleAction = (notification: Notification) => {
+  const handleAction = async (notification: Notification) => {
     let targetUrl: string | null = null;
 
     // For MESSAGE notifications, construct URL dynamically with current role
@@ -140,12 +140,13 @@ export function NotificationCenter({ isOpen, onClose, className }: NotificationC
       targetUrl = notification.actionUrl;
     }
 
-    if (targetUrl) {
-      router.push(targetUrl);
+    // Mark as read BEFORE navigation so notification disappears immediately
+    if (!notification.isRead) {
+      await handleMarkAsRead(notification.id);
     }
 
-    if (!notification.isRead) {
-      handleMarkAsRead(notification.id);
+    if (targetUrl) {
+      router.push(targetUrl);
     }
   };
 

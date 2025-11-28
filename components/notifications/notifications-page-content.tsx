@@ -573,8 +573,12 @@ export function NotificationsPageContent() {
                   notification.actionUrl && "cursor-pointer hover:shadow-lg transition-shadow",
                   "group"
                 )}
-                onClick={() => {
+                onClick={async () => {
                   if (notification.actionUrl) {
+                    // Mark as read before navigation
+                    if (!notification.isRead) {
+                      await handleMarkAsRead(notification.id)
+                    }
                     window.location.href = notification.actionUrl
                   }
                 }}

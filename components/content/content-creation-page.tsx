@@ -61,7 +61,6 @@ const ContentCreationPage: React.FC<ContentCreationPageProps> = ({
     isPinned: false,
     allowComments: false,
     allowEditing: false,
-    hasAssignments: false,
     hasCuration: userRole !== 'ADMIN',
     hasRatings: true, // All resources can have ratings
     hasSharing: false,
@@ -145,7 +144,6 @@ const ContentCreationPage: React.FC<ContentCreationPageProps> = ({
         isPinned: submittedFormData.isPinned || false,
         allowComments: submittedFormData.allowComments || false,
         allowEditing: submittedFormData.allowEditing || false,
-        hasAssignments: submittedFormData.hasAssignments || false,
         hasCuration: canManageCuration ? submittedFormData.hasCuration : true,
         hasRatings: submittedFormData.hasRatings || false,
         hasSharing: submittedFormData.hasSharing || false,

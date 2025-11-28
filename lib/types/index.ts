@@ -21,7 +21,6 @@ import type {
   ResourceRating as PrismaResourceRating,
   ResourceShare as PrismaResourceShare,
   ResourceDocument as PrismaResourceDocument,
-  ResourceAssignment as PrismaResourceAssignment,
   ResourceTag as PrismaResourceTag,
   ResourceFormResponse as PrismaResourceFormResponse,
 } from "@prisma/client";
@@ -38,8 +37,6 @@ import {
   ResourceVisibility,
   ResourceType,
   ResourceStatus,
-  AssignmentPriority,
-  AssignmentStatus,
   DocumentSource,
 } from "@prisma/client";
 
@@ -66,7 +63,6 @@ export type {
   PrismaResourceRating,
   PrismaResourceShare,
   PrismaResourceDocument,
-  PrismaResourceAssignment,
   PrismaResourceTag,
   PrismaResourceFormResponse,
 };
@@ -83,8 +79,6 @@ export {
   ResourceVisibility,
   ResourceType,
   ResourceStatus,
-  AssignmentPriority,
-  AssignmentStatus,
   DocumentSource,
 };
 
@@ -851,7 +845,6 @@ export interface Resource {
   sharedWith: string[]; // User IDs for shared resources
 
   // Feature flags
-  hasAssignments: boolean; // Enable assignment features
   hasCuration: boolean; // Enable curation workflow
   hasRatings: boolean; // Enable rating system
   hasSharing: boolean; // Enable advanced sharing
@@ -891,7 +884,6 @@ export interface Resource {
   category?: Category;
   documents?: PrismaResourceDocument[];
   shares?: ResourceShare[];
-  assignments?: ResourceAssignment[];
   structuredTags?: ResourceTag[];
   ratings?: ResourceRating[];
   formResponses?: ResourceFormResponse[];
@@ -929,31 +921,6 @@ export interface ResourceShare {
   recipient?: User;
 }
 
-export interface ResourceAssignment {
-  id: string;
-  resourceId: string;
-  title: string;
-  description?: string;
-  priority: AssignmentPriority;
-  status: AssignmentStatus;
-  assignedTo: string;
-  assignedBy: string;
-  dueDate?: Date;
-  estimatedMinutes?: number;
-  completedAt?: Date;
-  completionNotes?: string;
-  completedBy?: string;
-  tags: string[];
-  createdAt: Date;
-  updatedAt: Date;
-
-  // Relations
-  resource?: Resource;
-  assignee?: User;
-  assigner?: User;
-  completedByUser?: User;
-}
-
 export interface ResourceFormResponse {
   id: string;
   resourceId: string;
@@ -982,7 +949,6 @@ export interface CreateResourceInput {
   attachments?: string[];
   createdBy: string;
   sharedWith?: string[];
-  hasAssignments?: boolean;
   hasCuration?: boolean;
   hasRatings?: boolean;
   hasSharing?: boolean;
@@ -1003,7 +969,6 @@ export interface UpdateResourceInput {
   tags?: string[];
   attachments?: string[];
   sharedWith?: string[];
-  hasAssignments?: boolean;
   hasCuration?: boolean;
   hasRatings?: boolean;
   hasSharing?: boolean;
@@ -1044,12 +1009,12 @@ export interface ResourceFilters {
   tags?: string[];
   isVerified?: boolean;
   targetAudience?: string[];
-  hasAssignments?: boolean;
   hasCuration?: boolean;
   hasRatings?: boolean;
   hasSharing?: boolean;
   isArchived?: boolean;
   isDeleted?: boolean;
+  isSystemGenerated?: boolean;
   search?: string;
   ratingMin?: number;
   ratingMax?: number;
@@ -1103,62 +1068,6 @@ export interface ApiErrorResponse {
   details?: unknown;
 }
 
-// ====================================
-// UNIFIED ASSIGNMENT SYSTEM TYPES
-// ====================================
-
-// Resource Assignment input types
-export interface CreateResourceAssignmentInput {
-  resourceId: string;
-  title: string;
-  description?: string;
-  assignedTo: string;
-  assignedBy: string;
-  priority?: AssignmentPriority;
-  dueDate?: Date;
-  estimatedMinutes?: number;
-  tags?: string[];
-}
-
-export interface UpdateResourceAssignmentInput {
-  title?: string;
-  description?: string;
-  status?: AssignmentStatus;
-  priority?: AssignmentPriority;
-  dueDate?: Date;
-  estimatedMinutes?: number;
-  completedAt?: Date;
-  completionNotes?: string;
-  completedBy?: string;
-  tags?: string[];
-}
-
-// Assignment filter types
-export interface ResourceAssignmentFilters {
-  resourceId?: string;
-  assignedTo?: string;
-  assignedBy?: string;
-  status?: AssignmentStatus;
-  priority?: AssignmentPriority;
-  dueBefore?: Date;
-  dueAfter?: Date;
-  tags?: string[];
-}
-
-// Assignment summary for dashboard views
-export interface AssignmentSummary {
-  id: string;
-  resourceId: string;
-  resourceTitle: string;
-  title: string;
-  assigneeName: string;
-  status: AssignmentStatus;
-  priority: AssignmentPriority;
-  dueDate?: Date;
-  completedAt?: Date;
-  createdAt: Date;
-}
-
 export interface TagWithUsage {
   id: string;
   name: string;
@@ -1169,4 +1078,52 @@ export interface TagWithUsage {
   isSystemTag: boolean;
   usageCount: number;
   createdAt: Date;
+}
+
+// ====================================
+// TEMPLATE ASSIGNMENT TYPES
+// ====================================
+
+export type TemplateAssignmentStatus = 'pending' | 'started' | 'completed';
+
+export interface TemplateAssignment {
+  id: string;
+  resourceId: string;
+  assigneeId: string;
+  assignedBy: string;
+  assignedAt: Date;
+  status: TemplateAssignmentStatus;
+  startedAt?: Date;
+  completedAt?: Date;
+  notes?: string;
+
+  // Relations
+  resource?: Resource;
+  assignee?: User;
+  assigner?: User;
+}
+
+export interface CreateTemplateAssignmentInput {
+  resourceId: string;
+  assigneeIds: string[];
+  assignedBy: string;
+  notes?: string;
+}
+
+export interface TemplateAssignmentFilters {
+  resourceId?: string;
+  assigneeId?: string;
+  assignedBy?: string;
+  status?: TemplateAssignmentStatus;
+}
+
+export interface AssignableMember {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  familyId: string | null;
+  familyName?: string;
+  alreadyAssigned: boolean;
+  completedAt?: Date | null;
 }

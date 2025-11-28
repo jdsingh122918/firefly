@@ -55,7 +55,6 @@ export interface ContentHubPageProps {
   showCurationQueue: boolean;
   showAllContent: boolean;
   enableContentCreation: boolean;
-  enableAssignmentManagement: boolean;
   enableCurationWorkflow: boolean;
 }
 
@@ -71,7 +70,6 @@ interface ContentItem {
   shareCount?: number;
   rating?: number;
   ratingCount?: number;
-  hasAssignments?: boolean;
   hasCuration?: boolean;
   hasRatings?: boolean;
   isPinned?: boolean;
@@ -95,13 +93,6 @@ interface ContentItem {
     name: string;
     color?: string;
   };
-  assignments?: Array<{
-    id: string;
-    title: string;
-    status: string;
-    priority: string;
-    dueDate?: string;
-  }>;
   documents?: Array<{
     id: string;
     document: {
@@ -123,7 +114,6 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
   showCurationQueue,
   showAllContent,
   enableContentCreation,
-  enableAssignmentManagement,
   enableCurationWorkflow
 }) => {
   const router = useRouter();
@@ -163,7 +153,6 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
         includeFamily: 'true',
         includeCategory: 'true',
         includeDocuments: 'true',
-        includeAssignments: 'true',
         includeRatings: 'true',
         sortBy: filters.sortBy || 'createdAt',
         sortOrder: filters.sortOrder || 'desc',
@@ -188,9 +177,6 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
       }
       if (filters.categoryId) {
         params.set('categoryId', filters.categoryId);
-      }
-      if (filters.hasAssignments !== undefined) {
-        params.set('hasAssignments', String(filters.hasAssignments));
       }
       if (filters.hasCuration !== undefined) {
         params.set('hasCuration', String(filters.hasCuration));
@@ -617,7 +603,6 @@ const ContentHubPage: React.FC<ContentHubPageProps> = ({
                 createdAt: new Date(item.createdAt),
                 updatedAt: new Date(item.updatedAt)
               } as any}
-              showAssignments={true}
               showRatings={true}
               showCuration={true}
               showDocuments={true}

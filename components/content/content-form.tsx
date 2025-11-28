@@ -65,7 +65,6 @@ export interface ContentFormProps {
     isPinned?: boolean;
     allowComments?: boolean;
     allowEditing?: boolean;
-    hasAssignments?: boolean;
     hasCuration?: boolean;
     hasRatings?: boolean;
     hasSharing?: boolean;
@@ -115,7 +114,6 @@ export interface ContentFormData {
   isPinned?: boolean;
   allowComments?: boolean;
   allowEditing?: boolean;
-  hasAssignments?: boolean;
   hasCuration?: boolean;
   hasRatings?: boolean;
   hasSharing?: boolean;
@@ -163,7 +161,6 @@ const ContentForm = ({
     isPinned: initialData?.isPinned || false,
     allowComments: initialData?.allowComments || false,
     allowEditing: initialData?.allowEditing || false,
-    hasAssignments: initialData?.hasAssignments || false,
     hasCuration: initialData?.hasCuration || (userRole !== 'ADMIN'),
     hasRatings: initialData?.hasRatings || true, // All resources can have ratings
     hasSharing: initialData?.hasSharing || false,

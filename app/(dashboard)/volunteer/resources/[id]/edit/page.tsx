@@ -65,7 +65,6 @@ export default async function VolunteerResourceEditPage({ params }: Props) {
         color: category.color ?? undefined
       }))}
       showFamilySelector={families.length > 0} // Only show if volunteer has families
-      showAssignmentManagement={false} // Volunteers don't manage assignments
       showCurationControls={false} // Volunteers don't have curation controls
       allowContentTypeChange={true} // Volunteers can change content type
     />

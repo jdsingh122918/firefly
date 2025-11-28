@@ -1,5 +1,5 @@
 import { UserRole } from '@prisma/client'
-import { Inbox, MessageSquare, StickyNote, UserCheck, BookOpen, MessageCircle, FolderOpen } from 'lucide-react'
+import { Inbox, MessageSquare, StickyNote, BookOpen, MessageCircle, FolderOpen } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 /**
@@ -58,14 +58,6 @@ export const FEATURE_ROUTES: FeatureRoute[] = [
     icon: FolderOpen,
     roles: [UserRole.ADMIN, UserRole.VOLUNTEER, UserRole.MEMBER]
     // Badge functionality can be added later for resource counts
-  },
-  {
-    key: 'assignments',
-    title: 'Assignments',
-    href: (role: UserRole) => `/${role.toLowerCase()}/assignments`,
-    icon: UserCheck,
-    roles: [UserRole.ADMIN, UserRole.VOLUNTEER, UserRole.MEMBER]
-    // Badge functionality can be added later for overdue assignment counts
   },
   {
     key: 'chat',

@@ -50,25 +50,6 @@ enum DeliveryStatus {
   POLLED     // Picked up via polling fallback
 }
 
-// ====================================
-// ASSIGNMENT SYSTEM ENUMS (Session 018)
-// ====================================
-
-
-enum AssignmentPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
-enum AssignmentStatus {
-  ASSIGNED      // Task assigned, not started
-  IN_PROGRESS   // User is working on it
-  COMPLETED     // Task completed
-  CANCELLED     // Assignment cancelled
-}
-
 enum DocumentSource {
   UPLOAD        // Uploaded specifically for this note
   LIBRARY       // Selected from existing documents
@@ -122,9 +103,6 @@ model User {
   resourceRatings    ResourceRating[] @relation("ResourceRatings")
   resourceShares     ResourceShare[] @relation("ResourceShareReceiver")
   sharedResources    ResourceShare[] @relation("ResourceShareSender")
-  resourceAssignments ResourceAssignment[] @relation("ResourceAssignments")
-  createdResourceAssignments ResourceAssignment[] @relation("ResourceAssigner")
-  completedResourceAssignments ResourceAssignment[] @relation("ResourceAssignmentCompleter")
 
   // Document and tag relations
   resourceDocumentAttachments ResourceDocument[] @relation("ResourceDocumentAttacher")
@@ -133,6 +111,10 @@ model User {
   // Volunteer-Family assignment relations
   volunteerAssignments    VolunteerFamilyAssignment[] @relation("VolunteerAssignments")
   createdFamilyAssignments VolunteerFamilyAssignment[] @relation("CreatedFamilyAssignments")
+
+  // Template assignment relations
+  assignedTemplates            TemplateAssignment[] @relation("AssignedTemplates")
+  createdTemplateAssignments   TemplateAssignment[] @relation("CreatedTemplateAssignments")
 
   @@index([familyId])
   @@index([role])
@@ -195,6 +177,31 @@ model VolunteerFamilyAssignment {
   @@index([assignedBy])
   @@index([isActive])
   @@map("volunteer_family_assignments")
+}
+
+// Template Assignment model for assigning templates to members
+model TemplateAssignment {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  resourceId   String    @db.ObjectId
+  assigneeId   String    @db.ObjectId
+  assignedBy   String    @db.ObjectId
+  assignedAt   DateTime  @default(now())
+  status       String    @default("pending") // pending, started, completed
+  startedAt    DateTime?
+  completedAt  DateTime?
+  notes        String?
+
+  // Relations
+  resource     Resource  @relation("TemplateAssignments", fields: [resourceId], references: [id], onDelete: Cascade)
+  assignee     User      @relation("AssignedTemplates", fields: [assigneeId], references: [id], onDelete: Cascade)
+  assigner     User      @relation("CreatedTemplateAssignments", fields: [assignedBy], references: [id], onDelete: NoAction)
+
+  @@unique([resourceId, assigneeId])
+  @@index([resourceId])
+  @@index([assigneeId])
+  @@index([assignedBy])
+  @@index([status])
+  @@map("template_assignments")
 }
 
 // Conversation model - represents different types of conversations
@@ -873,7 +880,6 @@ model Resource {
   sharedWith      String[]     @db.ObjectId @default([]) // User IDs for shared resources
 
   // Feature flags
-  hasAssignments  Boolean      @default(false) // Enable assignment features
   hasCuration     Boolean      @default(false) // Enable curation workflow
   hasRatings      Boolean      @default(false) // Enable rating system
   hasSharing      Boolean      @default(false) // Enable advanced sharing
@@ -882,6 +888,9 @@ model Resource {
   isArchived      Boolean      @default(false)
   isDeleted       Boolean      @default(false)
   deletedAt       DateTime?
+
+  // System flag
+  isSystemGenerated Boolean    @default(false) // System-created resources (not visible to MEMBER)
 
   // Resource fields
   url             String?      // External URL for links/videos
@@ -918,13 +927,15 @@ model Resource {
   // Resource sharing
   shares          ResourceShare[]
 
-  // Assignments
-  assignments     ResourceAssignment[]
+  // Tags
   structuredTags  ResourceTag[]
 
   // Resource-specific relations
   ratings         ResourceRating[]
   formResponses   ResourceFormResponse[]
+
+  // Template assignments
+  templateAssignments TemplateAssignment[] @relation("TemplateAssignments")
 
   // Optional relations for workflow
   submitter       User?        @relation("ResourceSubmitter", fields: [submittedBy], references: [id], onDelete: SetNull)
@@ -938,10 +949,10 @@ model Resource {
   @@index([status])
   @@index([tags])
   @@index([isArchived, isDeleted])
+  @@index([isSystemGenerated])   // For system-generated filtering
   @@index([rating, ratingCount]) // For resource sorting by rating
   @@index([viewCount])           // For popularity sorting
   @@index([createdAt])
-  @@index([hasAssignments])      // For assignment queries
   @@index([hasCuration])         // For curation workflow
   @@index([hasRatings])          // For rating queries
   @@map("resources")
@@ -993,47 +1004,6 @@ model ResourceShare {
   @@index([userId])
   @@index([sharedBy])
   @@map("resource_shares")
-}
-
-// Resource assignments
-model ResourceAssignment {
-  id              String           @id @default(auto()) @map("_id") @db.ObjectId
-  resourceId      String           @db.ObjectId // Link to Resource
-  title           String
-  description     String?
-  priority        AssignmentPriority @default(MEDIUM)
-  status          AssignmentStatus   @default(ASSIGNED)
-
-  // Assignment details
-  assignedTo      String           @db.ObjectId // User assigned to complete
-  assignedBy      String           @db.ObjectId // User who assigned the task
-  dueDate         DateTime?        // Optional due date
-  estimatedMinutes Int?            // Estimated time to complete
-
-  // Progress tracking
-  completedAt     DateTime?        // When marked complete
-  completionNotes String?          // Optional completion notes
-  completedBy     String?          @db.ObjectId // Who marked it complete
-
-  // Metadata
-  tags            String[]         @default([]) // Assignment tags
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-
-  // Relations
-  resource        Resource         @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  assignee        User             @relation("ResourceAssignments", fields: [assignedTo], references: [id], onDelete: NoAction)
-  assigner        User             @relation("ResourceAssigner", fields: [assignedBy], references: [id], onDelete: NoAction)
-  completedByUser User?            @relation("ResourceAssignmentCompleter", fields: [completedBy], references: [id], onDelete: NoAction)
-
-  @@index([resourceId])
-  @@index([assignedTo, status])  // For user's assigned tasks
-  @@index([assignedBy])          // For user's created assignments
-  @@index([status])              // For filtering by status
-  @@index([priority])            // For sorting by priority
-  @@index([dueDate])            // For sorting by due date
-  @@index([createdAt])
-  @@map("resource_assignments")
 }
 
 // Resource tags

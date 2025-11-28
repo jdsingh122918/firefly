@@ -26,12 +26,14 @@ import {
   MessageSquare,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Send
 } from 'lucide-react';
 import { ResourceType, UserRole } from '@prisma/client';
 import { formatTimeAgo } from '@/components/shared/format-utils';
 import { useToast } from '@/hooks/use-toast';
 import { MessageContentRenderer } from '@/components/chat/message-content-renderer';
+import { AssignTemplateModal } from '@/components/resources/assign-template-modal';
 
 /**
  * Content Detail Page Component
@@ -50,7 +52,6 @@ export interface ContentDetailPageProps {
   userRole: UserRole;
   userId: string;
   availableFamilies: Array<{ id: string; name: string }>;
-  showAssignmentManagement: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
   showCurationControls: boolean;
@@ -70,9 +71,9 @@ interface ContentItem {
   isPinned?: boolean;
   isArchived?: boolean;
   isFeatured?: boolean;
+  isSystemGenerated?: boolean;
   allowComments?: boolean;
   allowEditing?: boolean;
-  hasAssignments?: boolean;
   hasCuration?: boolean;
   hasRatings?: boolean;
   hasSharing?: boolean;
@@ -110,13 +111,6 @@ interface ContentItem {
       size: number;
     };
   }>;
-  assignments?: Array<{
-    id: string;
-    title: string;
-    status: string;
-    priority: string;
-    dueDate?: string;
-  }>;
   ratings?: Array<{
     id: string;
     rating: number;
@@ -134,7 +128,6 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
   userRole,
   userId,
   availableFamilies,
-  showAssignmentManagement,
   showEditButton,
   showDeleteButton,
   showCurationControls,
@@ -148,6 +141,10 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userRating, setUserRating] = useState<number>(0);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+
+  // Check if user can assign templates
+  const canAssignTemplate = userRole === UserRole.ADMIN || userRole === UserRole.VOLUNTEER;
 
   // Fetch content data
   const fetchContent = useCallback(async () => {
@@ -160,7 +157,6 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
         includeFamily: 'true',
         includeCategory: 'true',
         includeDocuments: 'true',
-        includeAssignments: 'true',
         includeRatings: 'true'
       });
 
@@ -459,6 +455,17 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Assign button for system-generated templates */}
+          {content.isSystemGenerated && canAssignTemplate && (
+            <Button
+              variant="outline"
+              onClick={() => setShowAssignModal(true)}
+              className="min-h-[44px] bg-[hsl(var(--ppcc-purple))/0.1] border-[hsl(var(--ppcc-purple))/0.3] hover:bg-[hsl(var(--ppcc-purple))/0.2] text-[hsl(var(--ppcc-purple))]"
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Assign
+            </Button>
+          )}
           {showEditButton && (
             <Button variant="outline" onClick={handleEdit} className="min-h-[44px]">
               <Edit className="h-4 w-4 mr-2" />
@@ -584,36 +591,6 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
               </div>
             </Card>
           )}
-
-          {/* Assignments - Compact Grid */}
-          {content.assignments && content.assignments.length > 0 && (
-            <Card className="p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="h-4 w-4 text-gray-700" />
-                <h3 className="font-medium text-gray-900">Assignments ({content.assignments.length})</h3>
-              </div>
-              <div className="grid gap-2 grid-cols-1 md:grid-cols-2">
-                {content.assignments.map((assignment) => (
-                  <div key={assignment.id} className="p-2 border rounded-lg">
-                    <p className="font-medium text-sm">{assignment.title}</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Badge variant="outline" className="text-xs">
-                        {assignment.status}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs">
-                        {assignment.priority}
-                      </Badge>
-                      {assignment.dueDate && (
-                        <span className="text-xs text-gray-600 ml-1">
-                          Due {formatTimeAgo(assignment.dueDate)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
         </div>
 
         {/* Sidebar - 1/4 width, Compact */}
@@ -710,6 +687,23 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({
           {renderRatingSection()}
         </div>
       </div>
+
+      {/* Assign Template Modal */}
+      {content.isSystemGenerated && canAssignTemplate && (
+        <AssignTemplateModal
+          open={showAssignModal}
+          onOpenChange={setShowAssignModal}
+          resourceId={contentId}
+          resourceTitle={content.title}
+          resourceDescription={content.description}
+          onSuccess={() => {
+            toast({
+              title: 'Success',
+              description: 'Template assigned successfully'
+            });
+          }}
+        />
+      )}
     </div>
   );
 };

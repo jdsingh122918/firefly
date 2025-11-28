@@ -53,7 +53,6 @@ export interface ContentEditPageProps {
   availableFamilies: Array<{ id: string; name: string }>;
   availableCategories: Array<{ id: string; name: string; color?: string }>;
   showFamilySelector: boolean;
-  showAssignmentManagement: boolean;
   showCurationControls: boolean;
   allowContentTypeChange: boolean;
 }
@@ -73,7 +72,6 @@ interface ContentItem {
   isFeatured?: boolean;
   allowComments?: boolean;
   allowEditing?: boolean;
-  hasAssignments?: boolean;
   hasCuration?: boolean;
   hasRatings?: boolean;
   hasSharing?: boolean;
@@ -114,7 +112,6 @@ interface FormData {
   isPinned: boolean;
   allowComments: boolean;
   allowEditing: boolean;
-  hasAssignments: boolean;
   hasCuration: boolean;
   hasRatings: boolean;
   hasSharing: boolean;
@@ -127,7 +124,6 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
   availableFamilies,
   availableCategories,
   showFamilySelector,
-  showAssignmentManagement,
   showCurationControls,
   allowContentTypeChange
 }) => {
@@ -155,7 +151,6 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
     isPinned: false,
     allowComments: true,
     allowEditing: false,
-    hasAssignments: false,
     hasCuration: false,
     hasRatings: true,
     hasSharing: true
@@ -206,7 +201,6 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
           isPinned: contentData.isPinned || false,
           allowComments: contentData.allowComments ?? true,
           allowEditing: contentData.allowEditing || false,
-          hasAssignments: contentData.hasAssignments || false,
           hasCuration: contentData.hasCuration || false,
           hasRatings: contentData.hasRatings ?? true,
           hasSharing: contentData.hasSharing ?? true
@@ -338,7 +332,6 @@ const ContentEditPage: React.FC<ContentEditPageProps> = ({
         isPinned: formData.isPinned,
         allowComments: formData.allowComments,
         allowEditing: formData.allowEditing,
-        hasAssignments: formData.hasAssignments,
         hasCuration: formData.hasCuration,
         hasRatings: formData.hasRatings,
         hasSharing: formData.hasSharing

@@ -104,6 +104,10 @@ export function NotificationBanner({
           break;
 
         case "view":
+          // Mark as read before navigation
+          if (!notification.isRead) {
+            await markAsRead(notification.id);
+          }
           // For MESSAGE notifications, use data.conversationId with role-based routing
           if (notification.type === NotificationType.MESSAGE) {
             const messageData = notification.data as any;
@@ -117,6 +121,10 @@ export function NotificationBanner({
           break;
 
         case "external":
+          // Mark as read before opening external link
+          if (!notification.isRead) {
+            await markAsRead(notification.id);
+          }
           if (notification.actionUrl) {
             window.open(notification.actionUrl, "_blank");
           }
@@ -134,11 +142,15 @@ export function NotificationBanner({
           break;
 
         case "reply":
+          // Mark as read before navigation
+          if (!notification.isRead) {
+            await markAsRead(notification.id);
+          }
           // Navigate to conversation/reply page
-          const messageData = notification.data as any;
-          if (messageData?.conversationId) {
+          const replyMessageData = notification.data as any;
+          if (replyMessageData?.conversationId) {
             const role = getUserRole();
-            router.push(`/${role}/chat/${messageData.conversationId}`);
+            router.push(`/${role}/chat/${replyMessageData.conversationId}`);
           }
           break;
 

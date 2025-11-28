@@ -55,7 +55,6 @@ export interface ContentFiltersProps {
   visibility?: ResourceVisibility[];
   search?: string;
   tags?: string[];
-  hasAssignments?: boolean;
   hasCuration?: boolean;
   hasRatings?: boolean;
   featured?: boolean;
@@ -89,7 +88,6 @@ export interface ContentFiltersState {
   visibility?: ResourceVisibility[];
   search?: string;
   tags?: string[];
-  hasAssignments?: boolean;
   hasCuration?: boolean;
   hasRatings?: boolean;
   featured?: boolean;
@@ -107,7 +105,6 @@ const ContentFilters: React.FC<ContentFiltersProps> = ({
   visibility = [],
   search = '',
   tags = [],
-  hasAssignments,
   hasCuration,
   hasRatings,
   featured,
@@ -188,7 +185,6 @@ const ContentFilters: React.FC<ContentFiltersProps> = ({
     if (visibility.length > 0) count++;
     if (search) count++;
     if (tags.length > 0) count++;
-    if (hasAssignments) count++;
     if (hasCuration) count++;
     if (hasRatings) count++;
     if (featured) count++;
@@ -337,23 +333,6 @@ const ContentFilters: React.FC<ContentFiltersProps> = ({
         <CollapsibleContent className="space-y-4 pt-2">
           {/* Feature Flags - all content is now resources */}
           <div className="space-y-3">
-            {/* Assignment feature (for all resources) */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Assignment Features</Label>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="has-assignments"
-                  checked={hasAssignments || false}
-                  onCheckedChange={(checked) =>
-                    onFiltersChange({ hasAssignments: checked as boolean })
-                  }
-                />
-                <Label htmlFor="has-assignments" className="text-sm">
-                  Has Assignments
-                </Label>
-              </div>
-            </div>
-
             {/* Resource features */}
             <div className="space-y-3">
               <Label className="text-sm font-medium">Resource Features</Label>

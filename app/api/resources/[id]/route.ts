@@ -38,7 +38,6 @@ const updateResourceSchema = z.object({
   isFeatured: z.boolean().optional(),
   rejectionReason: z.string().max(1000).optional(),
   targetAudience: z.array(z.string()).optional(),
-  hasAssignments: z.boolean().optional(),
   hasCuration: z.boolean().optional(),
   hasRatings: z.boolean().optional(),
   hasSharing: z.boolean().optional(),
@@ -129,6 +128,7 @@ export async function GET(
       externalMeta: resource.externalMeta || {},
       isFeatured: resource.status === ResourceStatus.FEATURED,
       isApproved: resource.status === ResourceStatus.APPROVED || resource.status === ResourceStatus.FEATURED,
+      isSystemGenerated: resource.isSystemGenerated,
       approvedAt: resource.approvedAt,
       rejectionReason: null, // TODO: Implement rejectionReason field
       isDeleted: false, // TODO: Implement isDeleted field
