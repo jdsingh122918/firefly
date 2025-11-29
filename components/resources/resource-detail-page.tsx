@@ -354,8 +354,9 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
                 <Button
                   onClick={handleStartWorking}
                   disabled={startWorkingLoading}
+                  variant="default"
                   size="sm"
-                  className="min-h-[44px] bg-[hsl(var(--ppcc-purple))] hover:bg-[hsl(var(--ppcc-purple)/0.9)] text-white"
+                  className="min-h-[44px]"
                 >
                   <Play className="h-4 w-4 mr-2" />
                   {startWorkingLoading ? "Starting..." : assignment.status === 'started' ? "Continue Form" : "Start Working"}
