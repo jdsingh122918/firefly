@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Eye, Edit, Trash2, Users, UserCheck } from 'lucide-react'
+import { Plus, Search, Eye, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@clerk/nextjs'
 import {

@@ -122,7 +122,7 @@ export function EmailSection() {
               <DialogHeader>
                 <DialogTitle>Add Email Address</DialogTitle>
                 <DialogDescription>
-                  Add a new email address to your account. You'll need to verify it before you can use it.
+                  Add a new email address to your account. You&apos;ll need to verify it before you can use it.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">

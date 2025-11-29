@@ -1,5 +1,5 @@
 import { auth } from '@clerk/nextjs/server'
-import { redirect, notFound } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import { UserRole } from '@prisma/client'
 import { ForumDetailContent } from '@/components/forums/forum-detail-content'
 import { prisma } from '@/lib/db/prisma'
@@ -50,8 +50,8 @@ export default async function VolunteerForumDetailPage({ params }: ForumDetailPa
   )
 }
 
-export async function generateMetadata({ params }: ForumDetailPageProps) {
-  const { slug } = await params
+export async function generateMetadata({ params: _params }: ForumDetailPageProps) {
+  await _params // Await params to satisfy Next.js 15+ requirement
   return {
     title: `Forum | Firefly Volunteer`,
     description: 'View forum discussions and posts',

@@ -192,7 +192,7 @@ export default function NotificationDebugPage() {
         alert(`Cleaned up ${data.deletedCount} old logs`);
         fetchDebugData();
       }
-    } catch (err) {
+    } catch (_err) {
       alert("Failed to cleanup logs");
     }
   };

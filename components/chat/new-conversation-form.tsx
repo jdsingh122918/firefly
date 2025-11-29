@@ -411,7 +411,7 @@ export function NewConversationForm({
 
               {formData.type === 'ANNOUNCEMENT' && (
                 <p className="text-sm text-muted-foreground">
-                  Select participants to broadcast important information to. Use "Select All" to reach everyone.
+                  Select participants to broadcast important information to. Use &quot;Select All&quot; to reach everyone.
                 </p>
               )}
 

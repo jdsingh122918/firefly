@@ -8,7 +8,7 @@ interface SettingsContentProps {
   userRole?: UserRole
 }
 
-export function SettingsContent({ userRole }: SettingsContentProps) {
+export function SettingsContent({ userRole: _userRole }: SettingsContentProps) {
   return (
     <div className="space-y-3">
       {/* Header */}

@@ -9,7 +9,7 @@ export default function AuthLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { theme, resolvedTheme } = useTheme()
+  const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
   // Hydration protection - wait for theme to be resolved on client

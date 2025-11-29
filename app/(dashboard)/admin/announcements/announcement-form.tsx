@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
@@ -15,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CalendarIcon, Clock, Users, AlertCircle, CheckCircle, Send } from 'lucide-react'
+import { CalendarIcon, Clock, CheckCircle, Send } from 'lucide-react'
 import { toast } from 'sonner'
 
 const announcementSchema = z.object({
@@ -49,7 +48,6 @@ const priorityOptions = [
 
 export function AnnouncementForm() {
   const { getToken } = useAuth()
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [lastSentAnnouncement, setLastSentAnnouncement] = useState<{
     title: string
@@ -300,7 +298,7 @@ export function AnnouncementForm() {
                             Calendar Event
                           </FormLabel>
                           <FormDescription>
-                            Include calendar event details and "Add to Calendar" action
+                            Include calendar event details and &quot;Add to Calendar&quot; action
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -415,7 +413,7 @@ export function AnnouncementForm() {
           <Alert>
             <CheckCircle className="h-4 w-4" />
             <AlertDescription>
-              Last sent: "{lastSentAnnouncement.title}" to {lastSentAnnouncement.createdCount} users
+              Last sent: &quot;{lastSentAnnouncement.title}&quot; to {lastSentAnnouncement.createdCount} users
             </AlertDescription>
           </Alert>
         )}
@@ -428,7 +426,7 @@ export function AnnouncementForm() {
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>• Keep titles concise and descriptive</p>
             <p>• Use priority levels appropriately</p>
-            <p>• Calendar events will show "Add to Calendar" buttons</p>
+            <p>• Calendar events will show &quot;Add to Calendar&quot; buttons</p>
             <p>• Actionable notifications include interaction buttons</p>
             <p>• Announcements appear in the notification banner</p>
           </CardContent>

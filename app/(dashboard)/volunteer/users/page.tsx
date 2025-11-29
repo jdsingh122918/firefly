@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Eye, Users, MoreHorizontal } from 'lucide-react'
-import { toast } from 'sonner'
+import { Plus, Search, Eye, Users } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -12,12 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {
   Select,
   SelectContent,
@@ -71,6 +64,7 @@ interface UsersResponse {
 export default function VolunteerUsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')

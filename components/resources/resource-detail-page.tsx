@@ -401,7 +401,7 @@ export function ResourceDetailPage({ resourceId, userRole, userId }: ResourceDet
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete Resource</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Are you sure you want to delete "{resource.title}"? This action cannot be undone.
+                    Are you sure you want to delete &quot;{resource.title}&quot;? This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

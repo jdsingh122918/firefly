@@ -314,7 +314,7 @@ export function ForumTagSelector({
       {/* Helper text */}
       {!disabled && (
         <p className="text-xs text-muted-foreground">
-          Type tags and press Enter or comma to add. Use "Browse" to select from healthcare system tags.
+          Type tags and press Enter or comma to add. Use &quot;Browse&quot; to select from healthcare system tags.
         </p>
       )}
 

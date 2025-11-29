@@ -949,7 +949,7 @@ export function ConversationDetailPage({
           ) : (
             <Card className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-border flex-shrink-0 z-10 p-3">
               <div className="text-center text-muted-foreground">
-                <p className="text-sm">You don't have permission to send messages in this conversation.</p>
+                <p className="text-sm">You don&apos;t have permission to send messages in this conversation.</p>
               </div>
             </Card>
           )}

@@ -107,7 +107,7 @@ const PopularTagsQuickSelect: React.FC<PopularTagsQuickSelectProps> = ({
 
       {/* Help Text */}
       <p className="text-xs text-gray-500">
-        Click tags to add/remove them. Use "Browse All Tags" for comprehensive selection.
+        Click tags to add/remove them. Use &quot;Browse All Tags&quot; for comprehensive selection.
       </p>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Eye, Edit, Trash2, Users, MoreHorizontal } from 'lucide-react'
+import { Plus, Search, Eye, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@clerk/nextjs'
 import {
@@ -13,16 +13,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { FamilyTile } from '@/components/families/family-tile'
 
@@ -51,7 +44,7 @@ interface FamiliesResponse {
 }
 
 export default function VolunteerFamiliesPage() {
-  const { isSignedIn, userId } = useAuth()
+  const { isSignedIn } = useAuth()
   const [families, setFamilies] = useState<Family[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -141,7 +134,7 @@ export default function VolunteerFamiliesPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Families</h1>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Manage families you've created and their members
+            Manage families you&apos;ve created and their members
           </p>
         </div>
         <Button asChild className="w-full sm:w-auto min-h-[44px]">

@@ -300,12 +300,6 @@ function getContextualActions(notification: Notification): {
           primary: true
         })
       }
-      actions.push({
-        icon: CheckCircle,
-        label: "Acknowledge",
-        action: () => console.log("Acknowledged care update"),
-        variant: "outline"
-      })
       if (data?.appointment) {
         actions.push({
           icon: Calendar,

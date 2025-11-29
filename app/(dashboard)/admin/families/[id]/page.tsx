@@ -671,7 +671,7 @@ export default function FamilyDetailPage() {
                               </p>
                               {unassignedMembers.length === 0 && (
                                 <p className="text-sm mt-2">
-                                  Try creating a new member using the "Create New Member" tab.
+                                  Try creating a new member using the &quot;Create New Member&quot; tab.
                                 </p>
                               )}
                             </div>
@@ -815,7 +815,7 @@ export default function FamilyDetailPage() {
                 <UserPlus className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-2 text-sm font-semibold text-muted-foreground">No members yet</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  This family doesn't have any members assigned yet.
+                  This family doesn&apos;t have any members assigned yet.
                 </p>
                 <Button variant="outline" className="mt-4" onClick={handleAddMemberClick}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -921,7 +921,7 @@ export default function FamilyDetailPage() {
                           </div>
                           <p className="text-sm text-muted-foreground">No volunteers assigned yet</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Switch to "Available Volunteers" to assign someone
+                            Switch to &quot;Available Volunteers&quot; to assign someone
                           </p>
                         </div>
                       </div>
@@ -1048,7 +1048,7 @@ export default function FamilyDetailPage() {
               <UserPlus className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-2 text-sm font-semibold text-muted-foreground">No volunteers assigned</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                This family doesn't have any volunteers assigned to manage it yet.
+                This family doesn&apos;t have any volunteers assigned to manage it yet.
               </p>
               <Button variant="outline" className="mt-4" onClick={handleManageVolunteersClick}>
                 <Plus className="h-4 w-4 mr-2" />

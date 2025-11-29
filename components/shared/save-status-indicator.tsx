@@ -83,7 +83,7 @@ export function SaveStatusIndicator({
                 <Button variant="link" size="sm" className="p-0 h-auto" onClick={onRetry}>
                   try saving again
                 </Button>
-                {' '}or continue working - we'll keep trying to save automatically.
+                {' '}or continue working - we&apos;ll keep trying to save automatically.
               </span>
             )}
           </AlertDescription>

@@ -10,7 +10,6 @@ import { Heart, MessageSquare, FileText, Calendar, Users, Mail, User, Eye, Plus,
 import { UserRepository } from '@/lib/db/repositories/user.repository'
 import { ConversationRepository } from '@/lib/db/repositories/conversation.repository'
 import { ResourceRepository } from '@/lib/db/repositories/resource.repository'
-import { ForumRepository } from '@/lib/db/repositories/forum.repository'
 import { NotificationRepository } from '@/lib/db/repositories/notification.repository'
 import { TemplateAssignmentRepository } from '@/lib/db/repositories/template-assignment.repository'
 import { prisma } from '@/lib/db/prisma'
@@ -18,7 +17,6 @@ import { prisma } from '@/lib/db/prisma'
 const userRepository = new UserRepository()
 const conversationRepository = new ConversationRepository()
 const resourceRepository = new ResourceRepository(prisma)
-const forumRepository = new ForumRepository()
 const notificationRepository = new NotificationRepository()
 const templateAssignmentRepository = new TemplateAssignmentRepository()
 

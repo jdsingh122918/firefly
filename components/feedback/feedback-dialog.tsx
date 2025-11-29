@@ -268,7 +268,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">Submit anonymously</FormLabel>
                     <p className="text-sm text-muted-foreground">
-                      Your contact information won't be included in the feedback
+                      Your contact information won&apos;t be included in the feedback
                     </p>
                   </div>
                   <FormControl>

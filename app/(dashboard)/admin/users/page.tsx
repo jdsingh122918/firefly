@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Eye, Users, CheckCircle, Calendar } from 'lucide-react'
+import { Plus, Search, Eye, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Table,
@@ -66,6 +66,7 @@ interface UsersResponse {
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
