@@ -798,7 +798,7 @@ export function ConversationDetailPage({
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Link href={`/${userRole.toLowerCase()}/chat`}>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="text-orange-500 hover:text-orange-600 hover:bg-orange-50">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Chat
             </Button>
@@ -818,7 +818,7 @@ export function ConversationDetailPage({
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Link href={`/${userRole.toLowerCase()}/chat`}>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="text-orange-500 hover:text-orange-600 hover:bg-orange-50">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Chat
             </Button>
@@ -864,7 +864,7 @@ export function ConversationDetailPage({
                 {/* Left: Back button and title */}
                 <div className="flex items-center gap-2 min-w-0">
                   <Link href={`/${userRole.toLowerCase()}/chat`}>
-                    <Button variant="ghost" size="sm" className="min-h-[44px] text-primary hover:text-primary/80 hover:bg-primary/10">
+                    <Button variant="ghost" size="sm" className="min-h-[44px] text-orange-500 hover:text-orange-600 hover:bg-orange-50">
                       <ArrowLeft className="h-4 w-4 mr-2" />
                       Back
                     </Button>

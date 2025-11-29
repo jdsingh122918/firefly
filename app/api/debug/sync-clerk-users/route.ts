@@ -25,6 +25,13 @@ interface DuplicateInfo {
   removed: Array<{ id: string; email: string; createdAt: string }>;
 }
 
+interface OrphanedUserInfo {
+  id: string;
+  clerkId: string;
+  email: string;
+  createdAt: string;
+}
+
 /**
  * Fetch all users from Clerk API with pagination
  */
@@ -181,7 +188,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Step 4: Delete duplicates (if not dry-run)
+    // Step 3b: Find orphaned users (in DB but not in Clerk)
+    const validClerkIds = new Set(clerkUsers.map(u => u.id));
+    const orphanedUsers: OrphanedUserInfo[] = [];
+
+    for (const dbUser of allDbUsers) {
+      // Skip if already marked for deletion (duplicate)
+      if (idsToDelete.has(dbUser.id)) continue;
+
+      // If clerkId not in Clerk, it's orphaned
+      if (!validClerkIds.has(dbUser.clerkId)) {
+        orphanedUsers.push({
+          id: dbUser.id,
+          clerkId: dbUser.clerkId,
+          email: dbUser.email,
+          createdAt: dbUser.createdAt.toISOString(),
+        });
+        idsToDelete.add(dbUser.id);
+      }
+    }
+
+    // Step 4: Delete duplicates and orphaned users (if not dry-run)
     let deletedCount = 0;
     if (!dryRun && idsToDelete.size > 0) {
       const deleteResult = await prisma.user.deleteMany({
@@ -198,12 +225,14 @@ export async function POST(request: NextRequest) {
       summary: {
         clerkUsersFound: clerkUsers.length,
         usersCreated: created.length,
-        duplicatesFound: idsToDelete.size,
-        duplicatesDeleted: dryRun ? 0 : deletedCount,
+        duplicatesFound: duplicateDetails.reduce((acc, d) => acc + d.removed.length, 0),
+        orphanedUsersFound: orphanedUsers.length,
+        totalDeleted: dryRun ? 0 : deletedCount,
       },
       details: {
         created,
         duplicates: duplicateDetails,
+        orphanedUsers,
       },
     });
   } catch (error) {
