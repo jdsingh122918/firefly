@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Users, Heart, MessageSquare, Calendar, Plus, Eye } from 'lucide-react'
+import { Users, Heart, Plus, Eye } from 'lucide-react'
 import { UserRole } from '@/lib/auth/roles'
 import { UserRepository } from '@/lib/db/repositories/user.repository'
 import { FamilyRepository } from '@/lib/db/repositories/family.repository'
@@ -101,7 +101,7 @@ export default async function VolunteerDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
         <Card className="p-3 border-l-4 border-l-[var(--healthcare-home)] bg-[hsl(var(--healthcare-home)/0.05)] hover:bg-[hsl(var(--healthcare-home)/0.08)] transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Families</CardTitle>
@@ -124,32 +124,6 @@ export default async function VolunteerDashboard() {
             <div className="text-2xl font-bold">{memberCount}</div>
             <p className="text-xs text-muted-foreground">
               Members you&apos;ve registered
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="p-3 border-l-4 border-l-[var(--healthcare-mental)] bg-[hsl(var(--healthcare-mental)/0.05)] hover:bg-[hsl(var(--healthcare-mental)/0.08)] transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Messages</CardTitle>
-            <MessageSquare className="h-4 w-4 text-[hsl(var(--healthcare-mental))]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">
-              Coming soon - messaging system
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="p-3 border-l-4 border-l-[var(--ppcc-orange)] bg-[hsl(var(--ppcc-orange)/0.05)] hover:bg-[hsl(var(--ppcc-orange)/0.08)] transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Week</CardTitle>
-            <Calendar className="h-4 w-4 text-[hsl(var(--ppcc-orange))]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">
-              Coming soon - visit scheduling
             </p>
           </CardContent>
         </Card>
