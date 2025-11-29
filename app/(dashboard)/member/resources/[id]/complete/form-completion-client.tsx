@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, CheckCircle, AlertCircle, FileText, Clock } from 'lucide-react';
 import { AdvanceDirectiveForm, FormResponseData, FormSectionData } from '@/components/forms/advance-directive-forms';
-import { HealthcarePrivacyHeader, FormPrivacyFooter } from '@/components/shared/privacy-security';
 
 interface FormCompletionClientProps {
   resourceId: string;
@@ -171,9 +170,6 @@ export function FormCompletionClient({
         initialData={initialFormData}
         onSave={handleSave}
       />
-
-      {/* Privacy Footer */}
-      <FormPrivacyFooter />
     </div>
   );
 }

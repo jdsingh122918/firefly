@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Save, Check, AlertCircle } from 'lucide-react';
 import { useAutoSave } from '@/lib/utils/auto-save';
 import { SaveStatusIndicator, FloatingSaveStatus, StickySaveStatus } from '@/components/shared/save-status-indicator';
-import { HealthcarePrivacyHeader, FormPrivacyFooter } from '@/components/shared/privacy-security';
+import { HealthcarePrivacyHeader } from '@/components/shared/privacy-security';
 
 // Types for form data structure
 export interface FormFieldData {
@@ -690,9 +690,6 @@ export const AdvanceDirectiveForm: React.FC<AdvanceDirectiveFormProps> = ({
           </CardContent>
         </Card>
       )}
-
-      {/* Privacy and Security Footer */}
-      <FormPrivacyFooter className="pt-6" />
     </div>
   );
 };
