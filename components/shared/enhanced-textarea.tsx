@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import { Type, Smile, Paperclip } from "lucide-react";
+import { Type, Smile, Paperclip, Eye, EyeOff } from "lucide-react";
+import { markdownToHtml } from "@/utils/markdown-formatter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useMarkdownEditor } from "@/hooks/use-markdown-editor";
@@ -56,6 +57,7 @@ export function EnhancedTextarea({
   showCharacterCount = 'near-limit',
 }: EnhancedTextareaProps) {
   const [isToolbarVisible, setIsToolbarVisible] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // File upload functionality
@@ -286,6 +288,17 @@ export function EnhancedTextarea({
                 </span>
               </div>
             )}
+
+            {/* Live Preview Panel */}
+            {showPreview && value.trim() && (
+              <div className="mt-3 p-3 border rounded-md bg-muted/30">
+                <div className="text-xs text-muted-foreground mb-2 font-medium">Preview</div>
+                <div
+                  className="prose prose-sm dark:prose-invert max-w-none text-foreground"
+                  dangerouslySetInnerHTML={{ __html: markdownToHtml(value, { sanitize: true }) }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Attachment Preview (always visible when attachments exist) */}
@@ -306,6 +319,7 @@ export function EnhancedTextarea({
                 {/* File Upload */}
                 {enableAttachments && (
                   <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
                     onClick={handleFileClick}
@@ -320,6 +334,7 @@ export function EnhancedTextarea({
                 {/* Text Formatting Toggle */}
                 {showToolbar && (
                   <Button
+                    type="button"
                     variant={isToolbarVisible ? "secondary" : "ghost"}
                     size="sm"
                     onClick={() => setIsToolbarVisible(!isToolbarVisible)}
@@ -341,6 +356,19 @@ export function EnhancedTextarea({
                     />
                   </div>
                 )}
+
+                {/* Preview Toggle */}
+                <Button
+                  type="button"
+                  variant={showPreview ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setShowPreview(!showPreview)}
+                  disabled={disabled}
+                  className="h-8 px-2 text-xs font-medium"
+                >
+                  {showPreview ? <EyeOff className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
+                  Preview
+                </Button>
               </div>
 
               {/* Right Actions */}

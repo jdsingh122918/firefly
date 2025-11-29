@@ -12,8 +12,6 @@ import {
   Video,
   Paperclip,
   Smile,
-  Wifi,
-  WifiOff,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -135,7 +133,6 @@ export function ConversationDetailPage({
   const [sending, setSending] = useState(false);
   const [showParticipants, setShowParticipants] = useState(false);
   const [showAddParticipant, setShowAddParticipant] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -479,14 +476,14 @@ export function ConversationDetailPage({
       console.log("🔍 Fetching conversation data:", {
         conversationId,
         conversationUrl: `/api/conversations/${conversationId}`,
-        messagesUrl: `/api/conversations/${conversationId}/messages?limit=50`
+        messagesUrl: `/api/conversations/${conversationId}/messages?limit=50&sortOrder=asc`
       });
 
       const [conversationResponse, messagesResponse] = await Promise.all([
         fetch(`/api/conversations/${conversationId}`, {
           credentials: 'include', // Ensure cookies are sent
         }),
-        fetch(`/api/conversations/${conversationId}/messages?limit=50`, {
+        fetch(`/api/conversations/${conversationId}/messages?limit=50&sortOrder=asc`, {
           credentials: 'include', // Ensure cookies are sent
         }),
       ]);
@@ -860,33 +857,43 @@ export function ConversationDetailPage({
       <div className="flex flex-1 gap-1 min-h-0 h-full">
         {/* Main Chat Area */}
         <div className="flex flex-col flex-1 min-w-0 h-full">
-          {/* Simplified Header */}
+          {/* Header with Back, Title, and Participants */}
           <Card className="flex-shrink-0 p-3">
             <CardContent className="py-0">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-4">
+                {/* Left: Back button and title */}
+                <div className="flex items-center gap-2 min-w-0">
                   <Link href={`/${userRole.toLowerCase()}/chat`}>
-                    <Button variant="ghost" size="sm" className="min-h-[44px]">
+                    <Button variant="ghost" size="sm" className="min-h-[44px] text-primary hover:text-primary/80 hover:bg-primary/10">
                       <ArrowLeft className="h-4 w-4 mr-2" />
                       Back
                     </Button>
                   </Link>
-                  <div>
-                    <h1 className="font-semibold text-lg">{getDisplayTitle()}</h1>
+                  <div className="min-w-0">
+                    <h1 className="font-semibold text-lg truncate">{getDisplayTitle()}</h1>
                   </div>
                 </div>
 
-                {/* Mobile Sidebar Toggle */}
-                <div className="lg:hidden">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowSidebar(!showSidebar)}
-                    className="min-h-[44px]"
-                  >
-                    <Users className="h-4 w-4 mr-2" />
-                    Info
-                  </Button>
+                {/* Right: Participants */}
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {conversation.participants.slice(0, 4).map((participant) => (
+                    <div key={participant.id} className="flex items-center gap-2">
+                      <Avatar className="h-7 w-7">
+                        <AvatarImage src={participant.user.imageUrl} />
+                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                          {participant.user.firstName?.[0] || participant.user.email[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium text-primary hidden sm:inline truncate max-w-[100px]">
+                        {participant.user.firstName || participant.user.email.split('@')[0]}
+                      </span>
+                    </div>
+                  ))}
+                  {conversation.participants.length > 4 && (
+                    <span className="text-sm text-primary font-medium">
+                      +{conversation.participants.length - 4}
+                    </span>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -947,131 +954,6 @@ export function ConversationDetailPage({
             </Card>
           )}
         </div>
-
-        {/* Right Sidebar */}
-        <div className={`
-          lg:w-80 lg:border-l lg:border-border lg:bg-background/50 lg:backdrop-blur-sm lg:block
-          fixed lg:static inset-y-0 right-0 z-50 w-80 bg-background border-l border-border
-          transform transition-transform duration-300 ease-in-out
-          ${showSidebar ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
-        `}>
-          <div className="flex flex-col h-full">
-            {/* Mobile Close Button */}
-            <div className="lg:hidden flex justify-between items-center p-4 border-b">
-              <h2 className="font-semibold">Conversation Info</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowSidebar(false)}
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Conversation Info */}
-            <Card className="flex-shrink-0 border-0 border-b rounded-none">
-              <CardContent className="p-4 space-y-3">
-                <div>
-                  <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Conversation</h2>
-                  <h3 className="font-medium">{getDisplayTitle()}</h3>
-                  {conversation.family && (
-                    <p className="text-sm text-muted-foreground">Family: {conversation.family.name}</p>
-                  )}
-                </div>
-
-                {/* Connection Status */}
-                <div className="flex items-center gap-2 p-2 rounded-md bg-accent/50">
-                  {isConnected ? (
-                    <>
-                      <Wifi className="h-4 w-4 text-green-600" />
-                      <span className="text-sm text-green-600 font-medium">Connected</span>
-                    </>
-                  ) : (
-                    <>
-                      <WifiOff className="h-4 w-4 text-orange-500" />
-                      <span className="text-sm text-orange-500 font-medium">Connecting...</span>
-                    </>
-                  )}
-                </div>
-
-                {/* Typing Indicators */}
-                {typingUsers.length > 0 && (
-                  <div className="p-2 rounded-md bg-primary/10">
-                    <div className="text-sm text-muted-foreground">
-                      {typingUsers.length === 1
-                        ? `${typingUsers[0].userName} is typing...`
-                        : typingUsers.length === 2
-                        ? `${typingUsers[0].userName} and ${typingUsers[1].userName} are typing...`
-                        : `${typingUsers[0].userName} and ${typingUsers.length - 1} others are typing...`
-                      }
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Participants List */}
-            <Card className="flex-1 border-0 rounded-none overflow-hidden">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                    Participants ({conversation.participants.length})
-                  </h2>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleShowParticipants}
-                  >
-                    <Users className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <ScrollArea className="h-[calc(100%-40px)]">
-                  <div className="space-y-3">
-                    {conversation.participants.map((participant) => (
-                      <div key={participant.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-accent/50 transition-colors">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={participant.user.imageUrl} />
-                          <AvatarFallback>
-                            {participant.user.firstName?.[0] || participant.user.email[0].toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {participant.user.firstName
-                              ? `${participant.user.firstName} ${participant.user.lastName || ''}`.trim()
-                              : participant.user.email
-                            }
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={participant.user.role === 'ADMIN' ? 'default' : 'secondary'} className="text-xs">
-                              {participant.user.role}
-                            </Badge>
-                            {participant.canManage && (
-                              <Badge variant="outline" className="text-xs">Manager</Badge>
-                            )}
-                            {!participant.canWrite && (
-                              <Badge variant="outline" className="text-xs text-muted-foreground">Read-only</Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-
-          </div>
-        </div>
-
-        {/* Mobile Sidebar Backdrop */}
-        {showSidebar && (
-          <div
-            className="lg:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
-            onClick={() => setShowSidebar(false)}
-          />
-        )}
       </div>
 
       {/* Participants Dialog */}

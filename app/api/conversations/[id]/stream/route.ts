@@ -231,3 +231,20 @@ export function getActiveConnectionsCount(conversationId: string): number {
   const connections = conversationConnections.get(conversationId);
   return connections ? connections.size : 0;
 }
+
+/**
+ * Check if a specific user is connected to a conversation's SSE stream
+ * Used to skip notifications for users already viewing the conversation
+ */
+export function isUserConnectedToConversation(conversationId: string, userId: string): boolean {
+  const connections = conversationConnections.get(conversationId);
+  return connections ? connections.has(userId) : false;
+}
+
+/**
+ * Get list of user IDs connected to a conversation
+ */
+export function getConnectedUserIds(conversationId: string): string[] {
+  const connections = conversationConnections.get(conversationId);
+  return connections ? Array.from(connections.keys()) : [];
+}

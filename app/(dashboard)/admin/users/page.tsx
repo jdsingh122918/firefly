@@ -451,7 +451,7 @@ export default function UsersPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Button variant="outline" size="sm" asChild>
+                        <Button size="sm" asChild>
                           <Link href={`/admin/users/${user.id}`}>
                             <Eye className="mr-2 h-4 w-4" />
                             View Details

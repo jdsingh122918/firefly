@@ -48,6 +48,7 @@ const ToolbarButton = ({ icon: Icon, tooltip, shortcut, isActive, onClick }: Too
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
+          type="button"
           variant={isActive ? "secondary" : "ghost"}
           size="sm"
           onClick={onClick}

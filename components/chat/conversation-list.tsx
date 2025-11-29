@@ -1,14 +1,30 @@
 "use client";
 
 import { UserRole } from "@prisma/client";
-import { MessageCircle, Users, Archive, Bell } from "lucide-react";
+import { MoreVertical, Archive, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
+
+interface Participant {
+  userId: string;
+  user: {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    role: string;
+  };
+}
 
 interface Conversation {
   id: string;
@@ -24,6 +40,7 @@ interface Conversation {
   createdAt: string;
   updatedAt: string;
   participantCount: number;
+  participants?: Participant[];
   lastMessage?: {
     id: string;
     content: string;
@@ -47,38 +64,50 @@ interface ConversationListProps {
   onConversationUpdate: () => void;
 }
 
-const getConversationTypeIcon = (type: string) => {
-  switch (type) {
-    case 'FAMILY_CHAT':
-      return Users;
-    case 'ANNOUNCEMENT':
-      return MessageCircle;
-    case 'CARE_UPDATE':
-      return MessageCircle;
-    default:
-      return MessageCircle;
-  }
-};
-
 const getConversationTypeBadge = (type: string) => {
   switch (type) {
     case 'FAMILY_CHAT':
-      return { label: 'Family', color: 'bg-blue-100 text-blue-800 border-blue-200' };
+      return { label: 'Family', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' };
     case 'ANNOUNCEMENT':
-      return { label: 'Announcement', color: 'bg-purple-100 text-purple-800 border-purple-200' };
+      return { label: 'Announce', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' };
     case 'CARE_UPDATE':
-      return { label: 'Care Update', color: 'bg-green-100 text-green-800 border-green-200' };
+      return { label: 'Care', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' };
     case 'DIRECT':
-      return { label: 'Direct', color: 'bg-gray-100 text-gray-800 border-gray-200' };
+      return { label: 'Direct', color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400' };
     default:
-      return { label: type, color: 'bg-gray-100 text-gray-800 border-gray-200' };
+      return { label: type, color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400' };
   }
 };
 
-const getDisplayTitle = (conversation: Conversation) => {
+const getParticipantName = (participant: Participant) => {
+  if (participant.user.firstName) {
+    return `${participant.user.firstName} ${participant.user.lastName || ''}`.trim();
+  }
+  return participant.user.email.split('@')[0];
+};
+
+const getParticipantInitials = (participant: Participant) => {
+  if (participant.user.firstName) {
+    const first = participant.user.firstName.charAt(0);
+    const last = participant.user.lastName?.charAt(0) || '';
+    return `${first}${last}`.toUpperCase();
+  }
+  return participant.user.email.charAt(0).toUpperCase();
+};
+
+const getDisplayTitle = (conversation: Conversation, currentUserId: string) => {
+  // For direct messages, show the other person's name
+  if (conversation.type === 'DIRECT' && conversation.participants) {
+    const otherParticipants = conversation.participants.filter(
+      p => p.userId !== currentUserId
+    );
+    if (otherParticipants.length > 0) {
+      return otherParticipants.map(p => getParticipantName(p)).join(', ');
+    }
+  }
+
   if (conversation.title) return conversation.title;
 
-  // Generate title based on type and context
   switch (conversation.type) {
     case 'FAMILY_CHAT':
       return conversation.family?.name ? `${conversation.family.name} Chat` : 'Family Chat';
@@ -87,15 +116,32 @@ const getDisplayTitle = (conversation: Conversation) => {
     case 'CARE_UPDATE':
       return 'Care Updates';
     default:
-      return `Chat ${conversation.id.slice(-4)}`;
+      return `Chat`;
   }
 };
 
-const getSenderName = (sender: NonNullable<Conversation['lastMessage']>['sender']) => {
-  if (sender.firstName) {
-    return `${sender.firstName} ${sender.lastName || ''}`.trim();
+const getParticipantNames = (conversation: Conversation, currentUserId: string) => {
+  if (!conversation.participants || conversation.participants.length === 0) {
+    return '';
   }
-  return sender.email;
+
+  // Filter out current user and get names
+  const otherParticipants = conversation.participants.filter(
+    p => p.userId !== currentUserId
+  );
+
+  if (otherParticipants.length === 0) {
+    return 'Just you';
+  }
+
+  const names = otherParticipants.slice(0, 3).map(p => getParticipantName(p));
+  const remaining = otherParticipants.length - 3;
+
+  if (remaining > 0) {
+    return `${names.join(', ')} +${remaining}`;
+  }
+
+  return names.join(', ');
 };
 
 export function ConversationList({
@@ -106,11 +152,8 @@ export function ConversationList({
 }: ConversationListProps) {
   const [archivingConversation, setArchivingConversation] = useState<string | null>(null);
 
-  const handleArchiveConversation = async (conversationId: string, event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (!confirm('Are you sure you want to archive this conversation? This action cannot be undone.')) {
+  const handleArchiveConversation = async (conversationId: string) => {
+    if (!confirm('Are you sure you want to archive this conversation?')) {
       return;
     }
 
@@ -127,7 +170,6 @@ export function ConversationList({
         throw new Error(error.message || 'Failed to archive conversation');
       }
 
-      // Refresh the conversation list
       onConversationUpdate();
     } catch (error) {
       console.error('Error archiving conversation:', error);
@@ -138,96 +180,129 @@ export function ConversationList({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+    <div className="flex flex-col gap-1">
       {conversations.map((conversation) => {
-        const TypeIcon = getConversationTypeIcon(conversation.type);
         const typeBadge = getConversationTypeBadge(conversation.type);
-        const displayTitle = getDisplayTitle(conversation);
+        const displayTitle = getDisplayTitle(conversation, currentUserId);
+        const participantNames = getParticipantNames(conversation, currentUserId);
         const isUnread = conversation.unreadCount > 0;
+        const chatUrl = `/${userRole.toLowerCase()}/chat/${conversation.id}`;
+
+        // Get participants for avatar stack (excluding current user)
+        const otherParticipants = (conversation.participants || []).filter(
+          p => p.userId !== currentUserId
+        );
 
         return (
-          <Card
+          <Link
             key={conversation.id}
-            className={`relative overflow-hidden hover:shadow-md transition-shadow ${isUnread ? 'border-primary/20 bg-primary/5' : ''}`}
+            href={chatUrl}
+            className="block group"
           >
-            <CardContent className="space-y-2 p-3">
-              {/* Header */}
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <TypeIcon className="h-4 w-4 text-primary shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-medium text-sm line-clamp-1">
-                      {displayTitle}
-                    </h3>
-                  </div>
-                </div>
+            <div
+              className={`flex items-center gap-3 p-3 rounded-lg border transition-colors hover:bg-accent min-h-[64px] ${
+                isUnread ? 'bg-primary/5 border-primary/20' : 'border-transparent hover:border-border'
+              }`}
+            >
+              {/* Unread indicator */}
+              <div className="w-2 shrink-0">
+                {isUnread && (
+                  <div className="w-2 h-2 rounded-full bg-destructive" />
+                )}
+              </div>
 
+              {/* Avatar stack */}
+              <div className="flex -space-x-2 shrink-0">
+                {otherParticipants.length > 0 ? (
+                  <>
+                    {otherParticipants.slice(0, 3).map((participant, idx) => (
+                      <Avatar
+                        key={participant.userId}
+                        className="h-8 w-8 border-2 border-background"
+                        style={{ zIndex: 3 - idx }}
+                      >
+                        <AvatarFallback className="text-xs bg-muted">
+                          {getParticipantInitials(participant)}
+                        </AvatarFallback>
+                      </Avatar>
+                    ))}
+                    {otherParticipants.length > 3 && (
+                      <div
+                        className="h-8 w-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-xs font-medium"
+                        style={{ zIndex: 0 }}
+                      >
+                        +{otherParticipants.length - 3}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <Avatar className="h-8 w-8 border-2 border-background">
+                    <AvatarFallback className="text-xs bg-muted">
+                      <Users className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  {isUnread && (
-                    <Bell className="h-4 w-4 text-destructive" />
+                  <span className={`font-medium truncate ${isUnread ? 'text-foreground' : 'text-foreground'}`}>
+                    {displayTitle}
+                  </span>
+                  <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 shrink-0 ${typeBadge.color}`}>
+                    {typeBadge.label}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                    {conversation.lastMessage
+                      ? formatDistanceToNow(new Date(conversation.lastMessage.createdAt), { addSuffix: false })
+                      : formatDistanceToNow(new Date(conversation.updatedAt), { addSuffix: false })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {participantNames && conversation.type !== 'DIRECT' && (
+                    <span className="text-xs text-muted-foreground truncate">
+                      {participantNames}
+                    </span>
+                  )}
+                  {conversation.lastMessage && (
+                    <p className="text-sm text-muted-foreground truncate flex-1">
+                      {conversation.type === 'DIRECT' ? '' : '· '}
+                      {conversation.lastMessage.content}
+                    </p>
                   )}
                 </div>
               </div>
 
-              {/* Type and Family badges */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary" className={typeBadge.color}>
-                  {typeBadge.label}
-                </Badge>
-                {conversation.family && (
-                  <Badge variant="outline" className="text-xs">
-                    {conversation.family.name}
-                  </Badge>
-                )}
-                <div className="flex items-center gap-2">
-                  <Link href={`/${userRole.toLowerCase()}/chat/${conversation.id}`}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-6 px-2 text-xs"
-                    >
-                      <MessageCircle className="h-3 w-3 mr-1" />
-                      Open Chat
-                    </Button>
-                  </Link>
+              {/* Actions dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="sm"
-                    onClick={(e) => handleArchiveConversation(conversation.id, e)}
-                    disabled={archivingConversation === conversation.id}
-                    className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => e.preventDefault()}
                   >
-                    <Archive className="h-3 w-3 mr-1" />
-                    {archivingConversation === conversation.id ? 'Archiving...' : 'Archive'}
+                    <MoreVertical className="h-4 w-4" />
+                    <span className="sr-only">More options</span>
                   </Button>
-                </div>
-              </div>
-
-              {/* Last Message */}
-              {conversation.lastMessage && (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Avatar className="h-5 w-5">
-                      <AvatarImage src={conversation.lastMessage.sender.imageUrl} />
-                      <AvatarFallback className="text-xs">
-                        {getSenderName(conversation.lastMessage.sender).charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs font-medium text-muted-foreground truncate">
-                      {getSenderName(conversation.lastMessage.sender)}
-                    </span>
-                    <span className="text-xs text-muted-foreground ml-auto">
-                      {formatDistanceToNow(new Date(conversation.lastMessage.createdAt), { addSuffix: true })}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground line-clamp-1 pl-7">
-                    {conversation.lastMessage.content}
-                  </p>
-                </div>
-              )}
-
-            </CardContent>
-          </Card>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleArchiveConversation(conversation.id);
+                    }}
+                    disabled={archivingConversation === conversation.id}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Archive className="h-4 w-4 mr-2" />
+                    {archivingConversation === conversation.id ? 'Archiving...' : 'Archive'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </Link>
         );
       })}
     </div>

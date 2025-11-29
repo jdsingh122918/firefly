@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { UserRole } from "@prisma/client";
-import { Plus, Search, MessageCircle, Users, Send, MoreVertical } from "lucide-react";
+import { Plus, Search, MessageCircle, Send, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { ConversationList } from "./conversation-list";
@@ -68,7 +67,6 @@ export function ChatPageContent({ userRole, userId }: ChatPageContentProps) {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState("all");
   const [showConversationForm, setShowConversationForm] = useState(false);
 
   const fetchConversations = useCallback(async () => {
@@ -115,13 +113,6 @@ export function ChatPageContent({ userRole, userId }: ChatPageContentProps) {
     setSearchQuery(query);
   }, []);
 
-  const filteredConversations = (conversations || []).filter(conversation => {
-    if (activeTab === "family" && !conversation.familyId) {
-      return false;
-    }
-    return true;
-  });
-
   const canCreateConversations = userRole === UserRole.ADMIN || userRole === UserRole.VOLUNTEER || userRole === UserRole.MEMBER;
 
   return (
@@ -131,7 +122,7 @@ export function ChatPageContent({ userRole, userId }: ChatPageContentProps) {
         <NewConversationForm
           userRole={userRole}
           userId={userId}
-          context={activeTab as 'family' | 'all' | 'unread' | 'recent'}
+          context="all"
           onConversationCreated={() => {
             setShowConversationForm(false);
             fetchConversations();
@@ -183,81 +174,66 @@ export function ChatPageContent({ userRole, userId }: ChatPageContentProps) {
         </>
       )}
 
-      {/* Tabs - Direct rendering following established codebase pattern */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="all">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="all">All Chats</TabsTrigger>
-          <TabsTrigger value="family">
-            <Users className="h-3 w-3 mr-1" />
-            Family
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value={activeTab} className="space-y-4 mt-4">
-          {/* Conversation List */}
-          {loading && conversations.length === 0 && (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <Card key={i} className="p-4">
-                  <div className="animate-pulse space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="h-10 w-10 bg-muted rounded-full" />
-                      <div className="space-y-2 flex-1">
-                        <div className="h-4 bg-muted rounded w-3/4" />
-                        <div className="h-3 bg-muted rounded w-1/2" />
-                      </div>
-                    </div>
+      {/* Conversation List */}
+      {loading && conversations.length === 0 && (
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <Card key={i} className="p-4">
+              <div className="animate-pulse space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 bg-muted rounded-full" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 bg-muted rounded w-3/4" />
+                    <div className="h-3 bg-muted rounded w-1/2" />
                   </div>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {error && (
-            <Card className="p-4">
-              <div className="text-center text-muted-foreground">
-                <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>{error}</p>
-                <Button variant="outline" onClick={fetchConversations} className="mt-2">
-                  Try Again
-                </Button>
+                </div>
               </div>
             </Card>
-          )}
+          ))}
+        </div>
+      )}
 
-          {!loading && !error && filteredConversations.length === 0 && (
-            <Card className="p-4">
-              <div className="text-center text-muted-foreground">
-                <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>
-                  {searchQuery ? `No conversations found for "${searchQuery}"` :
-                   activeTab === "family" ? "No family conversations" :
-                   "No conversations yet"}
-                </p>
-                {canCreateConversations && !searchQuery && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowConversationForm(true)}
-                    className="mt-2"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Start First Conversation
-                  </Button>
-                )}
-              </div>
-            </Card>
-          )}
+      {error && (
+        <Card className="p-4">
+          <div className="text-center text-muted-foreground">
+            <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>{error}</p>
+            <Button variant="outline" onClick={fetchConversations} className="mt-2">
+              Try Again
+            </Button>
+          </div>
+        </Card>
+      )}
 
-          {!loading && !error && filteredConversations.length > 0 && (
-            <ConversationList
-              conversations={filteredConversations}
-              userRole={userRole}
-              currentUserId={userId}
-              onConversationUpdate={fetchConversations}
-            />
-          )}
-        </TabsContent>
-      </Tabs>
+      {!loading && !error && conversations.length === 0 && (
+        <Card className="p-4">
+          <div className="text-center text-muted-foreground">
+            <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>
+              {searchQuery ? `No conversations found for "${searchQuery}"` : "No conversations yet"}
+            </p>
+            {canCreateConversations && !searchQuery && (
+              <Button
+                variant="outline"
+                onClick={() => setShowConversationForm(true)}
+                className="mt-2"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Start First Conversation
+              </Button>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {!loading && !error && conversations.length > 0 && (
+        <ConversationList
+          conversations={conversations}
+          userRole={userRole}
+          currentUserId={userId}
+          onConversationUpdate={fetchConversations}
+        />
+      )}
     </div>
   );
 }

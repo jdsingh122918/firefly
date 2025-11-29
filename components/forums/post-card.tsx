@@ -7,7 +7,6 @@ import {
   MessageSquare,
   Calendar,
   User,
-  Eye,
   Pin,
   Lock,
   Tag,
@@ -315,11 +314,6 @@ export function PostCard({
               <div className="flex items-center gap-1">
                 <MessageSquare className="h-3 w-3" />
                 <span>{post.replyCount} replies</span>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <Eye className="h-3 w-3" />
-                <span>{post.viewCount} views</span>
               </div>
 
               {post.documents && post.documents.length > 0 && (

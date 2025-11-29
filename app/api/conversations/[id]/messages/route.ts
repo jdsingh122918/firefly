@@ -6,7 +6,7 @@ import { MessageRepository } from "@/lib/db/repositories/message.repository";
 import { UserRepository } from "@/lib/db/repositories/user.repository";
 import { NotificationType } from "@/lib/types";
 import type { MessageMetadata } from "@/lib/types/api";
-import { broadcastToConversation } from "../stream/route";
+import { broadcastToConversation, isUserConnectedToConversation } from "../stream/route";
 import { notificationDispatcher } from "@/lib/notifications/notification-dispatcher.service";
 
 const conversationRepository = new ConversationRepository();
@@ -256,8 +256,30 @@ async function createMessageNotifications(
         (p: any) => p.userId !== senderId && !p.leftAt,
       ) || [];
 
+    // Filter out participants who are already connected to the conversation SSE stream
+    // They're already receiving messages in real-time, so no notification needed
+    const participantsToNotify = otherParticipants.filter((participant: any) => {
+      const isConnected = isUserConnectedToConversation(conversationId, participant.userId);
+      if (isConnected) {
+        console.log("🔕 Skipping notification for connected user:", {
+          userId: participant.userId,
+          conversationId,
+        });
+      }
+      return !isConnected;
+    });
+
+    if (participantsToNotify.length === 0) {
+      console.log("🔔 No notifications needed - all participants are connected:", {
+        conversationId,
+        messageId,
+        totalParticipants: otherParticipants.length,
+      });
+      return;
+    }
+
     // Dispatch notifications for each participant with role-based actionUrl
-    const dispatchPromises = otherParticipants.map(async (participant: any) => {
+    const dispatchPromises = participantsToNotify.map(async (participant: any) => {
       // Get participant's role for correct routing
       const participantUser = await userRepository.getUserById(participant.userId);
       const role = participantUser?.role?.toLowerCase() || 'member';
@@ -298,7 +320,9 @@ async function createMessageNotifications(
     console.log("🔔 Message notifications dispatched:", {
       conversationId,
       messageId,
-      total: otherParticipants.length,
+      totalParticipants: otherParticipants.length,
+      skippedConnected: otherParticipants.length - participantsToNotify.length,
+      notified: participantsToNotify.length,
       success: successCount,
       sseDelivered: sseDeliveredCount,
     });

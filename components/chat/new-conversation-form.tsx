@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { UserRole } from "@prisma/client";
-import { Plus, Users, MessageSquare, Megaphone, Heart, X, Send, ArrowLeft } from "lucide-react";
+import { Plus, MessageSquare, Megaphone, Heart, X, Send, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,12 +49,6 @@ const CONVERSATION_TYPES = [
     icon: MessageSquare,
   },
   {
-    value: "FAMILY_CHAT",
-    label: "Family Chat",
-    description: "Chat with family members",
-    icon: Users,
-  },
-  {
     value: "ANNOUNCEMENT",
     label: "Announcement",
     description: "Broadcast important information",
@@ -71,7 +65,7 @@ export function NewConversationForm({
 }: NewConversationFormProps) {
   const [formData, setFormData] = useState({
     title: "",
-    type: context === 'family' ? "FAMILY_CHAT" : "DIRECT", // Auto-select family chat when from Family tab
+    type: "DIRECT",
     familyId: "",
     participantIds: [] as string[],
   });
@@ -81,26 +75,12 @@ export function NewConversationForm({
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [step, setStep] = useState<'type' | 'details' | 'participants'>(
-    context === 'family' ? 'details' : 'type' // Skip type selection when from Family tab
-  );
+  const [step, setStep] = useState<'type' | 'details' | 'participants'>('type');
 
   // Fetch users and families when component mounts
   useEffect(() => {
     fetchUsersAndFamilies();
   }, []);
-
-  // Auto-select family and family members when context is family
-  useEffect(() => {
-    if (context === 'family' && formData.type === 'FAMILY_CHAT' && families.length === 1) {
-      // Auto-select the only family available
-      const family = families[0];
-      setFormData(prev => ({ ...prev, familyId: family.id }));
-    }
-  }, [context, formData.type, families]);
-
-  // Note: Auto-selection of family members removed to prevent selecting all available users
-  // Family members should be manually selected by the user for better control
 
   const fetchUsersAndFamilies = async () => {
     try {
@@ -272,10 +252,8 @@ export function NewConversationForm({
     } else if (userRole === UserRole.VOLUNTEER) {
       return CONVERSATION_TYPES; // Volunteers can create all types
     } else if (userRole === UserRole.MEMBER) {
-      // Members can create direct messages and family chats (but not announcements)
-      return CONVERSATION_TYPES.filter(type =>
-        type.value === "DIRECT" || type.value === "FAMILY_CHAT"
-      );
+      // Members can only create direct messages (not announcements)
+      return CONVERSATION_TYPES.filter(type => type.value === "DIRECT");
     }
     return CONVERSATION_TYPES.filter(type => type.value === "DIRECT"); // Fallback: just direct messages
   };
@@ -298,9 +276,6 @@ export function NewConversationForm({
   const canProceed = () => {
     if (step === 'type') return !!formData.type;
     if (step === 'details') {
-      if (formData.type === 'FAMILY_CHAT') {
-        return !!formData.familyId;
-      }
       return true;
     }
     if (step === 'participants') {
@@ -418,32 +393,6 @@ export function NewConversationForm({
                 className="min-h-[44px]"
               />
             </div>
-
-            {/* Family Selection (for family chats) */}
-            {formData.type === "FAMILY_CHAT" && families.length > 0 && (
-              <div className="space-y-2">
-                <Label>Select family <span className="text-destructive">*</span></Label>
-                <Select value={formData.familyId} onValueChange={(value) => handleInputChange('familyId', value)}>
-                  <SelectTrigger className="min-h-[44px]">
-                    <SelectValue placeholder="Choose family..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {families.map((family) => (
-                      <SelectItem key={family.id} value={family.id}>
-                        <div className="flex items-center justify-between w-full">
-                          <span>{family.name}</span>
-                          {family.memberCount && (
-                            <Badge variant="outline" className="ml-2">
-                              {family.memberCount} members
-                            </Badge>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </div>
         )}
 

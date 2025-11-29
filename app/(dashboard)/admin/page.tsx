@@ -6,22 +6,17 @@ import {
   UserPlus,
   Building,
   Calendar,
-  FileText,
-  Heart,
   MessageSquare,
   MessagesSquare,
   Activity,
   TrendingUp,
-  FileImage,
-  CheckSquare
+  FileImage
 } from 'lucide-react'
 import { UserRepository } from '@/lib/db/repositories/user.repository'
 import { FamilyRepository } from '@/lib/db/repositories/family.repository'
-import { ResourceRepository } from '@/lib/db/repositories/resource.repository'
 import { ForumRepository } from '@/lib/db/repositories/forum.repository'
 import { DocumentRepository } from '@/lib/db/repositories/document.repository'
 import { UserRole } from '@/lib/auth/roles'
-import { prisma } from '@/lib/db/prisma'
 
 export default async function AdminDashboard() {
   const { userId, sessionClaims } = await auth()
@@ -48,7 +43,6 @@ export default async function AdminDashboard() {
   // Fetch dashboard statistics
   const userRepository = new UserRepository()
   const familyRepository = new FamilyRepository()
-  const resourceRepository = new ResourceRepository(prisma)
   const forumRepository = new ForumRepository()
   const documentRepository = new DocumentRepository()
 
@@ -58,15 +52,6 @@ export default async function AdminDashboard() {
     forumRepository.getForumStats(),
     documentRepository.getDocumentStats()
   ])
-
-  // TODO: Implement getResourceStats() in ResourceRepository
-  // Since notes were consolidated into resources, this method needs to be implemented
-  const resourceStats = {
-    total: 0,
-    published: 0,
-    draft: 0,
-    archived: 0
-  }
 
   return (
     <div className="space-y-6 pb-6">
@@ -84,7 +69,7 @@ export default async function AdminDashboard() {
           <h3 className="text-lg font-medium">User & Family Management</h3>
         </div>
 
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
           <Card className="p-3 border-l-4 border-l-[var(--healthcare-basic)] bg-[hsl(var(--healthcare-basic)/0.05)] hover:bg-[hsl(var(--healthcare-basic)/0.08)] transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -136,42 +121,6 @@ export default async function AdminDashboard() {
               </p>
             </CardContent>
           </Card>
-        </div>
-      </div>
-
-      {/* Care Documentation Metrics */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Heart className="h-4 w-4" />
-          <h3 className="text-lg font-medium">Care Documentation</h3>
-        </div>
-
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="p-3 border-l-4 border-l-[var(--healthcare-home)] bg-[hsl(var(--healthcare-home)/0.05)] hover:bg-[hsl(var(--healthcare-home)/0.08)] transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Notes</CardTitle>
-              <FileText className="h-4 w-4 text-[hsl(var(--healthcare-home))]" />
-            </CardHeader>
-            <CardContent className="space-y-1">
-              <div className="text-2xl font-bold">{resourceStats.total}</div>
-              <p className="text-xs text-muted-foreground">
-                All documentation
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="p-3 border-l-4 border-l-[var(--healthcare-medical)] bg-[hsl(var(--healthcare-medical)/0.05)] hover:bg-[hsl(var(--healthcare-medical)/0.08)] transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Care Plans</CardTitle>
-              <Heart className="h-4 w-4 text-[hsl(var(--healthcare-medical))]" />
-            </CardHeader>
-            <CardContent className="space-y-1">
-              <div className="text-2xl font-bold">{resourceStats.published}</div>
-              <p className="text-xs text-muted-foreground">
-                Care plan documents
-              </p>
-            </CardContent>
-          </Card>
 
           <Card className="p-3 border-l-4 border-l-[var(--healthcare-home)] bg-[hsl(var(--healthcare-home)/0.05)] hover:bg-[hsl(var(--healthcare-home)/0.08)] transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -182,19 +131,6 @@ export default async function AdminDashboard() {
               <div className="text-2xl font-bold">{documentStats.totalDocuments}</div>
               <p className="text-xs text-muted-foreground">
                 Uploaded files
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="p-3 border-l-4 border-l-[var(--healthcare-equipment)] bg-[hsl(var(--healthcare-equipment)/0.05)] hover:bg-[hsl(var(--healthcare-equipment)/0.08)] transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Assignments</CardTitle>
-              <CheckSquare className="h-4 w-4 text-[hsl(var(--healthcare-equipment))]" />
-            </CardHeader>
-            <CardContent className="space-y-1">
-              <div className="text-2xl font-bold">{resourceStats.published}</div>
-              <p className="text-xs text-muted-foreground">
-                Tasks assigned
               </p>
             </CardContent>
           </Card>

@@ -123,7 +123,6 @@ export class PostRepository {
             postId: post.id,
             documentId,
             order: index,
-            createdBy: data.authorId,
           }));
 
           await prisma.postDocument.createMany({

@@ -227,6 +227,7 @@ export function SimplePostForm({
                       maxHeight={400}
                       maxLength={10000}
                       enableAttachments={true}
+                      attachments={uploadedDocuments}
                       onAttachmentsChange={setUploadedDocuments}
                     />
                   </FormControl>

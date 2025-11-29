@@ -7,12 +7,36 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { HealthcareTagsInitializer } from '@/components/admin/healthcare-tags-initializer'
 import { toast } from 'sonner'
 
+interface SyncResult {
+  success?: boolean;
+  dryRun?: boolean;
+  summary?: {
+    clerkUsersFound: number;
+    usersCreated: number;
+    duplicatesFound: number;
+    duplicatesDeleted: number;
+  };
+  details?: {
+    created: Array<{ clerkId: string; email: string }>;
+    duplicates: Array<{
+      field: string;
+      value: string;
+      kept: { id: string; email: string; createdAt: string };
+      removed: Array<{ id: string; email: string; createdAt: string }>;
+    }>;
+  };
+  message?: string;
+  user?: object;
+  error?: string;
+}
+
 export default function DebugPage() {
   const { isLoaded, isSignedIn, userId } = useAuth()
   const [syncing, setSyncing] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [resettingChat, setResettingChat] = useState(false)
-  const [result, setResult] = useState<{ message?: string; user?: object; error?: string } | null>(null)
+  const [syncingClerk, setSyncingClerk] = useState(false)
+  const [result, setResult] = useState<SyncResult | null>(null)
 
   const syncUser = async () => {
     try {
@@ -123,6 +147,44 @@ export default function DebugPage() {
     }
   }
 
+  const syncClerkUsers = async (dryRun: boolean) => {
+    if (!dryRun && !confirm('Are you sure you want to sync all Clerk users and remove duplicates? This will modify the database.')) {
+      return
+    }
+
+    try {
+      setSyncingClerk(true)
+
+      const response = await fetch(`/api/debug/sync-clerk-users?dryRun=${dryRun}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Sync failed')
+      }
+
+      setResult(data)
+      if (dryRun) {
+        toast.success(`Preview: ${data.summary?.usersCreated || 0} users to create, ${data.summary?.duplicatesFound || 0} duplicates found`)
+      } else {
+        toast.success(`Synced ${data.summary?.usersCreated || 0} users, removed ${data.summary?.duplicatesDeleted || 0} duplicates`)
+      }
+    } catch (error) {
+      console.error('Error syncing Clerk users:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to sync Clerk users'
+      toast.error(errorMessage)
+      setResult({ error: errorMessage })
+    } finally {
+      setSyncingClerk(false)
+    }
+  }
+
   if (!isLoaded) {
     return <div>Loading...</div>
   }
@@ -192,6 +254,34 @@ export default function DebugPage() {
             <Button onClick={checkDatabase} variant="outline">
               Check Database State
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle>Clerk Sync & Cleanup</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Sync all Clerk users to the database and remove any duplicate records.
+              Preview first to see what changes will be made.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => syncClerkUsers(true)}
+                disabled={syncingClerk}
+                variant="outline"
+              >
+                {syncingClerk ? 'Processing...' : 'Preview Sync'}
+              </Button>
+              <Button
+                onClick={() => syncClerkUsers(false)}
+                disabled={syncingClerk}
+                variant="default"
+              >
+                {syncingClerk ? 'Processing...' : 'Sync & Cleanup'}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
