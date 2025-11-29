@@ -14,7 +14,8 @@ interface SyncResult {
     clerkUsersFound: number;
     usersCreated: number;
     duplicatesFound: number;
-    duplicatesDeleted: number;
+    orphanedUsersFound: number;
+    totalDeleted: number;
   };
   details?: {
     created: Array<{ clerkId: string; email: string }>;
@@ -23,6 +24,12 @@ interface SyncResult {
       value: string;
       kept: { id: string; email: string; createdAt: string };
       removed: Array<{ id: string; email: string; createdAt: string }>;
+    }>;
+    orphanedUsers: Array<{
+      id: string;
+      clerkId: string;
+      email: string;
+      createdAt: string;
     }>;
   };
   message?: string;
@@ -171,9 +178,9 @@ export default function DebugPage() {
 
       setResult(data)
       if (dryRun) {
-        toast.success(`Preview: ${data.summary?.usersCreated || 0} users to create, ${data.summary?.duplicatesFound || 0} duplicates found`)
+        toast.success(`Preview: ${data.summary?.usersCreated || 0} to create, ${data.summary?.duplicatesFound || 0} duplicates, ${data.summary?.orphanedUsersFound || 0} orphaned`)
       } else {
-        toast.success(`Synced ${data.summary?.usersCreated || 0} users, removed ${data.summary?.duplicatesDeleted || 0} duplicates`)
+        toast.success(`Synced ${data.summary?.usersCreated || 0} users, deleted ${data.summary?.totalDeleted || 0} (duplicates + orphaned)`)
       }
     } catch (error) {
       console.error('Error syncing Clerk users:', error)
@@ -263,8 +270,8 @@ export default function DebugPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Sync all Clerk users to the database and remove any duplicate records.
-              Preview first to see what changes will be made.
+              Sync all Clerk users to the database, remove duplicates, and delete orphaned users
+              (DB users whose Clerk accounts no longer exist). Preview first to see changes.
             </p>
             <div className="flex gap-2">
               <Button
